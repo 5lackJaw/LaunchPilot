@@ -102,6 +102,21 @@ Rules:
 - crawl results store raw crawl-derived signals, not generated Marketing Brief conclusions
 - downstream brief generation should reference a specific crawl result
 
+### interview_answers
+Purpose: persisted guided onboarding answers that enrich the Marketing Brief.
+Fields:
+- id
+- product_id
+- question_id
+- answer
+- created_at
+- updated_at
+
+Rules:
+- interview answers belong to a product and must be tenant-checked through product ownership
+- one answer is stored per product and question
+- answers are user-authored brief inputs, not generated conclusions
+
 ### content_assets
 Purpose: generated content objects.
 Fields:

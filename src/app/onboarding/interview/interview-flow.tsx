@@ -1,24 +1,53 @@
 "use client";
 
 import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import type { InterviewAnswer } from "@/server/schemas/interview";
+import { saveInterviewAnswerAction, type InterviewSaveState } from "@/app/onboarding/interview/actions";
 import { interviewQuestions } from "@/app/onboarding/interview/interview-questions";
 
 type Answers = Partial<Record<string, string>>;
 
-export function InterviewFlow({ productId }: { productId: string }) {
+const initialSaveState: InterviewSaveState = {
+  status: "idle",
+};
+
+export function InterviewFlow({ productId, initialAnswers }: { productId: string; initialAnswers: InterviewAnswer[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [answers, setAnswers] = useState<Answers>({});
+  const [state, formAction] = useActionState(handleSaveAnswer, initialSaveState);
+  const [answers, setAnswers] = useState<Answers>(() =>
+    Object.fromEntries(initialAnswers.map((answer) => [answer.questionId, answer.answer])),
+  );
+  const [savedAnswers, setSavedAnswers] = useState<Answers>(() =>
+    Object.fromEntries(initialAnswers.map((answer) => [answer.questionId, answer.answer])),
+  );
   const activeQuestion = interviewQuestions[activeIndex];
   const completedCount = useMemo(
-    () => interviewQuestions.filter((question) => answers[question.id]?.trim()).length,
-    [answers],
+    () => interviewQuestions.filter((question) => savedAnswers[question.id]?.trim()).length,
+    [savedAnswers],
   );
   const progressPercent = Math.round((completedCount / interviewQuestions.length) * 100);
+  const activeAnswer = answers[activeQuestion.id] ?? "";
+  const hasUnsavedChange = (savedAnswers[activeQuestion.id] ?? "") !== activeAnswer;
+
+  async function handleSaveAnswer(previousState: InterviewSaveState, formData: FormData) {
+    const nextState = await saveInterviewAnswerAction(previousState, formData);
+
+    if (nextState.status === "success" && nextState.savedQuestionId) {
+      setSavedAnswers((current) => ({
+        ...current,
+        [nextState.savedQuestionId as string]: String(formData.get("answer") ?? ""),
+      }));
+    }
+
+    return nextState;
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -34,11 +63,28 @@ export function InterviewFlow({ productId }: { productId: string }) {
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="flex flex-col gap-5">
+        <CardContent>
+          <form action={formAction} className="flex flex-col gap-5">
+          {state.status === "error" ? (
+            <Alert variant="destructive">
+              <AlertTitle>Answer was not saved</AlertTitle>
+              <AlertDescription>{state.message}</AlertDescription>
+            </Alert>
+          ) : null}
+          {state.status === "success" ? (
+            <Alert>
+              <AlertTitle>Saved</AlertTitle>
+              <AlertDescription>{state.message}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          <input type="hidden" name="productId" value={productId} />
+          <input type="hidden" name="questionId" value={activeQuestion.id} />
           <div className="flex flex-col gap-2">
             <Label htmlFor={activeQuestion.id}>Answer</Label>
             <textarea
               id={activeQuestion.id}
+              name="answer"
               value={answers[activeQuestion.id] ?? ""}
               onChange={(event) =>
                 setAnswers((current) => ({
@@ -82,22 +128,26 @@ export function InterviewFlow({ productId }: { productId: string }) {
               <ArrowLeft data-icon="inline-start" />
               Back
             </Button>
-            <Button
-              type="button"
-              disabled={activeIndex === interviewQuestions.length - 1}
-              onClick={() => setActiveIndex((index) => Math.min(interviewQuestions.length - 1, index + 1))}
-            >
-              Next
-              <ArrowRight data-icon="inline-end" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <SaveButton hasUnsavedChange={hasUnsavedChange} />
+              <Button
+                type="button"
+                disabled={activeIndex === interviewQuestions.length - 1 || hasUnsavedChange}
+                onClick={() => setActiveIndex((index) => Math.min(interviewQuestions.length - 1, index + 1))}
+              >
+                Next
+                <ArrowRight data-icon="inline-end" />
+              </Button>
+            </div>
           </div>
+          </form>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>Interview progress</CardTitle>
-          <CardDescription>Answers are local until the persistence slice is implemented.</CardDescription>
+          <CardDescription>Saved answers can be resumed later.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="h-2 overflow-hidden rounded-full bg-secondary">
@@ -109,7 +159,7 @@ export function InterviewFlow({ productId }: { productId: string }) {
           </div>
           <div className="flex flex-col gap-2">
             {interviewQuestions.map((question, index) => {
-              const isAnswered = Boolean(answers[question.id]?.trim());
+              const isAnswered = Boolean(savedAnswers[question.id]?.trim());
               const isActive = index === activeIndex;
 
               return (
@@ -130,5 +180,15 @@ export function InterviewFlow({ productId }: { productId: string }) {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function SaveButton({ hasUnsavedChange }: { hasUnsavedChange: boolean }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button type="submit" variant={hasUnsavedChange ? "default" : "secondary"} disabled={pending || !hasUnsavedChange}>
+      {pending ? "Saving..." : hasUnsavedChange ? "Save answer" : "Saved"}
+    </Button>
   );
 }

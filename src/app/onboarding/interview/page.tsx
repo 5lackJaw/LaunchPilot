@@ -4,7 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
+import { InterviewAnswerReadError, InterviewService } from "@/server/services/interview-service";
 import { ProductReadError, ProductService } from "@/server/services/product-service";
+import type { InterviewAnswer } from "@/server/schemas/interview";
 import { InterviewFlow } from "@/app/onboarding/interview/interview-flow";
 
 export const metadata: Metadata = {
@@ -19,7 +21,7 @@ type PageProps = {
 
 export default async function OnboardingInterviewPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const data = params.productId ? await loadProduct(params.productId) : { product: null, error: "Missing product ID." };
+  const data = params.productId ? await loadInterviewData(params.productId) : { product: null, answers: [], error: "Missing product ID." };
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -52,7 +54,7 @@ export default async function OnboardingInterviewPage({ searchParams }: PageProp
                 <h2 className="text-lg font-medium">{data.product.name}</h2>
                 <p className="text-sm text-muted-foreground">{data.product.url}</p>
               </div>
-              <InterviewFlow productId={data.product.id} />
+              <InterviewFlow productId={data.product.id} initialAnswers={data.answers} />
             </>
           ) : null}
         </section>
@@ -61,24 +63,36 @@ export default async function OnboardingInterviewPage({ searchParams }: PageProp
   );
 }
 
-async function loadProduct(productId: string): Promise<{ product: Product | null; error: string | null }> {
+async function loadInterviewData(productId: string): Promise<{
+  product: Product | null;
+  answers: InterviewAnswer[];
+  error: string | null;
+}> {
   try {
     const supabase = await createSupabaseServerClient();
-    const product = await new ProductService(supabase).getProduct({ productId });
+    const [product, answers] = await Promise.all([
+      new ProductService(supabase).getProduct({ productId }),
+      new InterviewService(supabase).listAnswers({ productId }),
+    ]);
 
-    return { product, error: null };
+    return { product, answers, error: null };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { product: null, error: error.message };
+      return { product: null, answers: [], error: error.message };
     }
 
     if (error instanceof ProductReadError) {
-      return { product: null, error: error.message };
+      return { product: null, answers: [], error: error.message };
+    }
+
+    if (error instanceof InterviewAnswerReadError) {
+      return { product: null, answers: [], error: error.message };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
       return {
         product: null,
+        answers: [],
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
       };
     }
