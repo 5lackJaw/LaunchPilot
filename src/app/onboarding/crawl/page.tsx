@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { CheckCircle2, Circle, Loader2, XCircle } from "lucide-react";
+import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { CrawlJob, CrawlResult } from "@/server/schemas/crawl";
@@ -128,6 +130,11 @@ function CrawlPanel({
         <StartCrawlForm productId={product.id} disabled={crawlInFlight} />
         {crawlJob ? <CrawlProgress crawlJob={crawlJob} /> : <p className="text-sm text-muted-foreground">No crawl job exists yet.</p>}
         {crawlResult ? <CrawlResultPanel crawlResult={crawlResult} /> : null}
+        {crawlResult ? (
+          <Button asChild>
+            <Link href={`/onboarding/interview?productId=${product.id}`}>Continue to interview</Link>
+          </Button>
+        ) : null}
       </CardContent>
     </Card>
   );

@@ -17,7 +17,7 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Product creation flow
 - [x] URL crawl trigger and progress UI
 - [x] Crawl result persistence
-- [ ] Guided interview UI
+- [x] Guided interview UI
 - [ ] Interview answer persistence
 - [ ] Marketing Brief generation workflow
 - [ ] Brief review UI
