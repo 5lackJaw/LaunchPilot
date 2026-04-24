@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { BarChart3, BookOpenText, Inbox, LayoutDashboard, Search, Send, Settings, Share2, Workflow } from "lucide-react";
 import { appConfig } from "@/config/app";
 import { cn } from "@/lib/utils";
@@ -17,6 +20,8 @@ const primaryNav = [
 const settingsNav = [{ href: "/settings/connections", label: "Settings", icon: Settings }];
 
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
+  const pathname = usePathname();
+
   return (
     <div className="grid min-h-screen grid-cols-1 bg-background text-foreground md:grid-cols-[220px_1fr]">
       <aside className="hidden border-r bg-card md:flex md:flex-col">
@@ -27,15 +32,10 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           <span className="font-serif text-base text-foreground">{appConfig.name}</span>
         </div>
 
-        <div className="m-3 flex items-center gap-2 rounded-md border bg-secondary px-3 py-2">
-          <span className="size-1.5 rounded-full bg-accent" />
-          <span className="truncate text-xs font-medium">Example product</span>
-        </div>
-
         <nav className="flex flex-1 flex-col gap-1 px-2 py-2">
-          <NavSection label="Work" items={primaryNav} />
+          <NavSection label="Work" items={primaryNav} pathname={pathname} />
           <div className="mt-auto">
-            <NavSection label="Account" items={settingsNav} />
+            <NavSection label="Account" items={settingsNav} pathname={pathname} />
           </div>
         </nav>
 
@@ -57,29 +57,36 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
 function NavSection({
   label,
   items,
+  pathname,
 }: {
   label: string;
   items: Array<{ href: string; label: string; icon: typeof LayoutDashboard; badge?: string }>;
+  pathname: string;
 }) {
   return (
     <div className="flex flex-col gap-1">
       <p className="px-3 pt-3 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
-      {items.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={cn(
-            "flex items-center gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground",
-            item.href === "/dashboard" && "text-foreground",
-          )}
-        >
-          <item.icon />
-          <span className="min-w-0 flex-1 truncate">{item.label}</span>
-          {item.badge ? (
-            <span className="rounded-full bg-accent px-1.5 py-0.5 font-mono text-[10px] text-accent-foreground">{item.badge}</span>
-          ) : null}
-        </Link>
-      ))}
+      {items.map((item) => {
+        const isActive = pathname === item.href;
+
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+              "flex items-center gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+              isActive && "bg-secondary text-foreground",
+            )}
+            aria-current={isActive ? "page" : undefined}
+          >
+            <item.icon />
+            <span className="min-w-0 flex-1 truncate">{item.label}</span>
+            {item.badge ? (
+              <span className="rounded-full bg-accent px-1.5 py-0.5 font-mono text-[10px] text-accent-foreground">{item.badge}</span>
+            ) : null}
+          </Link>
+        );
+      })}
     </div>
   );
 }

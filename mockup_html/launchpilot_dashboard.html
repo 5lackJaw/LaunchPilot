@@ -13,10 +13,12 @@
   --bg:        #0B0B0C;
   --bg2:       #111113;
   --bg3:       #17171A;
+  --bg4:       #1D1D21;
   --border:    #232328;
   --border2:   #2E2E35;
   --text:      #E8E8EC;
   --muted:     #6B6B78;
+  --muted-2:   #8A8A95;
   --subtle:    #3A3A44;
   --purple:    #7B6EF6;
   --purple-d:  #5B52CC;
@@ -34,7 +36,10 @@
   --sans:      'DM Sans', sans-serif;
 }
 
-html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; line-height: 1.5; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.5; }
+
+button { font-family: inherit; }
+button:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
 
 /* ── Layout ── */
 .shell { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 1fr; height: 100vh; overflow: hidden; }
@@ -68,35 +73,21 @@ aside {
 }
 .logo-name {
   font-family: var(--serif);
-  font-size: 16px;
+  font-size: 17px;
   color: var(--text);
   letter-spacing: 0.2px;
 }
 
-.product-pill {
-  margin: 14px 12px;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
-  cursor: pointer;
-  display: flex; align-items: center; gap: 8px;
-  transition: border-color 0.15s;
-}
-.product-pill:hover { border-color: var(--border2); }
-.product-dot { width: 6px; height: 6px; background: var(--teal); border-radius: 50%; flex-shrink: 0; }
-.product-name { font-size: 12px; font-weight: 500; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.product-caret { color: var(--muted); font-size: 10px; }
-
 nav { padding: 4px 0; flex: 1; }
-.nav-section { padding: 14px 18px 4px; font-size: 9.5px; font-family: var(--mono); letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+.nav-section { padding: 14px 18px 4px; font-size: 10px; font-family: var(--mono); letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
 .nav-item {
   display: flex; align-items: center; gap: 9px;
   padding: 7px 18px;
-  font-size: 12.5px; color: var(--muted);
-  cursor: pointer; border-radius: 0;
+  font-size: 13px; color: var(--muted);
+  cursor: pointer;
   transition: color 0.12s, background 0.12s;
   position: relative;
+  background: none; border: none; width: 100%; text-align: left;
 }
 .nav-item:hover { color: var(--text); background: var(--bg3); }
 .nav-item.active { color: var(--text); background: var(--purple-dim); }
@@ -107,11 +98,10 @@ nav { padding: 4px 0; flex: 1; }
   margin-left: auto;
   background: var(--amber);
   color: #000;
-  font-size: 9px; font-family: var(--mono); font-weight: 500;
+  font-size: 9.5px; font-family: var(--mono); font-weight: 500;
   padding: 1px 5px; border-radius: 10px;
   min-width: 16px; text-align: center;
 }
-.badge.purple { background: var(--purple); color: #fff; }
 
 .sidebar-footer {
   border-top: 1px solid var(--border);
@@ -119,52 +109,73 @@ nav { padding: 4px 0; flex: 1; }
   display: flex; align-items: center; gap: 9px;
 }
 .avatar { width: 26px; height: 26px; background: var(--purple-dim); border: 1px solid var(--purple); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--purple-l); font-weight: 500; flex-shrink: 0; }
-.user-name { font-size: 12px; color: var(--text); font-weight: 500; }
-.user-plan { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+.user-name { font-size: 12.5px; color: var(--text); font-weight: 500; }
+.user-plan { font-size: 10.5px; color: var(--muted); font-family: var(--mono); }
 
 /* ── Main ── */
 main { overflow-y: auto; display: flex; flex-direction: column; }
 
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 28px;
+  padding: 14px 28px;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
   position: sticky; top: 0; z-index: 10;
+  gap: 16px;
 }
-.page-title { font-family: var(--serif); font-size: 20px; color: var(--text); font-style: italic; }
+.topbar-left { display: flex; align-items: center; gap: 16px; }
+.page-title { font-family: var(--serif); font-size: 22px; color: var(--text); font-weight: 400; }
+
+/* product switcher (moved from sidebar) */
+.product-switcher {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px 6px 9px;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  transition: border-color 0.15s, background 0.15s;
+  font-family: var(--sans); color: var(--text);
+}
+.product-switcher:hover { border-color: var(--border2); background: var(--bg4); }
+.product-dot { width: 6px; height: 6px; background: var(--teal); border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 3px #2DD4A015; }
+.product-name { font-size: 12.5px; font-weight: 500; color: var(--text); }
+.product-caret { color: var(--muted); font-size: 10px; }
+
 .topbar-right { display: flex; align-items: center; gap: 10px; }
 .btn {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 13px; border-radius: 7px;
-  font-size: 12px; font-family: var(--sans); font-weight: 500;
+  padding: 7px 13px; border-radius: 7px;
+  font-size: 12.5px; font-family: var(--sans); font-weight: 500;
   cursor: pointer; transition: all 0.12s; border: none;
 }
 .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
 .btn-ghost:hover { color: var(--text); border-color: var(--border2); }
 .btn-primary { background: var(--purple); color: #fff; }
 .btn-primary:hover { background: var(--purple-d); }
-.week-label { font-size: 11px; font-family: var(--mono); color: var(--muted); }
+.week-label { font-size: 11.5px; font-family: var(--mono); color: var(--muted); }
 
 .content { padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
 
-/* ── Weekly brief bar ── */
+/* ── Weekly brief: now insight-only, not summary ── */
 .brief-bar {
-  background: var(--bg3);
+  background: linear-gradient(180deg, var(--bg3) 0%, var(--bg2) 100%);
   border: 1px solid var(--border);
   border-left: 3px solid var(--purple);
   border-radius: 9px;
-  padding: 14px 18px;
-  display: flex; align-items: flex-start; gap: 14px;
+  padding: 16px 20px;
+  display: flex; align-items: flex-start; gap: 16px;
   animation: slideIn 0.4s ease both;
 }
-.brief-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.brief-icon-wrap { width: 32px; height: 32px; border-radius: 8px; background: var(--purple-dim); border: 1px solid #7B6EF625; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.brief-icon { font-size: 16px; color: var(--purple-l); }
 .brief-body { flex: 1; }
-.brief-title { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
-.brief-text { font-size: 12px; color: var(--muted); line-height: 1.6; }
-.brief-text strong { color: var(--teal); font-weight: 500; }
-.brief-actions { display: flex; gap: 8px; margin-top: 10px; }
-.btn-xs { padding: 4px 10px; font-size: 11px; border-radius: 5px; }
+.brief-eyebrow { font-size: 10px; font-family: var(--mono); color: var(--purple-l); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+.brief-title { font-family: var(--serif); font-size: 18px; color: var(--text); margin-bottom: 6px; line-height: 1.3; }
+.brief-text { font-size: 12.5px; color: var(--muted-2); line-height: 1.6; }
+.brief-text strong { color: var(--text); font-weight: 500; }
+.brief-actions { display: flex; gap: 8px; margin-top: 12px; }
+.btn-xs { padding: 5px 11px; font-size: 11.5px; border-radius: 5px; }
 
 /* ── Metrics row ── */
 .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
@@ -175,20 +186,23 @@ main { overflow-y: auto; display: flex; flex-direction: column; }
   padding: 16px 18px;
   animation: slideIn 0.4s ease both;
   transition: border-color 0.15s;
+  display: flex; flex-direction: column;
 }
 .metric-card:hover { border-color: var(--border2); }
-.metric-label { font-size: 10.5px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
-.metric-value { font-size: 26px; font-family: var(--serif); color: var(--text); font-weight: 400; line-height: 1; margin-bottom: 6px; }
-.metric-delta { font-size: 11px; font-family: var(--mono); display: flex; align-items: center; gap: 4px; }
+.metric-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.metric-label { font-size: 11px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.metric-period { font-size: 9.5px; font-family: var(--mono); color: var(--subtle); letter-spacing: 0.03em; }
+.metric-value { font-size: 28px; font-family: var(--serif); color: var(--text); font-weight: 400; line-height: 1; margin-bottom: 6px; }
+.metric-delta { font-size: 11.5px; font-family: var(--mono); display: flex; align-items: center; gap: 4px; }
 .delta-up { color: var(--teal); }
 .delta-down { color: var(--red); }
 .delta-neutral { color: var(--muted); }
-.sparkline { margin-top: 10px; height: 28px; }
+.sparkline { margin-top: 12px; height: 28px; }
 
 /* ── Two-column lower ── */
 .lower-grid { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
 
-/* ── Inbox preview ── */
+/* ── Panels ── */
 .panel {
   background: var(--bg2);
   border: 1px solid var(--border);
@@ -200,91 +214,197 @@ main { overflow-y: auto; display: flex; flex-direction: column; }
   padding: 14px 18px;
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
 }
-.panel-title { font-size: 12.5px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
-.panel-link { font-size: 11px; color: var(--purple-l); font-family: var(--mono); cursor: pointer; }
+.panel-title { font-size: 13px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.panel-title-icon { color: var(--muted); font-size: 13px; }
+.panel-link { font-size: 11.5px; color: var(--purple-l); font-family: var(--mono); cursor: pointer; background: none; border: none; padding: 2px 4px; }
 .panel-link:hover { text-decoration: underline; }
+.bulk-actions { display: flex; gap: 6px; align-items: center; }
+.bulk-actions .panel-link.muted { color: var(--muted); }
+.bulk-actions .panel-link.muted:hover { color: var(--text); }
 
+/* ── Inbox items with inline actions ── */
 .inbox-item {
   padding: 12px 18px;
   border-bottom: 1px solid var(--border);
   display: flex; align-items: flex-start; gap: 12px;
   cursor: pointer;
   transition: background 0.1s;
+  position: relative;
 }
 .inbox-item:last-child { border-bottom: none; }
 .inbox-item:hover { background: var(--bg3); }
+.inbox-item:hover .inbox-actions { opacity: 1; transform: translate(0, -50%); }
+
+.inbox-checkbox { margin-top: 3px; flex-shrink: 0; }
+.inbox-checkbox input { width: 13px; height: 13px; accent-color: var(--purple); cursor: pointer; }
+
 .inbox-type {
   padding: 2px 7px; border-radius: 4px;
-  font-size: 9px; font-family: var(--mono); font-weight: 500;
-  flex-shrink: 0; margin-top: 1px;
+  font-size: 9.5px; font-family: var(--mono); font-weight: 500;
+  flex-shrink: 0; margin-top: 2px;
   letter-spacing: 0.03em;
 }
 .type-article { background: var(--purple-dim); color: var(--purple-l); border: 1px solid #7B6EF630; }
-.type-reply { background: var(--teal-dim); color: var(--teal); border: 1px solid #2DD4A030; }
-.type-listing { background: var(--amber-dim); color: var(--amber); border: 1px solid #F0A42930; }
-.type-outreach { background: var(--red-dim); color: var(--red); border: 1px solid #F0606030; }
-.inbox-body { flex: 1; min-width: 0; }
-.inbox-title { font-size: 12.5px; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
-.inbox-sub { font-size: 11px; color: var(--muted); }
-.inbox-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.type-reply   { background: var(--teal-dim);   color: var(--teal);     border: 1px solid #2DD4A030; }
+.type-listing { background: var(--amber-dim);  color: var(--amber);    border: 1px solid #F0A42930; }
+.type-outreach{ background: var(--red-dim);    color: var(--red);      border: 1px solid #F0606030; }
+
+.inbox-body { flex: 1; min-width: 0; padding-right: 10px; }
+.inbox-title { font-size: 13px; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+.inbox-sub { font-size: 11.5px; color: var(--muted); }
+.inbox-meta { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
 .conf-bar { height: 3px; background: var(--border2); border-radius: 2px; width: 60px; overflow: hidden; }
 .conf-fill { height: 100%; border-radius: 2px; background: var(--teal); }
-.conf-label { font-size: 9.5px; font-family: var(--mono); color: var(--muted); }
-.inbox-time { font-size: 10px; font-family: var(--mono); color: var(--subtle); margin-left: auto; }
+.conf-label { font-size: 10px; font-family: var(--mono); color: var(--muted); }
+.est-traffic { font-size: 10px; font-family: var(--mono); color: var(--teal); }
+.inbox-time { font-size: 10.5px; font-family: var(--mono); color: var(--subtle); margin-left: auto; }
 
-/* ── Channels panel ── */
+.inbox-actions {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translate(8px, -50%);
+  display: flex; gap: 6px;
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.15s;
+  background: linear-gradient(90deg, transparent 0%, var(--bg3) 25%);
+  padding-left: 40px;
+}
+.action-btn {
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 11px; font-weight: 500; font-family: var(--sans);
+  cursor: pointer; border: 1px solid transparent;
+  transition: all 0.1s;
+  background: var(--bg2);
+}
+.action-approve { background: var(--teal-d); color: #fff; border-color: var(--teal-d); }
+.action-approve:hover { background: var(--teal); border-color: var(--teal); }
+.action-edit { background: transparent; color: var(--muted); border-color: var(--border2); }
+.action-edit:hover { color: var(--text); border-color: var(--muted); }
+.action-reject { background: transparent; color: var(--muted); border-color: var(--border2); width: 26px; padding: 5px 0; text-align: center; }
+.action-reject:hover { color: var(--red); border-color: var(--red); }
+
+/* ── Channel HEALTH (now actually about health, not traffic) ── */
 .channel-row {
-  padding: 10px 18px;
+  padding: 12px 18px;
   border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 10px;
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center; gap: 12px;
   cursor: pointer;
   transition: background 0.1s;
 }
 .channel-row:last-child { border-bottom: none; }
 .channel-row:hover { background: var(--bg3); }
-.channel-icon { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.channel-icon { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; color: #fff; }
 .ci-reddit  { background: #FF4500; }
 .ci-hn      { background: #FF6600; }
 .ci-seo     { background: #1D9E75; }
 .ci-twitter { background: #1A8CD8; }
 .ci-dirs    { background: var(--purple); }
-.channel-name { font-size: 12px; font-weight: 500; color: var(--text); flex: 1; }
-.channel-stat { font-size: 11px; font-family: var(--mono); color: var(--muted); text-align: right; }
-.channel-trend { font-size: 10px; font-family: var(--mono); margin-top: 1px; }
+.channel-name { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
+.channel-status { font-size: 10.5px; font-family: var(--mono); display: flex; align-items: center; gap: 5px; color: var(--muted); }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.status-dot.ok { background: var(--teal); }
+.status-dot.warn { background: var(--amber); }
+.status-dot.idle { background: var(--subtle); }
+.status-dot.off { background: var(--muted); opacity: 0.4; }
+.channel-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.channel-queue { font-size: 11px; font-family: var(--mono); color: var(--text); }
+.channel-queue.warn { color: var(--amber); }
+.channel-queue.muted { color: var(--muted); }
+.channel-meta { font-size: 9.5px; font-family: var(--mono); color: var(--subtle); }
+.channel-connect { font-size: 11px; font-family: var(--mono); color: var(--purple-l); cursor: pointer; background: none; border: none; padding: 0; }
+.channel-connect:hover { text-decoration: underline; }
 
 /* ── Traffic sources mini chart ── */
-.source-list { padding: 0 18px 14px; }
-.source-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.source-list { padding: 4px 18px 14px; }
+.source-row { display: grid; grid-template-columns: 90px 1fr 48px; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); }
 .source-row:last-child { border-bottom: none; }
-.source-label { font-size: 11.5px; color: var(--text); width: 90px; flex-shrink: 0; }
-.source-bar-wrap { flex: 1; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+.source-label { font-size: 12px; color: var(--text); }
+.source-bar-wrap { height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
 .source-bar { height: 100%; border-radius: 3px; }
-.source-count { font-size: 11px; font-family: var(--mono); color: var(--muted); width: 48px; text-align: right; flex-shrink: 0; }
+.source-count { font-size: 11px; font-family: var(--mono); color: var(--muted); text-align: right; }
 
 /* ── Keyword table ── */
 .kw-table { width: 100%; border-collapse: collapse; }
-.kw-table th { font-size: 10px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 18px; text-align: left; border-bottom: 1px solid var(--border); font-weight: 400; }
-.kw-table td { padding: 9px 18px; font-size: 12px; color: var(--text); border-bottom: 1px solid var(--border); }
+.kw-table th { font-size: 10.5px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 9px 18px; text-align: left; border-bottom: 1px solid var(--border); font-weight: 400; }
+.kw-table td { padding: 10px 18px; font-size: 12.5px; color: var(--text); border-bottom: 1px solid var(--border); }
 .kw-table tr:last-child td { border-bottom: none; }
 .kw-table tr:hover td { background: var(--bg3); }
-.kw-rank { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.kw-rank { font-family: var(--mono); font-size: 12px; color: var(--muted); }
 .rank-good { color: var(--teal); font-weight: 500; }
 .rank-mid  { color: var(--amber); }
 .rank-new  { color: var(--purple-l); }
-.rank-move { font-size: 10px; font-family: var(--mono); }
+.rank-move { font-size: 10.5px; font-family: var(--mono); }
 .move-up { color: var(--teal); }
 .move-dn { color: var(--red); }
+.move-track { color: var(--purple-l); }
+
+/* ── Autopilot tri-state selector ── */
+.autopilot-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+.autopilot-label { font-size: 12.5px; color: var(--text); }
+.autopilot-sublabel { font-size: 10px; font-family: var(--mono); color: var(--muted); margin-top: 2px; }
+.tri-state {
+  display: inline-flex;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 0;
+}
+.tri-state button {
+  background: none;
+  border: none;
+  padding: 4px 9px;
+  font-size: 10.5px;
+  font-family: var(--mono);
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.12s;
+  letter-spacing: 0.02em;
+}
+.tri-state button:hover { color: var(--text); }
+.tri-state button.selected { color: var(--text); background: var(--bg4); }
+.tri-state button.selected.lvl-1 { color: var(--amber); background: var(--amber-dim); }
+.tri-state button.selected.lvl-2 { color: var(--teal); background: var(--teal-dim); }
+
+.autopilot-footer {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.5;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.autopilot-next { color: var(--text); font-family: var(--mono); font-size: 11px; }
 
 /* ── Animations ── */
 @keyframes slideIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+@keyframes dash { to { stroke-dashoffset: 0; } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
 .metrics-row .metric-card:nth-child(1) { animation-delay: 0.05s; }
 .metrics-row .metric-card:nth-child(2) { animation-delay: 0.10s; }
 .metrics-row .metric-card:nth-child(3) { animation-delay: 0.15s; }
 .metrics-row .metric-card:nth-child(4) { animation-delay: 0.20s; }
+
+.spark-line { stroke-dasharray: 200; stroke-dashoffset: 200; animation: dash 1s ease 0.3s both forwards; }
+.live-dot { animation: pulse 2s ease infinite; }
 
 /* scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -302,58 +422,52 @@ main { overflow-y: auto; display: flex; flex-direction: column; }
     <div class="logo-name">LaunchPilot</div>
   </div>
 
-  <div class="product-pill">
-    <div class="product-dot"></div>
-    <div class="product-name">OnChainInvoice.com</div>
-    <div class="product-caret">⌄</div>
-  </div>
-
   <nav>
     <div class="nav-section">Overview</div>
-    <div class="nav-item active">
+    <button class="nav-item active" aria-current="page">
       <span class="nav-icon">⊡</span> Dashboard
-    </div>
-    <div class="nav-item">
+    </button>
+    <button class="nav-item">
       <span class="nav-icon">◫</span> Inbox
-      <span class="badge">7</span>
-    </div>
+      <span class="badge" aria-label="7 pending items">7</span>
+    </button>
 
     <div class="nav-section">Channels</div>
-    <div class="nav-item">
+    <button class="nav-item">
       <span class="nav-icon">✦</span> SEO Content
-    </div>
-    <div class="nav-item">
+    </button>
+    <button class="nav-item">
       <span class="nav-icon">◎</span> Community
-    </div>
-    <div class="nav-item">
+    </button>
+    <button class="nav-item">
       <span class="nav-icon">↗</span> Outreach
-    </div>
-    <div class="nav-item">
+    </button>
+    <button class="nav-item">
       <span class="nav-icon">⊞</span> Directories
-    </div>
+    </button>
 
     <div class="nav-section">Insights</div>
-    <div class="nav-item">
+    <button class="nav-item">
       <span class="nav-icon">∿</span> Analytics
-    </div>
-    <div class="nav-item">
+    </button>
+    <button class="nav-item">
       <span class="nav-icon">◈</span> Keywords
-    </div>
+    </button>
 
     <div class="nav-section">Product</div>
-    <div class="nav-item">
+    <button class="nav-item">
       <span class="nav-icon">⊘</span> Marketing Brief
-    </div>
-    <div class="nav-item">
+    </button>
+    <button class="nav-item">
       <span class="nav-icon">⊕</span> Connections
-    </div>
-    <div class="nav-item">
+    </button>
+    <button class="nav-item">
       <span class="nav-icon">○</span> Settings
-    </div>
+    </button>
   </nav>
 
   <div class="sidebar-footer">
-    <div class="avatar">CS</div>
+    <div class="avatar" aria-hidden="true">CS</div>
     <div>
       <div class="user-name">Chris</div>
       <div class="user-plan">launch plan</div>
@@ -364,7 +478,14 @@ main { overflow-y: auto; display: flex; flex-direction: column; }
 <!-- ── MAIN ── -->
 <main>
   <div class="topbar">
-    <div class="page-title">Dashboard</div>
+    <div class="topbar-left">
+      <h1 class="page-title">Dashboard</h1>
+      <button class="product-switcher" aria-label="Switch product" aria-haspopup="listbox">
+        <span class="product-dot live-dot" aria-hidden="true"></span>
+        <span class="product-name">OnChainInvoice.com</span>
+        <span class="product-caret" aria-hidden="true">⌄</span>
+      </button>
+    </div>
     <div class="topbar-right">
       <span class="week-label">Week of Apr 21, 2026</span>
       <button class="btn btn-ghost">↻ Refresh</button>
@@ -374,73 +495,88 @@ main { overflow-y: auto; display: flex; flex-direction: column; }
 
   <div class="content">
 
-    <!-- Weekly brief -->
+    <!-- Weekly brief: insight only, no longer mirrors metrics -->
     <div class="brief-bar">
-      <div class="brief-icon">⚡</div>
+      <div class="brief-icon-wrap" aria-hidden="true">
+        <span class="brief-icon">⚡</span>
+      </div>
       <div class="brief-body">
-        <div class="brief-title">This week's summary</div>
+        <div class="brief-eyebrow">Insight · this week</div>
+        <div class="brief-title">One Reddit thread is driving most of your growth.</div>
         <div class="brief-text">
-          Organic traffic is up <strong>+34%</strong> from last week. Your article
-          <em>"USDC invoicing for freelancers"</em> landed on page 2 for its target keyword.
-          <strong>7 items</strong> are waiting in your inbox — including 3 community replies
-          ready to post and a ProductHunt listing package. Estimated review time: <strong>8 minutes</strong>.
+          Of the <strong>+478 visits</strong> added this week, <strong>312 (65%)</strong> trace
+          back to a single r/freelance comment posted Tuesday. The thread is still active —
+          consider a follow-up reply within 24h while it's ranking. SEO is steady but
+          contributing less than expected; the <em>"usdc invoice generator"</em> article
+          needs internal links to push past position #4.
         </div>
         <div class="brief-actions">
-          <button class="btn btn-primary btn-xs">Review inbox →</button>
-          <button class="btn btn-ghost btn-xs">View full report</button>
+          <button class="btn btn-primary btn-xs">Draft follow-up reply</button>
+          <button class="btn btn-ghost btn-xs">See attribution detail</button>
         </div>
       </div>
     </div>
 
-    <!-- Metrics -->
+    <!-- Metrics: explicit period framing, consistent units -->
     <div class="metrics-row">
       <div class="metric-card">
-        <div class="metric-label">Monthly visitors</div>
+        <div class="metric-header">
+          <span class="metric-label">Visitors</span>
+          <span class="metric-period">Apr 14–20</span>
+        </div>
         <div class="metric-value">1,847</div>
-        <div class="metric-delta delta-up">↑ 34% vs last week</div>
-        <svg class="sparkline" viewBox="0 0 120 28" fill="none">
+        <div class="metric-delta delta-up">↑ 34% wk-over-wk</div>
+        <svg class="sparkline" viewBox="0 0 120 28" fill="none" aria-label="Weekly visitor trend, last 7 weeks">
           <polyline points="0,22 20,18 40,20 60,14 80,10 100,6 120,4" stroke="#2DD4A040" stroke-width="1.5" fill="none"/>
-          <polyline points="0,22 20,18 40,20 60,14 80,10 100,6 120,4" stroke="#2DD4A0" stroke-width="1.5" fill="none" stroke-dasharray="200" stroke-dashoffset="200" style="animation: dash 1s ease 0.3s both forwards;"/>
-          <defs><style>@keyframes dash{to{stroke-dashoffset:0}}</style></defs>
+          <polyline class="spark-line" points="0,22 20,18 40,20 60,14 80,10 100,6 120,4" stroke="#2DD4A0" stroke-width="1.5" fill="none"/>
         </svg>
       </div>
       <div class="metric-card">
-        <div class="metric-label">Content published</div>
-        <div class="metric-value">12</div>
-        <div class="metric-delta delta-up">↑ 3 this week</div>
-        <svg class="sparkline" viewBox="0 0 120 28" fill="none">
-          <rect x="8"  y="14" width="12" height="14" fill="#7B6EF620" rx="2"/>
-          <rect x="28" y="18" width="12" height="10" fill="#7B6EF620" rx="2"/>
-          <rect x="48" y="10" width="12" height="18" fill="#7B6EF640" rx="2"/>
-          <rect x="68" y="12" width="12" height="16" fill="#7B6EF640" rx="2"/>
-          <rect x="88" y="6"  width="12" height="22" fill="#7B6EF6"   rx="2"/>
-          <rect x="108" y="8" width="12" height="20" fill="#7B6EF680" rx="2"/>
+        <div class="metric-header">
+          <span class="metric-label">Articles published</span>
+          <span class="metric-period">Apr 14–20</span>
+        </div>
+        <div class="metric-value">3</div>
+        <div class="metric-delta delta-up">↑ 1 vs prior week</div>
+        <svg class="sparkline" viewBox="0 0 120 28" fill="none" aria-label="Articles per week, last 6 weeks">
+          <rect x="2"   y="20" width="14" height="8"  fill="#7B6EF630" rx="2"/>
+          <rect x="22"  y="16" width="14" height="12" fill="#7B6EF640" rx="2"/>
+          <rect x="42"  y="20" width="14" height="8"  fill="#7B6EF640" rx="2"/>
+          <rect x="62"  y="14" width="14" height="14" fill="#7B6EF660" rx="2"/>
+          <rect x="82"  y="18" width="14" height="10" fill="#7B6EF680" rx="2"/>
+          <rect x="102" y="10" width="14" height="18" fill="#7B6EF6"   rx="2"/>
         </svg>
       </div>
       <div class="metric-card">
-        <div class="metric-label">Community replies</div>
-        <div class="metric-value">28</div>
-        <div class="metric-delta delta-up">↑ 8 this week</div>
-        <svg class="sparkline" viewBox="0 0 120 28" fill="none">
-          <circle cx="10"  cy="22" r="3" fill="#2DD4A040"/>
-          <circle cx="30"  cy="18" r="3" fill="#2DD4A040"/>
-          <circle cx="50"  cy="16" r="3" fill="#2DD4A060"/>
-          <circle cx="70"  cy="12" r="4" fill="#2DD4A080"/>
-          <circle cx="90"  cy="8"  r="4" fill="#2DD4A0A0"/>
-          <circle cx="110" cy="6"  r="5" fill="#2DD4A0"/>
+        <div class="metric-header">
+          <span class="metric-label">Replies posted</span>
+          <span class="metric-period">Apr 14–20</span>
+        </div>
+        <div class="metric-value">8</div>
+        <div class="metric-delta delta-up">↑ 3 vs prior week</div>
+        <svg class="sparkline" viewBox="0 0 120 28" fill="none" aria-label="Replies per week, last 6 weeks">
+          <rect x="2"   y="22" width="14" height="6"  fill="#2DD4A030" rx="2"/>
+          <rect x="22"  y="18" width="14" height="10" fill="#2DD4A040" rx="2"/>
+          <rect x="42"  y="20" width="14" height="8"  fill="#2DD4A040" rx="2"/>
+          <rect x="62"  y="14" width="14" height="14" fill="#2DD4A060" rx="2"/>
+          <rect x="82"  y="16" width="14" height="12" fill="#2DD4A080" rx="2"/>
+          <rect x="102" y="8"  width="14" height="20" fill="#2DD4A0"   rx="2"/>
         </svg>
       </div>
       <div class="metric-card">
-        <div class="metric-label">Inbox pending</div>
+        <div class="metric-header">
+          <span class="metric-label">Inbox pending</span>
+          <span class="metric-period">right now</span>
+        </div>
         <div class="metric-value">7</div>
         <div class="metric-delta delta-neutral">~ 8 min to review</div>
-        <div style="margin-top:10px;display:flex;gap:4px;align-items:center">
+        <div style="margin-top:12px;display:flex;gap:4px;align-items:center" aria-label="Breakdown by type">
           <div style="flex:3;height:5px;background:var(--purple);border-radius:2px;opacity:0.9"></div>
-          <div style="flex:2;height:5px;background:var(--teal);border-radius:2px;opacity:0.8"></div>
-          <div style="flex:1;height:5px;background:var(--amber);border-radius:2px;opacity:0.8"></div>
-          <div style="flex:1;height:5px;background:var(--red);border-radius:2px;opacity:0.7"></div>
+          <div style="flex:2;height:5px;background:var(--teal);border-radius:2px;opacity:0.85"></div>
+          <div style="flex:1;height:5px;background:var(--amber);border-radius:2px;opacity:0.85"></div>
+          <div style="flex:1;height:5px;background:var(--red);border-radius:2px;opacity:0.75"></div>
         </div>
-        <div style="display:flex;gap:8px;margin-top:5px;font-size:9.5px;font-family:var(--mono);color:var(--muted)">
+        <div style="display:flex;gap:8px;margin-top:6px;font-size:10px;font-family:var(--mono);color:var(--muted)">
           <span style="color:var(--purple-l)">3 articles</span>
           <span style="color:var(--teal)">2 replies</span>
           <span style="color:var(--amber)">1 listing</span>
@@ -458,13 +594,18 @@ main { overflow-y: auto; display: flex; flex-direction: column; }
         <div class="panel">
           <div class="panel-header">
             <div class="panel-title">
-              ◫ Approval inbox
-              <span style="background:var(--amber-dim);color:var(--amber);font-size:9px;font-family:var(--mono);padding:1px 6px;border-radius:4px;border:1px solid #F0A42930;">7 pending</span>
+              <span class="panel-title-icon">◫</span> Approval inbox
+              <span style="background:var(--amber-dim);color:var(--amber);font-size:9.5px;font-family:var(--mono);padding:2px 7px;border-radius:4px;border:1px solid #F0A42930;">7 pending</span>
             </div>
-            <span class="panel-link">View all →</span>
+            <div class="bulk-actions">
+              <button class="panel-link">Approve all high-confidence (3)</button>
+              <span style="color:var(--subtle)">·</span>
+              <button class="panel-link muted">View all →</button>
+            </div>
           </div>
 
           <div class="inbox-item">
+            <div class="inbox-checkbox"><input type="checkbox" aria-label="Select item"></div>
             <span class="inbox-type type-article">article</span>
             <div class="inbox-body">
               <div class="inbox-title">How to invoice clients in USDC: a freelancer's guide</div>
@@ -472,26 +613,38 @@ main { overflow-y: auto; display: flex; flex-direction: column; }
               <div class="inbox-meta">
                 <div class="conf-bar"><div class="conf-fill" style="width:88%"></div></div>
                 <span class="conf-label">88% confidence</span>
-                <span style="font-size:10px;font-family:var(--mono);color:var(--teal)">↑ est. 120 visits/mo</span>
+                <span class="est-traffic">↑ est. 120 visits/mo</span>
                 <span class="inbox-time">2h ago</span>
               </div>
+            </div>
+            <div class="inbox-actions">
+              <button class="action-btn action-edit">Edit</button>
+              <button class="action-btn action-reject" aria-label="Reject">✕</button>
+              <button class="action-btn action-approve">Approve ✓</button>
             </div>
           </div>
 
           <div class="inbox-item">
+            <div class="inbox-checkbox"><input type="checkbox" aria-label="Select item"></div>
             <span class="inbox-type type-reply">reply</span>
             <div class="inbox-body">
               <div class="inbox-title">r/freelance · "Anyone accepting crypto payments yet?"</div>
               <div class="inbox-sub">Reddit reply draft · relevance score 82</div>
               <div class="inbox-meta">
-                <div class="conf-bar"><div class="conf-fill" style="width:74%;background:var(--teal)"></div></div>
+                <div class="conf-bar"><div class="conf-fill" style="width:74%"></div></div>
                 <span class="conf-label">74% confidence</span>
                 <span class="inbox-time">4h ago</span>
               </div>
             </div>
+            <div class="inbox-actions">
+              <button class="action-btn action-edit">Edit</button>
+              <button class="action-btn action-reject" aria-label="Reject">✕</button>
+              <button class="action-btn action-approve">Approve ✓</button>
+            </div>
           </div>
 
           <div class="inbox-item">
+            <div class="inbox-checkbox"><input type="checkbox" aria-label="Select item"></div>
             <span class="inbox-type type-article">article</span>
             <div class="inbox-body">
               <div class="inbox-title">Crypto invoicing vs traditional invoicing: a comparison</div>
@@ -499,13 +652,19 @@ main { overflow-y: auto; display: flex; flex-direction: column; }
               <div class="inbox-meta">
                 <div class="conf-bar"><div class="conf-fill" style="width:91%"></div></div>
                 <span class="conf-label">91% confidence</span>
-                <span style="font-size:10px;font-family:var(--mono);color:var(--teal)">↑ est. 210 visits/mo</span>
+                <span class="est-traffic">↑ est. 210 visits/mo</span>
                 <span class="inbox-time">6h ago</span>
               </div>
+            </div>
+            <div class="inbox-actions">
+              <button class="action-btn action-edit">Edit</button>
+              <button class="action-btn action-reject" aria-label="Reject">✕</button>
+              <button class="action-btn action-approve">Approve ✓</button>
             </div>
           </div>
 
           <div class="inbox-item">
+            <div class="inbox-checkbox"><input type="checkbox" aria-label="Select item"></div>
             <span class="inbox-type type-listing">listing</span>
             <div class="inbox-body">
               <div class="inbox-title">ProductHunt listing package ready</div>
@@ -516,18 +675,29 @@ main { overflow-y: auto; display: flex; flex-direction: column; }
                 <span class="inbox-time">12h ago</span>
               </div>
             </div>
+            <div class="inbox-actions">
+              <button class="action-btn action-edit">Edit</button>
+              <button class="action-btn action-reject" aria-label="Reject">✕</button>
+              <button class="action-btn action-approve">Approve ✓</button>
+            </div>
           </div>
 
           <div class="inbox-item">
+            <div class="inbox-checkbox"><input type="checkbox" aria-label="Select item"></div>
             <span class="inbox-type type-reply">reply</span>
             <div class="inbox-body">
               <div class="inbox-title">HN · "Ask HN: how do you handle international payments?"</div>
               <div class="inbox-sub">Hacker News reply draft · relevance score 71</div>
               <div class="inbox-meta">
-                <div class="conf-bar"><div class="conf-fill" style="width:71%;background:var(--teal)"></div></div>
+                <div class="conf-bar"><div class="conf-fill" style="width:71%"></div></div>
                 <span class="conf-label">71% confidence</span>
                 <span class="inbox-time">1d ago</span>
               </div>
+            </div>
+            <div class="inbox-actions">
+              <button class="action-btn action-edit">Edit</button>
+              <button class="action-btn action-reject" aria-label="Reject">✕</button>
+              <button class="action-btn action-approve">Approve ✓</button>
             </div>
           </div>
 
@@ -536,16 +706,16 @@ main { overflow-y: auto; display: flex; flex-direction: column; }
         <!-- Keywords -->
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">◈ Keyword positions</div>
-            <span class="panel-link">Full report →</span>
+            <div class="panel-title"><span class="panel-title-icon">◈</span> Keyword positions</div>
+            <button class="panel-link">Full report →</button>
           </div>
           <table class="kw-table">
             <thead>
               <tr>
-                <th>Keyword</th>
-                <th>Position</th>
-                <th>Change</th>
-                <th>Volume</th>
+                <th scope="col">Keyword</th>
+                <th scope="col">Position</th>
+                <th scope="col">Change</th>
+                <th scope="col">Volume</th>
               </tr>
             </thead>
             <tbody>
@@ -576,7 +746,7 @@ main { overflow-y: auto; display: flex; flex-direction: column; }
               <tr>
                 <td>usdc payment for contractors</td>
                 <td class="kw-rank rank-new">new</td>
-                <td class="rank-move" style="color:var(--purple-l)">→ tracking</td>
+                <td class="rank-move move-track">→ tracking</td>
                 <td class="kw-rank">440/mo</td>
               </tr>
             </tbody>
@@ -585,80 +755,80 @@ main { overflow-y: auto; display: flex; flex-direction: column; }
 
       </div>
 
-      <!-- Right: Channel health + Traffic sources -->
+      <!-- Right: Channel HEALTH (operational) + Traffic sources + Autopilot -->
       <div style="display:flex;flex-direction:column;gap:16px;">
 
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">Channel health</div>
+            <div class="panel-title"><span class="panel-title-icon">◉</span> Channel health</div>
+            <span class="week-label" style="font-size:10.5px">last action 14m ago</span>
           </div>
 
           <div class="channel-row">
-            <div class="channel-icon ci-seo">✦</div>
+            <div class="channel-icon ci-seo" aria-hidden="true">✦</div>
             <div>
               <div class="channel-name">SEO / content</div>
-              <div class="channel-stat" style="font-size:10px;color:var(--teal)">Active · 3 drafts ready</div>
+              <div class="channel-status"><span class="status-dot ok"></span>Running · last publish 2d ago</div>
             </div>
-            <div style="text-align:right">
-              <div class="channel-stat">612 visits</div>
-              <div class="channel-trend move-up">↑ 28%</div>
+            <div class="channel-right">
+              <div class="channel-queue">3 in queue</div>
+              <div class="channel-meta">SLA on track</div>
             </div>
           </div>
 
           <div class="channel-row">
-            <div class="channel-icon ci-reddit">◎</div>
+            <div class="channel-icon ci-reddit" aria-hidden="true">◎</div>
             <div>
               <div class="channel-name">Reddit</div>
-              <div class="channel-stat" style="font-size:10px;color:var(--muted)">2 replies pending approval</div>
+              <div class="channel-status"><span class="status-dot warn"></span>2 replies awaiting approval · 4h</div>
             </div>
-            <div style="text-align:right">
-              <div class="channel-stat">340 visits</div>
-              <div class="channel-trend move-up">↑ 55%</div>
+            <div class="channel-right">
+              <div class="channel-queue warn">2 pending</div>
+              <div class="channel-meta">action needed</div>
             </div>
           </div>
 
           <div class="channel-row">
-            <div class="channel-icon ci-hn">⬡</div>
+            <div class="channel-icon ci-hn" aria-hidden="true">⬡</div>
             <div>
               <div class="channel-name">Hacker News</div>
-              <div class="channel-stat" style="font-size:10px;color:var(--muted)">1 reply pending</div>
+              <div class="channel-status"><span class="status-dot warn"></span>1 reply awaiting approval · 1d</div>
             </div>
-            <div style="text-align:right">
-              <div class="channel-stat">218 visits</div>
-              <div class="channel-trend move-up">↑ 12%</div>
+            <div class="channel-right">
+              <div class="channel-queue warn">1 pending</div>
+              <div class="channel-meta">action needed</div>
             </div>
           </div>
 
           <div class="channel-row">
-            <div class="channel-icon ci-dirs">⊞</div>
+            <div class="channel-icon ci-dirs" aria-hidden="true">⊞</div>
             <div>
               <div class="channel-name">Directories</div>
-              <div class="channel-stat" style="font-size:10px;color:var(--amber)">14 / 80+ submitted</div>
+              <div class="channel-status"><span class="status-dot ok"></span>14 of 80 submitted · auto-pacing</div>
             </div>
-            <div style="text-align:right">
-              <div class="channel-stat">164 visits</div>
-              <div class="channel-trend move-up">↑ 8%</div>
+            <div class="channel-right">
+              <div class="channel-queue muted">66 to go</div>
+              <div class="channel-meta">~3 wks remaining</div>
             </div>
           </div>
 
           <div class="channel-row">
-            <div class="channel-icon ci-twitter">◈</div>
+            <div class="channel-icon ci-twitter" aria-hidden="true">◈</div>
             <div>
               <div class="channel-name">X / Twitter</div>
-              <div class="channel-stat" style="font-size:10px;color:var(--muted)">Not connected</div>
+              <div class="channel-status"><span class="status-dot off"></span>Not connected</div>
             </div>
-            <div style="text-align:right">
-              <div class="channel-stat" style="color:var(--muted)">—</div>
-              <div class="channel-trend" style="font-size:10px;color:var(--purple-l);cursor:pointer">Connect →</div>
+            <div class="channel-right">
+              <button class="channel-connect">Connect →</button>
             </div>
           </div>
         </div>
 
-        <!-- Traffic sources -->
+        <!-- Traffic sources: now uses single hue ramp instead of brand colors -->
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">Traffic sources</div>
-            <span class="panel-link">Analytics →</span>
+            <div class="panel-title"><span class="panel-title-icon">∿</span> Traffic by source</div>
+            <button class="panel-link">Analytics →</button>
           </div>
           <div class="source-list">
             <div class="source-row">
@@ -668,67 +838,78 @@ main { overflow-y: auto; display: flex; flex-direction: column; }
             </div>
             <div class="source-row">
               <div class="source-label">Reddit</div>
-              <div class="source-bar-wrap"><div class="source-bar" style="width:37%;background:#FF4500"></div></div>
+              <div class="source-bar-wrap"><div class="source-bar" style="width:37%;background:var(--teal);opacity:0.7"></div></div>
               <div class="source-count">340</div>
             </div>
             <div class="source-row">
               <div class="source-label">Hacker News</div>
-              <div class="source-bar-wrap"><div class="source-bar" style="width:24%;background:#FF6600"></div></div>
+              <div class="source-bar-wrap"><div class="source-bar" style="width:24%;background:var(--teal);opacity:0.55"></div></div>
               <div class="source-count">218</div>
             </div>
             <div class="source-row">
               <div class="source-label">Directories</div>
-              <div class="source-bar-wrap"><div class="source-bar" style="width:18%;background:var(--purple)"></div></div>
+              <div class="source-bar-wrap"><div class="source-bar" style="width:18%;background:var(--teal);opacity:0.45"></div></div>
               <div class="source-count">164</div>
             </div>
             <div class="source-row">
               <div class="source-label">Direct</div>
-              <div class="source-bar-wrap"><div class="source-bar" style="width:12%;background:var(--subtle)"></div></div>
+              <div class="source-bar-wrap"><div class="source-bar" style="width:12%;background:var(--teal);opacity:0.35"></div></div>
               <div class="source-count">112</div>
             </div>
             <div class="source-row">
               <div class="source-label">Other</div>
-              <div class="source-bar-wrap"><div class="source-bar" style="width:5%;background:var(--border2)"></div></div>
+              <div class="source-bar-wrap"><div class="source-bar" style="width:5%;background:var(--teal);opacity:0.25"></div></div>
               <div class="source-count">47</div>
             </div>
           </div>
         </div>
 
-        <!-- Autopilot status -->
+        <!-- Autopilot status with explicit tri-state -->
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">Autopilot status</div>
+            <div class="panel-title"><span class="panel-title-icon">⊙</span> Autopilot</div>
           </div>
-          <div style="padding:14px 18px;display:flex;flex-direction:column;gap:10px;">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <div style="font-size:12px;color:var(--text)">SEO content</div>
-              <div style="display:flex;align-items:center;gap:6px">
-                <div style="width:28px;height:14px;background:var(--teal);border-radius:7px;position:relative;cursor:pointer">
-                  <div style="position:absolute;right:2px;top:2px;width:10px;height:10px;background:#fff;border-radius:50%"></div>
-                </div>
-                <span style="font-size:10px;font-family:var(--mono);color:var(--teal)">level 2</span>
+          <div style="padding:14px 18px 16px;display:flex;flex-direction:column;gap:14px;">
+
+            <div class="autopilot-row">
+              <div>
+                <div class="autopilot-label">SEO content</div>
+                <div class="autopilot-sublabel">L2 = auto-publish high confidence</div>
+              </div>
+              <div class="tri-state" role="radiogroup" aria-label="SEO autopilot level">
+                <button role="radio" aria-checked="false">off</button>
+                <button role="radio" aria-checked="false">L1</button>
+                <button class="selected lvl-2" role="radio" aria-checked="true">L2</button>
               </div>
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <div style="font-size:12px;color:var(--text)">Community replies</div>
-              <div style="display:flex;align-items:center;gap:6px">
-                <div style="width:28px;height:14px;background:var(--border2);border-radius:7px;position:relative;cursor:pointer">
-                  <div style="position:absolute;left:2px;top:2px;width:10px;height:10px;background:var(--muted);border-radius:50%"></div>
-                </div>
-                <span style="font-size:10px;font-family:var(--mono);color:var(--muted)">level 1</span>
+
+            <div class="autopilot-row">
+              <div>
+                <div class="autopilot-label">Community replies</div>
+                <div class="autopilot-sublabel">L1 = draft only, you approve</div>
+              </div>
+              <div class="tri-state" role="radiogroup" aria-label="Community replies autopilot level">
+                <button role="radio" aria-checked="false">off</button>
+                <button class="selected lvl-1" role="radio" aria-checked="true">L1</button>
+                <button role="radio" aria-checked="false">L2</button>
               </div>
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <div style="font-size:12px;color:var(--text)">Outreach</div>
-              <div style="display:flex;align-items:center;gap:6px">
-                <div style="width:28px;height:14px;background:var(--border2);border-radius:7px;position:relative;cursor:pointer">
-                  <div style="position:absolute;left:2px;top:2px;width:10px;height:10px;background:var(--muted);border-radius:50%"></div>
-                </div>
-                <span style="font-size:10px;font-family:var(--mono);color:var(--muted)">level 1</span>
+
+            <div class="autopilot-row">
+              <div>
+                <div class="autopilot-label">Outreach</div>
+                <div class="autopilot-sublabel">Off = no automated outreach</div>
+              </div>
+              <div class="tri-state" role="radiogroup" aria-label="Outreach autopilot level">
+                <button class="selected" role="radio" aria-checked="true">off</button>
+                <button role="radio" aria-checked="false">L1</button>
+                <button role="radio" aria-checked="false">L2</button>
               </div>
             </div>
-            <div style="margin-top:2px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);line-height:1.5;">
-              Next scheduled run: <span style="color:var(--text);font-family:var(--mono)">Mon Apr 28 · 09:00 CET</span>
+
+            <div class="autopilot-footer">
+              <span>Next run</span>
+              <span class="autopilot-next">Mon Apr 28 · 09:00 CET</span>
             </div>
           </div>
         </div>
@@ -739,5 +920,30 @@ main { overflow-y: auto; display: flex; flex-direction: column; }
   </div><!-- /content -->
 </main>
 </div>
+
+<script>
+  // Tri-state selector behavior
+  document.querySelectorAll('.tri-state').forEach(group => {
+    const buttons = group.querySelectorAll('button');
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        buttons.forEach(b => {
+          b.classList.remove('selected', 'lvl-1', 'lvl-2');
+          b.setAttribute('aria-checked', 'false');
+        });
+        btn.classList.add('selected');
+        btn.setAttribute('aria-checked', 'true');
+        const label = btn.textContent.trim();
+        if (label === 'L1') btn.classList.add('lvl-1');
+        if (label === 'L2') btn.classList.add('lvl-2');
+      });
+    });
+  });
+
+  // Stop checkbox & action button clicks from bubbling to the inbox-item row
+  document.querySelectorAll('.inbox-checkbox input, .inbox-actions button').forEach(el => {
+    el.addEventListener('click', e => e.stopPropagation());
+  });
+</script>
 </body>
 </html>

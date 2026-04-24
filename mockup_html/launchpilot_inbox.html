@@ -39,7 +39,9 @@
   --sans:      'DM Sans', sans-serif;
 }
 
-html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; line-height: 1.5; overflow: hidden; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.5; overflow: hidden; }
+button { font-family: inherit; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
 
 /* ── Layout ── */
 .shell { display: grid; grid-template-columns: 220px 1fr; height: 100vh; overflow: hidden; }
@@ -53,12 +55,14 @@ aside {
 .logo-block { padding: 20px 18px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
 .logo-mark { width: 28px; height: 28px; background: var(--purple); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 12px; font-weight: 500; color: #fff; }
 .logo-name { font-family: var(--serif); font-size: 16px; color: var(--text); }
-.product-pill { margin: 14px 12px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
-.product-dot { width: 6px; height: 6px; background: var(--teal); border-radius: 50%; flex-shrink: 0; }
-.product-name { font-size: 12px; font-weight: 500; color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.product-dot { width: 6px; height: 6px; background: var(--teal); border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 3px #2DD4A015; }
+.product-name { font-size: 12.5px; font-weight: 500; color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.product-switcher { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px 6px 9px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: border-color 0.15s, background 0.15s; font-family: var(--sans); color: var(--text); }
+.product-switcher:hover { border-color: var(--border2); background: var(--bg4); }
+.product-caret { color: var(--muted); font-size: 10px; }
 nav { padding: 4px 0; flex: 1; }
 .nav-section { padding: 14px 18px 4px; font-size: 9.5px; font-family: var(--mono); letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
-.nav-item { display: flex; align-items: center; gap: 9px; padding: 7px 18px; font-size: 12.5px; color: var(--muted); cursor: pointer; transition: color 0.12s, background 0.12s; position: relative; }
+.nav-item { display: flex; align-items: center; gap: 9px; padding: 7px 18px; font-size: 12.5px; color: var(--muted); cursor: pointer; transition: color 0.12s, background 0.12s; position: relative; background: none; border: none; width: 100%; text-align: left; }
 .nav-item:hover { color: var(--text); background: var(--bg3); }
 .nav-item.active { color: var(--text); background: var(--purple-dim); }
 .nav-item.active::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 2px; background: var(--purple); border-radius: 0 2px 2px 0; }
@@ -74,7 +78,8 @@ nav { padding: 4px 0; flex: 1; }
 .inbox-shell { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
 .topbar { display: flex; align-items: center; justify-content: space-between; padding: 15px 24px; border-bottom: 1px solid var(--border); background: var(--bg); flex-shrink: 0; }
-.page-title { font-family: var(--serif); font-size: 20px; color: var(--text); font-style: italic; display: flex; align-items: center; gap: 10px; }
+.topbar-left { display: flex; align-items: center; gap: 16px; }
+.page-title { font-family: var(--serif); font-size: 22px; color: var(--text); font-weight: 400; display: flex; align-items: center; gap: 10px; }
 .inbox-count { font-family: var(--mono); font-size: 11px; color: var(--amber); background: var(--amber-dim); border: 1px solid #F0A42930; padding: 2px 8px; border-radius: 10px; font-style: normal; }
 .topbar-right { display: flex; align-items: center; gap: 8px; }
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; border-radius: 7px; font-size: 12px; font-family: var(--sans); font-weight: 500; cursor: pointer; transition: all 0.12s; border: none; }
@@ -116,6 +121,7 @@ nav { padding: 4px 0; flex: 1; }
 .card.selected { background: var(--bg3); border-left: 2px solid var(--purple); }
 .card.selected { padding-left: 14px; }
 .card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.card-checkbox { width: 13px; height: 13px; accent-color: var(--purple); cursor: pointer; flex-shrink: 0; }
 
 .type-badge { padding: 2px 7px; border-radius: 4px; font-size: 9px; font-family: var(--mono); font-weight: 500; flex-shrink: 0; letter-spacing: 0.04em; }
 .tb-article  { background: var(--purple-dim); color: var(--purple-l); border: 1px solid #7B6EF625; }
@@ -246,32 +252,27 @@ nav { padding: 4px 0; flex: 1; }
     <div class="logo-mark">LP</div>
     <div class="logo-name">LaunchPilot</div>
   </div>
-  <div class="product-pill">
-    <div class="product-dot"></div>
-    <div class="product-name">OnChainInvoice.com</div>
-    <span style="color:var(--muted);font-size:10px">⌄</span>
-  </div>
   <nav>
     <div class="nav-section">Overview</div>
-    <div class="nav-item">
+    <button class="nav-item">
       <span class="nav-icon">⊡</span> Dashboard
-    </div>
-    <div class="nav-item active">
+    </button>
+    <button class="nav-item active" aria-current="page">
       <span class="nav-icon">◫</span> Inbox
-      <span class="badge">7</span>
-    </div>
+      <span class="badge" aria-label="7 pending items">7</span>
+    </button>
     <div class="nav-section">Channels</div>
-    <div class="nav-item"><span class="nav-icon">✦</span> SEO Content</div>
-    <div class="nav-item"><span class="nav-icon">◎</span> Community</div>
-    <div class="nav-item"><span class="nav-icon">↗</span> Outreach</div>
-    <div class="nav-item"><span class="nav-icon">⊞</span> Directories</div>
+    <button class="nav-item"><span class="nav-icon">✦</span> SEO Content</button>
+    <button class="nav-item"><span class="nav-icon">◎</span> Community</button>
+    <button class="nav-item"><span class="nav-icon">↗</span> Outreach</button>
+    <button class="nav-item"><span class="nav-icon">⊞</span> Directories</button>
     <div class="nav-section">Insights</div>
-    <div class="nav-item"><span class="nav-icon">∿</span> Analytics</div>
-    <div class="nav-item"><span class="nav-icon">◈</span> Keywords</div>
+    <button class="nav-item"><span class="nav-icon">∿</span> Analytics</button>
+    <button class="nav-item"><span class="nav-icon">◈</span> Keywords</button>
     <div class="nav-section">Product</div>
-    <div class="nav-item"><span class="nav-icon">⊘</span> Marketing Brief</div>
-    <div class="nav-item"><span class="nav-icon">⊕</span> Connections</div>
-    <div class="nav-item"><span class="nav-icon">○</span> Settings</div>
+    <button class="nav-item"><span class="nav-icon">⊘</span> Marketing Brief</button>
+    <button class="nav-item"><span class="nav-icon">⊕</span> Connections</button>
+    <button class="nav-item"><span class="nav-icon">○</span> Settings</button>
   </nav>
   <div class="sidebar-footer">
     <div class="avatar">CS</div>
@@ -286,24 +287,31 @@ nav { padding: 4px 0; flex: 1; }
 <div class="inbox-shell">
 
   <div class="topbar">
-    <div class="page-title">
-      Approval inbox
-      <span class="inbox-count" id="inbox-count">7 pending</span>
+    <div class="topbar-left">
+      <h1 class="page-title">
+        Approval inbox
+        <span class="inbox-count" id="inbox-count">7 pending</span>
+      </h1>
+      <button class="product-switcher" aria-label="Switch product" aria-haspopup="listbox">
+        <span class="product-dot" aria-hidden="true"></span>
+        <span class="product-name">OnChainInvoice.com</span>
+        <span class="product-caret" aria-hidden="true">⌄</span>
+      </button>
     </div>
     <div class="topbar-right">
-      <button class="btn btn-ghost" onclick="approveAll()">✓ Approve all articles</button>
+      <button class="btn btn-ghost" onclick="approveAll()">✓ Approve all high-confidence (3)</button>
       <button class="btn btn-ghost">↓ Skip all</button>
     </div>
   </div>
 
   <div class="filter-bar">
-    <div class="filter-chip active" onclick="setFilter('all', this)">All  <span style="opacity:0.6">7</span></div>
+    <button class="filter-chip active" aria-current="true" onclick="setFilter('all', this)">All  <span style="opacity:0.6">7</span></button>
     <div class="filter-sep"></div>
-    <div class="filter-chip fc-article" onclick="setFilter('article', this)">article  <span style="opacity:0.6">3</span></div>
-    <div class="filter-chip fc-reply"   onclick="setFilter('reply',   this)">reply  <span style="opacity:0.6">2</span></div>
-    <div class="filter-chip fc-listing" onclick="setFilter('listing', this)">listing  <span style="opacity:0.6">1</span></div>
-    <div class="filter-chip fc-outreach"onclick="setFilter('outreach',this)">outreach  <span style="opacity:0.6">1</span></div>
-    <div class="filter-chip fc-copy"    onclick="setFilter('copy',    this)">copy  <span style="opacity:0.6">0</span></div>
+    <button class="filter-chip fc-article" onclick="setFilter('article', this)">article  <span style="opacity:0.6">3</span></button>
+    <button class="filter-chip fc-reply"   onclick="setFilter('reply',   this)">reply  <span style="opacity:0.6">2</span></button>
+    <button class="filter-chip fc-listing" onclick="setFilter('listing', this)">listing  <span style="opacity:0.6">1</span></button>
+    <button class="filter-chip fc-outreach"onclick="setFilter('outreach',this)">outreach  <span style="opacity:0.6">1</span></button>
+    <button class="filter-chip fc-copy"    onclick="setFilter('copy',    this)">copy  <span style="opacity:0.6">0</span></button>
     <div class="filter-sep"></div>
     <div class="sort-label">newest first ↓</div>
   </div>
@@ -314,8 +322,9 @@ nav { padding: 4px 0; flex: 1; }
     <div class="list-pane" id="list-pane">
 
       <!-- Card 1 — selected -->
-      <div class="card selected" id="card-0" onclick="selectCard(0)" data-type="article">
+      <div class="card selected" id="card-0" onclick="selectCard(0)" data-type="article" data-bulk-safe="true">
         <div class="card-top">
+          <input class="card-checkbox" type="checkbox" aria-label="Select item">
           <span class="type-badge tb-article">article</span>
           <span class="card-time">2h ago</span>
         </div>
@@ -333,6 +342,7 @@ nav { padding: 4px 0; flex: 1; }
       <!-- Card 2 -->
       <div class="card" id="card-1" onclick="selectCard(1)" data-type="reply">
         <div class="card-top">
+          <input class="card-checkbox" type="checkbox" aria-label="Select item">
           <span class="type-badge tb-reply">reply</span>
           <span class="card-time">4h ago</span>
         </div>
@@ -348,8 +358,9 @@ nav { padding: 4px 0; flex: 1; }
       </div>
 
       <!-- Card 3 -->
-      <div class="card" id="card-2" onclick="selectCard(2)" data-type="article">
+      <div class="card" id="card-2" onclick="selectCard(2)" data-type="article" data-bulk-safe="true">
         <div class="card-top">
+          <input class="card-checkbox" type="checkbox" aria-label="Select item">
           <span class="type-badge tb-article">article</span>
           <span class="card-time">6h ago</span>
         </div>
@@ -365,8 +376,9 @@ nav { padding: 4px 0; flex: 1; }
       </div>
 
       <!-- Card 4 -->
-      <div class="card" id="card-3" onclick="selectCard(3)" data-type="listing">
+      <div class="card" id="card-3" onclick="selectCard(3)" data-type="listing" data-bulk-safe="true">
         <div class="card-top">
+          <input class="card-checkbox" type="checkbox" aria-label="Select item">
           <span class="type-badge tb-listing">listing</span>
           <span class="card-time">12h ago</span>
         </div>
@@ -384,6 +396,7 @@ nav { padding: 4px 0; flex: 1; }
       <!-- Card 5 -->
       <div class="card" id="card-4" onclick="selectCard(4)" data-type="reply">
         <div class="card-top">
+          <input class="card-checkbox" type="checkbox" aria-label="Select item">
           <span class="type-badge tb-reply">reply</span>
           <span class="card-time">1d ago</span>
         </div>
@@ -401,6 +414,7 @@ nav { padding: 4px 0; flex: 1; }
       <!-- Card 6 -->
       <div class="card" id="card-5" onclick="selectCard(5)" data-type="article">
         <div class="card-top">
+          <input class="card-checkbox" type="checkbox" aria-label="Select item">
           <span class="type-badge tb-article">article</span>
           <span class="card-time">1d ago</span>
         </div>
@@ -418,6 +432,7 @@ nav { padding: 4px 0; flex: 1; }
       <!-- Card 7 -->
       <div class="card" id="card-6" onclick="selectCard(6)" data-type="outreach">
         <div class="card-top">
+          <input class="card-checkbox" type="checkbox" aria-label="Select item">
           <span class="type-badge tb-outreach">outreach</span>
           <span class="card-time">2d ago</span>
         </div>
@@ -742,7 +757,7 @@ function approveCard() {
 }
 
 function approveAll() {
-  document.querySelectorAll('.card[data-type="article"]').forEach(c => {
+  document.querySelectorAll('.card[data-bulk-safe="true"]').forEach(c => {
     c.classList.add('dismissed');
     pending -= 1;
     setTimeout(() => { c.style.display = 'none'; }, 300);
@@ -767,13 +782,21 @@ function selRejectOpt(el) {
   el.classList.add('sel');
 }
 function setFilter(type, el) {
-  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.filter-chip').forEach(c => {
+    c.classList.remove('active');
+    c.removeAttribute('aria-current');
+  });
   el.classList.add('active');
+  el.setAttribute('aria-current', 'true');
   document.querySelectorAll('.card').forEach(c => {
     const show = type === 'all' || c.dataset.type === type;
     c.style.display = show ? '' : 'none';
   });
 }
+
+document.querySelectorAll('.card-checkbox').forEach(input => {
+  input.addEventListener('click', event => event.stopPropagation());
+});
 </script>
 </body>
 </html>
