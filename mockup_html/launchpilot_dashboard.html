@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LaunchPilot — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0B0B0C;
+  --bg2:       #111113;
+  --bg3:       #17171A;
+  --border:    #232328;
+  --border2:   #2E2E35;
+  --text:      #E8E8EC;
+  --muted:     #6B6B78;
+  --subtle:    #3A3A44;
+  --purple:    #7B6EF6;
+  --purple-d:  #5B52CC;
+  --purple-l:  #A89DF8;
+  --purple-dim:#7B6EF614;
+  --teal:      #2DD4A0;
+  --teal-d:    #1A9E75;
+  --teal-dim:  #2DD4A010;
+  --amber:     #F0A429;
+  --amber-dim: #F0A42912;
+  --red:       #F06060;
+  --red-dim:   #F0606012;
+  --mono:      'DM Mono', monospace;
+  --serif:     'Instrument Serif', serif;
+  --sans:      'DM Sans', sans-serif;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; line-height: 1.5; }
+
+/* ── Layout ── */
+.shell { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 1fr; height: 100vh; overflow: hidden; }
+
+/* ── Sidebar ── */
+aside {
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.logo-block {
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-mark {
+  width: 28px; height: 28px;
+  background: var(--purple);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-size: 12px; font-weight: 500;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+.logo-name {
+  font-family: var(--serif);
+  font-size: 16px;
+  color: var(--text);
+  letter-spacing: 0.2px;
+}
+
+.product-pill {
+  margin: 14px 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  transition: border-color 0.15s;
+}
+.product-pill:hover { border-color: var(--border2); }
+.product-dot { width: 6px; height: 6px; background: var(--teal); border-radius: 50%; flex-shrink: 0; }
+.product-name { font-size: 12px; font-weight: 500; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.product-caret { color: var(--muted); font-size: 10px; }
+
+nav { padding: 4px 0; flex: 1; }
+.nav-section { padding: 14px 18px 4px; font-size: 9.5px; font-family: var(--mono); letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 18px;
+  font-size: 12.5px; color: var(--muted);
+  cursor: pointer; border-radius: 0;
+  transition: color 0.12s, background 0.12s;
+  position: relative;
+}
+.nav-item:hover { color: var(--text); background: var(--bg3); }
+.nav-item.active { color: var(--text); background: var(--purple-dim); }
+.nav-item.active::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 2px; background: var(--purple); border-radius: 0 2px 2px 0; }
+.nav-icon { width: 15px; text-align: center; font-size: 13px; opacity: 0.7; }
+.nav-item.active .nav-icon { opacity: 1; }
+.badge {
+  margin-left: auto;
+  background: var(--amber);
+  color: #000;
+  font-size: 9px; font-family: var(--mono); font-weight: 500;
+  padding: 1px 5px; border-radius: 10px;
+  min-width: 16px; text-align: center;
+}
+.badge.purple { background: var(--purple); color: #fff; }
+
+.sidebar-footer {
+  border-top: 1px solid var(--border);
+  padding: 12px 18px;
+  display: flex; align-items: center; gap: 9px;
+}
+.avatar { width: 26px; height: 26px; background: var(--purple-dim); border: 1px solid var(--purple); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--purple-l); font-weight: 500; flex-shrink: 0; }
+.user-name { font-size: 12px; color: var(--text); font-weight: 500; }
+.user-plan { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+
+/* ── Main ── */
+main { overflow-y: auto; display: flex; flex-direction: column; }
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  position: sticky; top: 0; z-index: 10;
+}
+.page-title { font-family: var(--serif); font-size: 20px; color: var(--text); font-style: italic; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 13px; border-radius: 7px;
+  font-size: 12px; font-family: var(--sans); font-weight: 500;
+  cursor: pointer; transition: all 0.12s; border: none;
+}
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); border-color: var(--border2); }
+.btn-primary { background: var(--purple); color: #fff; }
+.btn-primary:hover { background: var(--purple-d); }
+.week-label { font-size: 11px; font-family: var(--mono); color: var(--muted); }
+
+.content { padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
+
+/* ── Weekly brief bar ── */
+.brief-bar {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--purple);
+  border-radius: 9px;
+  padding: 14px 18px;
+  display: flex; align-items: flex-start; gap: 14px;
+  animation: slideIn 0.4s ease both;
+}
+.brief-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.brief-body { flex: 1; }
+.brief-title { font-size: 12.5px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
+.brief-text { font-size: 12px; color: var(--muted); line-height: 1.6; }
+.brief-text strong { color: var(--teal); font-weight: 500; }
+.brief-actions { display: flex; gap: 8px; margin-top: 10px; }
+.btn-xs { padding: 4px 10px; font-size: 11px; border-radius: 5px; }
+
+/* ── Metrics row ── */
+.metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.metric-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  animation: slideIn 0.4s ease both;
+  transition: border-color 0.15s;
+}
+.metric-card:hover { border-color: var(--border2); }
+.metric-label { font-size: 10.5px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+.metric-value { font-size: 26px; font-family: var(--serif); color: var(--text); font-weight: 400; line-height: 1; margin-bottom: 6px; }
+.metric-delta { font-size: 11px; font-family: var(--mono); display: flex; align-items: center; gap: 4px; }
+.delta-up { color: var(--teal); }
+.delta-down { color: var(--red); }
+.delta-neutral { color: var(--muted); }
+.sparkline { margin-top: 10px; height: 28px; }
+
+/* ── Two-column lower ── */
+.lower-grid { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
+
+/* ── Inbox preview ── */
+.panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  animation: slideIn 0.5s ease both;
+}
+.panel-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.panel-title { font-size: 12.5px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.panel-link { font-size: 11px; color: var(--purple-l); font-family: var(--mono); cursor: pointer; }
+.panel-link:hover { text-decoration: underline; }
+
+.inbox-item {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-start; gap: 12px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.inbox-item:last-child { border-bottom: none; }
+.inbox-item:hover { background: var(--bg3); }
+.inbox-type {
+  padding: 2px 7px; border-radius: 4px;
+  font-size: 9px; font-family: var(--mono); font-weight: 500;
+  flex-shrink: 0; margin-top: 1px;
+  letter-spacing: 0.03em;
+}
+.type-article { background: var(--purple-dim); color: var(--purple-l); border: 1px solid #7B6EF630; }
+.type-reply { background: var(--teal-dim); color: var(--teal); border: 1px solid #2DD4A030; }
+.type-listing { background: var(--amber-dim); color: var(--amber); border: 1px solid #F0A42930; }
+.type-outreach { background: var(--red-dim); color: var(--red); border: 1px solid #F0606030; }
+.inbox-body { flex: 1; min-width: 0; }
+.inbox-title { font-size: 12.5px; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+.inbox-sub { font-size: 11px; color: var(--muted); }
+.inbox-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.conf-bar { height: 3px; background: var(--border2); border-radius: 2px; width: 60px; overflow: hidden; }
+.conf-fill { height: 100%; border-radius: 2px; background: var(--teal); }
+.conf-label { font-size: 9.5px; font-family: var(--mono); color: var(--muted); }
+.inbox-time { font-size: 10px; font-family: var(--mono); color: var(--subtle); margin-left: auto; }
+
+/* ── Channels panel ── */
+.channel-row {
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.channel-row:last-child { border-bottom: none; }
+.channel-row:hover { background: var(--bg3); }
+.channel-icon { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.ci-reddit  { background: #FF4500; }
+.ci-hn      { background: #FF6600; }
+.ci-seo     { background: #1D9E75; }
+.ci-twitter { background: #1A8CD8; }
+.ci-dirs    { background: var(--purple); }
+.channel-name { font-size: 12px; font-weight: 500; color: var(--text); flex: 1; }
+.channel-stat { font-size: 11px; font-family: var(--mono); color: var(--muted); text-align: right; }
+.channel-trend { font-size: 10px; font-family: var(--mono); margin-top: 1px; }
+
+/* ── Traffic sources mini chart ── */
+.source-list { padding: 0 18px 14px; }
+.source-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.source-row:last-child { border-bottom: none; }
+.source-label { font-size: 11.5px; color: var(--text); width: 90px; flex-shrink: 0; }
+.source-bar-wrap { flex: 1; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+.source-bar { height: 100%; border-radius: 3px; }
+.source-count { font-size: 11px; font-family: var(--mono); color: var(--muted); width: 48px; text-align: right; flex-shrink: 0; }
+
+/* ── Keyword table ── */
+.kw-table { width: 100%; border-collapse: collapse; }
+.kw-table th { font-size: 10px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 18px; text-align: left; border-bottom: 1px solid var(--border); font-weight: 400; }
+.kw-table td { padding: 9px 18px; font-size: 12px; color: var(--text); border-bottom: 1px solid var(--border); }
+.kw-table tr:last-child td { border-bottom: none; }
+.kw-table tr:hover td { background: var(--bg3); }
+.kw-rank { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.rank-good { color: var(--teal); font-weight: 500; }
+.rank-mid  { color: var(--amber); }
+.rank-new  { color: var(--purple-l); }
+.rank-move { font-size: 10px; font-family: var(--mono); }
+.move-up { color: var(--teal); }
+.move-dn { color: var(--red); }
+
+/* ── Animations ── */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.metrics-row .metric-card:nth-child(1) { animation-delay: 0.05s; }
+.metrics-row .metric-card:nth-child(2) { animation-delay: 0.10s; }
+.metrics-row .metric-card:nth-child(3) { animation-delay: 0.15s; }
+.metrics-row .metric-card:nth-child(4) { animation-delay: 0.20s; }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ── SIDEBAR ── -->
+<aside>
+  <div class="logo-block">
+    <div class="logo-mark">LP</div>
+    <div class="logo-name">LaunchPilot</div>
+  </div>
+
+  <div class="product-pill">
+    <div class="product-dot"></div>
+    <div class="product-name">OnChainInvoice.com</div>
+    <div class="product-caret">⌄</div>
+  </div>
+
+  <nav>
+    <div class="nav-section">Overview</div>
+    <div class="nav-item active">
+      <span class="nav-icon">⊡</span> Dashboard
+    </div>
+    <div class="nav-item">
+      <span class="nav-icon">◫</span> Inbox
+      <span class="badge">7</span>
+    </div>
+
+    <div class="nav-section">Channels</div>
+    <div class="nav-item">
+      <span class="nav-icon">✦</span> SEO Content
+    </div>
+    <div class="nav-item">
+      <span class="nav-icon">◎</span> Community
+    </div>
+    <div class="nav-item">
+      <span class="nav-icon">↗</span> Outreach
+    </div>
+    <div class="nav-item">
+      <span class="nav-icon">⊞</span> Directories
+    </div>
+
+    <div class="nav-section">Insights</div>
+    <div class="nav-item">
+      <span class="nav-icon">∿</span> Analytics
+    </div>
+    <div class="nav-item">
+      <span class="nav-icon">◈</span> Keywords
+    </div>
+
+    <div class="nav-section">Product</div>
+    <div class="nav-item">
+      <span class="nav-icon">⊘</span> Marketing Brief
+    </div>
+    <div class="nav-item">
+      <span class="nav-icon">⊕</span> Connections
+    </div>
+    <div class="nav-item">
+      <span class="nav-icon">○</span> Settings
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="avatar">CS</div>
+    <div>
+      <div class="user-name">Chris</div>
+      <div class="user-plan">launch plan</div>
+    </div>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<main>
+  <div class="topbar">
+    <div class="page-title">Dashboard</div>
+    <div class="topbar-right">
+      <span class="week-label">Week of Apr 21, 2026</span>
+      <button class="btn btn-ghost">↻ Refresh</button>
+      <button class="btn btn-primary">+ Add product</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Weekly brief -->
+    <div class="brief-bar">
+      <div class="brief-icon">⚡</div>
+      <div class="brief-body">
+        <div class="brief-title">This week's summary</div>
+        <div class="brief-text">
+          Organic traffic is up <strong>+34%</strong> from last week. Your article
+          <em>"USDC invoicing for freelancers"</em> landed on page 2 for its target keyword.
+          <strong>7 items</strong> are waiting in your inbox — including 3 community replies
+          ready to post and a ProductHunt listing package. Estimated review time: <strong>8 minutes</strong>.
+        </div>
+        <div class="brief-actions">
+          <button class="btn btn-primary btn-xs">Review inbox →</button>
+          <button class="btn btn-ghost btn-xs">View full report</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-label">Monthly visitors</div>
+        <div class="metric-value">1,847</div>
+        <div class="metric-delta delta-up">↑ 34% vs last week</div>
+        <svg class="sparkline" viewBox="0 0 120 28" fill="none">
+          <polyline points="0,22 20,18 40,20 60,14 80,10 100,6 120,4" stroke="#2DD4A040" stroke-width="1.5" fill="none"/>
+          <polyline points="0,22 20,18 40,20 60,14 80,10 100,6 120,4" stroke="#2DD4A0" stroke-width="1.5" fill="none" stroke-dasharray="200" stroke-dashoffset="200" style="animation: dash 1s ease 0.3s both forwards;"/>
+          <defs><style>@keyframes dash{to{stroke-dashoffset:0}}</style></defs>
+        </svg>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Content published</div>
+        <div class="metric-value">12</div>
+        <div class="metric-delta delta-up">↑ 3 this week</div>
+        <svg class="sparkline" viewBox="0 0 120 28" fill="none">
+          <rect x="8"  y="14" width="12" height="14" fill="#7B6EF620" rx="2"/>
+          <rect x="28" y="18" width="12" height="10" fill="#7B6EF620" rx="2"/>
+          <rect x="48" y="10" width="12" height="18" fill="#7B6EF640" rx="2"/>
+          <rect x="68" y="12" width="12" height="16" fill="#7B6EF640" rx="2"/>
+          <rect x="88" y="6"  width="12" height="22" fill="#7B6EF6"   rx="2"/>
+          <rect x="108" y="8" width="12" height="20" fill="#7B6EF680" rx="2"/>
+        </svg>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Community replies</div>
+        <div class="metric-value">28</div>
+        <div class="metric-delta delta-up">↑ 8 this week</div>
+        <svg class="sparkline" viewBox="0 0 120 28" fill="none">
+          <circle cx="10"  cy="22" r="3" fill="#2DD4A040"/>
+          <circle cx="30"  cy="18" r="3" fill="#2DD4A040"/>
+          <circle cx="50"  cy="16" r="3" fill="#2DD4A060"/>
+          <circle cx="70"  cy="12" r="4" fill="#2DD4A080"/>
+          <circle cx="90"  cy="8"  r="4" fill="#2DD4A0A0"/>
+          <circle cx="110" cy="6"  r="5" fill="#2DD4A0"/>
+        </svg>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Inbox pending</div>
+        <div class="metric-value">7</div>
+        <div class="metric-delta delta-neutral">~ 8 min to review</div>
+        <div style="margin-top:10px;display:flex;gap:4px;align-items:center">
+          <div style="flex:3;height:5px;background:var(--purple);border-radius:2px;opacity:0.9"></div>
+          <div style="flex:2;height:5px;background:var(--teal);border-radius:2px;opacity:0.8"></div>
+          <div style="flex:1;height:5px;background:var(--amber);border-radius:2px;opacity:0.8"></div>
+          <div style="flex:1;height:5px;background:var(--red);border-radius:2px;opacity:0.7"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:5px;font-size:9.5px;font-family:var(--mono);color:var(--muted)">
+          <span style="color:var(--purple-l)">3 articles</span>
+          <span style="color:var(--teal)">2 replies</span>
+          <span style="color:var(--amber)">1 listing</span>
+          <span style="color:var(--red)">1 email</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lower grid -->
+    <div class="lower-grid">
+
+      <!-- Left: Inbox preview + Keywords -->
+      <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              ◫ Approval inbox
+              <span style="background:var(--amber-dim);color:var(--amber);font-size:9px;font-family:var(--mono);padding:1px 6px;border-radius:4px;border:1px solid #F0A42930;">7 pending</span>
+            </div>
+            <span class="panel-link">View all →</span>
+          </div>
+
+          <div class="inbox-item">
+            <span class="inbox-type type-article">article</span>
+            <div class="inbox-body">
+              <div class="inbox-title">How to invoice clients in USDC: a freelancer's guide</div>
+              <div class="inbox-sub">1,840 words · targets "usdc invoice freelancer"</div>
+              <div class="inbox-meta">
+                <div class="conf-bar"><div class="conf-fill" style="width:88%"></div></div>
+                <span class="conf-label">88% confidence</span>
+                <span style="font-size:10px;font-family:var(--mono);color:var(--teal)">↑ est. 120 visits/mo</span>
+                <span class="inbox-time">2h ago</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="inbox-item">
+            <span class="inbox-type type-reply">reply</span>
+            <div class="inbox-body">
+              <div class="inbox-title">r/freelance · "Anyone accepting crypto payments yet?"</div>
+              <div class="inbox-sub">Reddit reply draft · relevance score 82</div>
+              <div class="inbox-meta">
+                <div class="conf-bar"><div class="conf-fill" style="width:74%;background:var(--teal)"></div></div>
+                <span class="conf-label">74% confidence</span>
+                <span class="inbox-time">4h ago</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="inbox-item">
+            <span class="inbox-type type-article">article</span>
+            <div class="inbox-body">
+              <div class="inbox-title">Crypto invoicing vs traditional invoicing: a comparison</div>
+              <div class="inbox-sub">1,200 words · comparison page · targets "crypto invoicing"</div>
+              <div class="inbox-meta">
+                <div class="conf-bar"><div class="conf-fill" style="width:91%"></div></div>
+                <span class="conf-label">91% confidence</span>
+                <span style="font-size:10px;font-family:var(--mono);color:var(--teal)">↑ est. 210 visits/mo</span>
+                <span class="inbox-time">6h ago</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="inbox-item">
+            <span class="inbox-type type-listing">listing</span>
+            <div class="inbox-body">
+              <div class="inbox-title">ProductHunt listing package ready</div>
+              <div class="inbox-sub">Tagline · description · 5 screenshots generated</div>
+              <div class="inbox-meta">
+                <div class="conf-bar"><div class="conf-fill" style="width:95%;background:var(--amber)"></div></div>
+                <span class="conf-label">95% confidence</span>
+                <span class="inbox-time">12h ago</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="inbox-item">
+            <span class="inbox-type type-reply">reply</span>
+            <div class="inbox-body">
+              <div class="inbox-title">HN · "Ask HN: how do you handle international payments?"</div>
+              <div class="inbox-sub">Hacker News reply draft · relevance score 71</div>
+              <div class="inbox-meta">
+                <div class="conf-bar"><div class="conf-fill" style="width:71%;background:var(--teal)"></div></div>
+                <span class="conf-label">71% confidence</span>
+                <span class="inbox-time">1d ago</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Keywords -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">◈ Keyword positions</div>
+            <span class="panel-link">Full report →</span>
+          </div>
+          <table class="kw-table">
+            <thead>
+              <tr>
+                <th>Keyword</th>
+                <th>Position</th>
+                <th>Change</th>
+                <th>Volume</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>usdc invoice generator</td>
+                <td class="kw-rank rank-good">#4</td>
+                <td class="rank-move move-up">↑ 6</td>
+                <td class="kw-rank">880/mo</td>
+              </tr>
+              <tr>
+                <td>crypto invoicing for freelancers</td>
+                <td class="kw-rank rank-mid">#14</td>
+                <td class="rank-move move-up">↑ 3</td>
+                <td class="kw-rank">590/mo</td>
+              </tr>
+              <tr>
+                <td>solana b2b payments</td>
+                <td class="kw-rank rank-mid">#19</td>
+                <td class="rank-move move-dn">↓ 2</td>
+                <td class="kw-rank">320/mo</td>
+              </tr>
+              <tr>
+                <td>invoice paid in crypto</td>
+                <td class="kw-rank rank-good">#7</td>
+                <td class="rank-move move-up">↑ 11</td>
+                <td class="kw-rank">1.2k/mo</td>
+              </tr>
+              <tr>
+                <td>usdc payment for contractors</td>
+                <td class="kw-rank rank-new">new</td>
+                <td class="rank-move" style="color:var(--purple-l)">→ tracking</td>
+                <td class="kw-rank">440/mo</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <!-- Right: Channel health + Traffic sources -->
+      <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Channel health</div>
+          </div>
+
+          <div class="channel-row">
+            <div class="channel-icon ci-seo">✦</div>
+            <div>
+              <div class="channel-name">SEO / content</div>
+              <div class="channel-stat" style="font-size:10px;color:var(--teal)">Active · 3 drafts ready</div>
+            </div>
+            <div style="text-align:right">
+              <div class="channel-stat">612 visits</div>
+              <div class="channel-trend move-up">↑ 28%</div>
+            </div>
+          </div>
+
+          <div class="channel-row">
+            <div class="channel-icon ci-reddit">◎</div>
+            <div>
+              <div class="channel-name">Reddit</div>
+              <div class="channel-stat" style="font-size:10px;color:var(--muted)">2 replies pending approval</div>
+            </div>
+            <div style="text-align:right">
+              <div class="channel-stat">340 visits</div>
+              <div class="channel-trend move-up">↑ 55%</div>
+            </div>
+          </div>
+
+          <div class="channel-row">
+            <div class="channel-icon ci-hn">⬡</div>
+            <div>
+              <div class="channel-name">Hacker News</div>
+              <div class="channel-stat" style="font-size:10px;color:var(--muted)">1 reply pending</div>
+            </div>
+            <div style="text-align:right">
+              <div class="channel-stat">218 visits</div>
+              <div class="channel-trend move-up">↑ 12%</div>
+            </div>
+          </div>
+
+          <div class="channel-row">
+            <div class="channel-icon ci-dirs">⊞</div>
+            <div>
+              <div class="channel-name">Directories</div>
+              <div class="channel-stat" style="font-size:10px;color:var(--amber)">14 / 80+ submitted</div>
+            </div>
+            <div style="text-align:right">
+              <div class="channel-stat">164 visits</div>
+              <div class="channel-trend move-up">↑ 8%</div>
+            </div>
+          </div>
+
+          <div class="channel-row">
+            <div class="channel-icon ci-twitter">◈</div>
+            <div>
+              <div class="channel-name">X / Twitter</div>
+              <div class="channel-stat" style="font-size:10px;color:var(--muted)">Not connected</div>
+            </div>
+            <div style="text-align:right">
+              <div class="channel-stat" style="color:var(--muted)">—</div>
+              <div class="channel-trend" style="font-size:10px;color:var(--purple-l);cursor:pointer">Connect →</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Traffic sources -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Traffic sources</div>
+            <span class="panel-link">Analytics →</span>
+          </div>
+          <div class="source-list">
+            <div class="source-row">
+              <div class="source-label">Organic search</div>
+              <div class="source-bar-wrap"><div class="source-bar" style="width:66%;background:var(--teal)"></div></div>
+              <div class="source-count">612</div>
+            </div>
+            <div class="source-row">
+              <div class="source-label">Reddit</div>
+              <div class="source-bar-wrap"><div class="source-bar" style="width:37%;background:#FF4500"></div></div>
+              <div class="source-count">340</div>
+            </div>
+            <div class="source-row">
+              <div class="source-label">Hacker News</div>
+              <div class="source-bar-wrap"><div class="source-bar" style="width:24%;background:#FF6600"></div></div>
+              <div class="source-count">218</div>
+            </div>
+            <div class="source-row">
+              <div class="source-label">Directories</div>
+              <div class="source-bar-wrap"><div class="source-bar" style="width:18%;background:var(--purple)"></div></div>
+              <div class="source-count">164</div>
+            </div>
+            <div class="source-row">
+              <div class="source-label">Direct</div>
+              <div class="source-bar-wrap"><div class="source-bar" style="width:12%;background:var(--subtle)"></div></div>
+              <div class="source-count">112</div>
+            </div>
+            <div class="source-row">
+              <div class="source-label">Other</div>
+              <div class="source-bar-wrap"><div class="source-bar" style="width:5%;background:var(--border2)"></div></div>
+              <div class="source-count">47</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Autopilot status -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Autopilot status</div>
+          </div>
+          <div style="padding:14px 18px;display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="font-size:12px;color:var(--text)">SEO content</div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <div style="width:28px;height:14px;background:var(--teal);border-radius:7px;position:relative;cursor:pointer">
+                  <div style="position:absolute;right:2px;top:2px;width:10px;height:10px;background:#fff;border-radius:50%"></div>
+                </div>
+                <span style="font-size:10px;font-family:var(--mono);color:var(--teal)">level 2</span>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="font-size:12px;color:var(--text)">Community replies</div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <div style="width:28px;height:14px;background:var(--border2);border-radius:7px;position:relative;cursor:pointer">
+                  <div style="position:absolute;left:2px;top:2px;width:10px;height:10px;background:var(--muted);border-radius:50%"></div>
+                </div>
+                <span style="font-size:10px;font-family:var(--mono);color:var(--muted)">level 1</span>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="font-size:12px;color:var(--text)">Outreach</div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <div style="width:28px;height:14px;background:var(--border2);border-radius:7px;position:relative;cursor:pointer">
+                  <div style="position:absolute;left:2px;top:2px;width:10px;height:10px;background:var(--muted);border-radius:50%"></div>
+                </div>
+                <span style="font-size:10px;font-family:var(--mono);color:var(--muted)">level 1</span>
+              </div>
+            </div>
+            <div style="margin-top:2px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);line-height:1.5;">
+              Next scheduled run: <span style="color:var(--text);font-family:var(--mono)">Mon Apr 28 · 09:00 CET</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+</div>
+</body>
+</html>

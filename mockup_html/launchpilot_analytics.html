@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LaunchPilot — Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:         #0B0B0C;
+  --bg2:        #111113;
+  --bg3:        #17171A;
+  --bg4:        #1E1E23;
+  --border:     #232328;
+  --border2:    #2E2E35;
+  --border3:    #3A3A44;
+  --text:       #E8E8EC;
+  --muted:      #6B6B78;
+  --subtle:     #3A3A44;
+  --purple:     #7B6EF6;
+  --purple-d:   #5B52CC;
+  --purple-l:   #A89DF8;
+  --purple-dim: #7B6EF614;
+  --purple-glow:#7B6EF630;
+  --teal:       #2DD4A0;
+  --teal-dim:   #2DD4A010;
+  --amber:      #F0A429;
+  --amber-dim:  #F0A42914;
+  --red:        #F06060;
+  --red-dim:    #F0606014;
+  --blue:       #5B9EF6;
+  --blue-dim:   #5B9EF614;
+  --mono:  'DM Mono', monospace;
+  --serif: 'Instrument Serif', serif;
+  --sans:  'DM Sans', sans-serif;
+}
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; line-height: 1.5; overflow: hidden; }
+
+/* ── Shell ── */
+.shell { display: grid; grid-template-columns: 220px 1fr; height: 100vh; overflow: hidden; }
+
+/* ── Sidebar ── */
+aside { background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+.logo-block { padding: 20px 18px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.logo-mark { width: 28px; height: 28px; background: var(--purple); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 12px; font-weight: 500; color: #fff; }
+.logo-name { font-family: var(--serif); font-size: 16px; color: var(--text); }
+.product-pill { margin: 14px 12px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.product-dot { width: 6px; height: 6px; background: var(--teal); border-radius: 50%; flex-shrink: 0; }
+.product-name { font-size: 12px; font-weight: 500; color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+nav { padding: 4px 0; flex: 1; }
+.nav-section { padding: 14px 18px 4px; font-size: 9.5px; font-family: var(--mono); letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+.nav-item { display: flex; align-items: center; gap: 9px; padding: 7px 18px; font-size: 12.5px; color: var(--muted); cursor: pointer; transition: color 0.12s, background 0.12s; position: relative; }
+.nav-item:hover { color: var(--text); background: var(--bg3); }
+.nav-item.active { color: var(--text); background: var(--purple-dim); }
+.nav-item.active::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 2px; background: var(--purple); border-radius: 0 2px 2px 0; }
+.nav-icon { width: 15px; text-align: center; font-size: 13px; opacity: 0.7; }
+.nav-item.active .nav-icon { opacity: 1; }
+.badge { margin-left: auto; background: var(--amber); color: #000; font-size: 9px; font-family: var(--mono); font-weight: 500; padding: 1px 5px; border-radius: 10px; }
+.sidebar-footer { border-top: 1px solid var(--border); padding: 12px 18px; display: flex; align-items: center; gap: 9px; }
+.avatar { width: 26px; height: 26px; background: var(--purple-dim); border: 1px solid var(--purple); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--purple-l); font-weight: 500; flex-shrink: 0; }
+.user-name { font-size: 12px; color: var(--text); font-weight: 500; }
+.user-plan { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+
+/* ── Main ── */
+.main { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 15px 28px; border-bottom: 1px solid var(--border); background: var(--bg); flex-shrink: 0; }
+.page-title { font-family: var(--serif); font-size: 20px; color: var(--text); font-style: italic; }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; border-radius: 7px; font-size: 12px; font-family: var(--sans); font-weight: 500; cursor: pointer; transition: all 0.12s; border: none; }
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); border-color: var(--border2); }
+.btn-ghost.active { color: var(--text); border-color: var(--border2); background: var(--bg3); }
+
+/* ── Range tabs ── */
+.range-bar { display: flex; align-items: center; gap: 0; padding: 10px 28px; border-bottom: 1px solid var(--border); background: var(--bg2); flex-shrink: 0; }
+.range-tab { padding: 5px 13px; font-size: 11.5px; font-family: var(--mono); color: var(--muted); cursor: pointer; border: 1px solid transparent; border-radius: 6px; transition: all 0.1s; }
+.range-tab:hover { color: var(--text); }
+.range-tab.active { color: var(--text); background: var(--bg3); border-color: var(--border2); }
+.range-sep { flex: 1; }
+.compare-toggle { display: flex; align-items: center; gap: 7px; font-size: 11px; font-family: var(--mono); color: var(--muted); cursor: pointer; }
+.toggle-pill { width: 28px; height: 15px; background: var(--border2); border-radius: 8px; position: relative; transition: background 0.2s; }
+.toggle-pill.on { background: var(--purple); }
+.toggle-pill::after { content: ''; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; background: var(--muted); border-radius: 50%; transition: transform 0.2s, background 0.2s; }
+.toggle-pill.on::after { transform: translateX(13px); background: #fff; }
+
+/* ── Content ── */
+.content { flex: 1; overflow-y: auto; padding: 22px 28px; display: flex; flex-direction: column; gap: 18px; }
+
+/* ── KPI strip ── */
+.kpi-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; transition: border-color 0.15s; animation: rise 0.4s ease both; }
+.kpi:hover { border-color: var(--border2); }
+.kpi-label { font-size: 10px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+.kpi-value { font-size: 24px; font-family: var(--serif); color: var(--text); line-height: 1; margin-bottom: 5px; }
+.kpi-delta { font-size: 10.5px; font-family: var(--mono); }
+.up   { color: var(--teal); }
+.down { color: var(--red); }
+.flat { color: var(--muted); }
+
+/* ── Main chart area ── */
+.chart-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; animation: rise 0.4s ease 0.08s both; }
+.chart-header { padding: 16px 20px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+.chart-title { font-size: 13px; font-weight: 500; color: var(--text); }
+.chart-legend { display: flex; align-items: center; gap: 14px; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; font-family: var(--mono); color: var(--muted); cursor: pointer; }
+.legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+.chart-wrap { padding: 16px 20px 10px; position: relative; }
+
+/* ── Canvas chart ── */
+#main-chart { display: block; width: 100%; height: 200px; cursor: crosshair; }
+
+/* ── Bottom grid ── */
+.bottom-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+/* ── Sources table ── */
+.panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; animation: rise 0.4s ease 0.14s both; }
+.panel-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.panel-title { font-size: 12.5px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 7px; }
+.panel-sub { font-size: 10px; font-family: var(--mono); color: var(--muted); }
+
+.sources-table { width: 100%; border-collapse: collapse; }
+.sources-table th { font-size: 9.5px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 18px; text-align: left; border-bottom: 1px solid var(--border); font-weight: 400; }
+.sources-table td { padding: 9px 18px; font-size: 12px; border-bottom: 1px solid var(--border); }
+.sources-table tr:last-child td { border-bottom: none; }
+.sources-table tr:hover td { background: var(--bg3); }
+.src-name { display: flex; align-items: center; gap: 8px; }
+.src-icon { width: 18px; height: 18px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; flex-shrink: 0; }
+.src-bar-cell { width: 80px; }
+.src-bar-wrap { height: 4px; background: var(--border2); border-radius: 2px; overflow: hidden; }
+.src-bar { height: 100%; border-radius: 2px; }
+.num { font-family: var(--mono); font-size: 11.5px; color: var(--text); text-align: right; }
+.pct { font-family: var(--mono); font-size: 10.5px; color: var(--muted); text-align: right; }
+.delta-cell { font-family: var(--mono); font-size: 10.5px; text-align: right; }
+
+/* ── Content performance ── */
+.content-row { padding: 10px 18px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; display: flex; align-items: flex-start; gap: 12px; }
+.content-row:last-child { border-bottom: none; }
+.content-row:hover { background: var(--bg3); }
+.cr-rank { font-size: 10px; font-family: var(--mono); color: var(--subtle); width: 16px; flex-shrink: 0; padding-top: 2px; }
+.cr-body { flex: 1; min-width: 0; }
+.cr-title { font-size: 12px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+.cr-meta { font-size: 10.5px; font-family: var(--mono); color: var(--muted); display: flex; gap: 8px; }
+.cr-stats { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
+.cr-views { font-size: 12px; font-family: var(--mono); color: var(--text); }
+.cr-kw { font-size: 10px; font-family: var(--mono); }
+
+/* ── Funnel ── */
+.funnel-wrap { padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.funnel-step { display: flex; flex-direction: column; gap: 4px; }
+.funnel-label { display: flex; align-items: center; justify-content: space-between; }
+.fl-name { font-size: 11.5px; color: var(--text); }
+.fl-count { font-size: 11.5px; font-family: var(--mono); color: var(--muted); }
+.funnel-bar-wrap { height: 6px; background: var(--border2); border-radius: 3px; overflow: hidden; }
+.funnel-bar { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+.funnel-rate { font-size: 10px; font-family: var(--mono); color: var(--muted); text-align: right; margin-top: 1px; }
+.funnel-arrow { text-align: center; font-size: 10px; color: var(--subtle); margin: 0; }
+
+/* ── Tooltip ── */
+#tooltip { position: fixed; background: var(--bg4); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 13px; font-size: 11px; pointer-events: none; display: none; z-index: 100; min-width: 130px; }
+#tooltip .tt-date { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-bottom: 6px; }
+#tooltip .tt-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 3px; }
+#tooltip .tt-row:last-child { margin-bottom: 0; }
+#tooltip .tt-label { display: flex; align-items: center; gap: 5px; color: var(--muted); }
+#tooltip .tt-dot { width: 7px; height: 7px; border-radius: 2px; }
+#tooltip .tt-val { font-family: var(--mono); font-weight: 500; color: var(--text); }
+
+/* ── Recommendation bar ── */
+.rec-bar { background: var(--bg3); border: 1px solid var(--border); border-left: 3px solid var(--purple); border-radius: 9px; padding: 13px 18px; display: flex; align-items: flex-start; gap: 12px; }
+.rec-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.rec-body { flex: 1; }
+.rec-title { font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
+.rec-text { font-size: 11.5px; color: var(--muted); line-height: 1.6; }
+.rec-text strong { color: var(--teal); font-weight: 500; }
+.rec-actions { margin-top: 8px; display: flex; gap: 7px; }
+.btn-xs { padding: 4px 10px; font-size: 11px; border-radius: 5px; }
+.btn-primary { background: var(--purple); color: #fff; border: none; }
+.btn-primary:hover { background: var(--purple-d); }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.kpi:nth-child(1){animation-delay:0.03s}
+.kpi:nth-child(2){animation-delay:0.06s}
+.kpi:nth-child(3){animation-delay:0.09s}
+.kpi:nth-child(4){animation-delay:0.12s}
+.kpi:nth-child(5){animation-delay:0.15s}
+.bottom-grid .panel:nth-child(1){animation-delay:0.18s}
+.bottom-grid .panel:nth-child(2){animation-delay:0.22s}
+.bottom-grid .panel:nth-child(3){animation-delay:0.26s}
+
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+</style>
+</head>
+<body>
+<div id="tooltip">
+  <div class="tt-date" id="tt-date"></div>
+  <div class="tt-row"><span class="tt-label"><span class="tt-dot" style="background:#2DD4A0"></span>Organic</span><span class="tt-val" id="tt-organic"></span></div>
+  <div class="tt-row"><span class="tt-label"><span class="tt-dot" style="background:#FF4500"></span>Reddit</span><span class="tt-val" id="tt-reddit"></span></div>
+  <div class="tt-row"><span class="tt-label"><span class="tt-dot" style="background:#7B6EF6"></span>Other</span><span class="tt-val" id="tt-other"></span></div>
+</div>
+
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside>
+  <div class="logo-block">
+    <div class="logo-mark">LP</div>
+    <div class="logo-name">LaunchPilot</div>
+  </div>
+  <div class="product-pill">
+    <div class="product-dot"></div>
+    <div class="product-name">OnChainInvoice.com</div>
+    <span style="color:var(--muted);font-size:10px">⌄</span>
+  </div>
+  <nav>
+    <div class="nav-section">Overview</div>
+    <div class="nav-item"><span class="nav-icon">⊡</span> Dashboard</div>
+    <div class="nav-item"><span class="nav-icon">◫</span> Inbox <span class="badge">7</span></div>
+    <div class="nav-section">Channels</div>
+    <div class="nav-item"><span class="nav-icon">✦</span> SEO Content</div>
+    <div class="nav-item"><span class="nav-icon">◎</span> Community</div>
+    <div class="nav-item"><span class="nav-icon">↗</span> Outreach</div>
+    <div class="nav-item"><span class="nav-icon">⊞</span> Directories</div>
+    <div class="nav-section">Insights</div>
+    <div class="nav-item active"><span class="nav-icon">∿</span> Analytics</div>
+    <div class="nav-item"><span class="nav-icon">◈</span> Keywords</div>
+    <div class="nav-section">Product</div>
+    <div class="nav-item"><span class="nav-icon">⊘</span> Marketing Brief</div>
+    <div class="nav-item"><span class="nav-icon">⊕</span> Connections</div>
+    <div class="nav-item"><span class="nav-icon">○</span> Settings</div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="avatar">CS</div>
+    <div><div class="user-name">Chris</div><div class="user-plan">launch plan</div></div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="page-title">Analytics</div>
+    <div class="topbar-right">
+      <button class="btn btn-ghost">↓ Export CSV</button>
+      <button class="btn btn-ghost">⊞ Add goal</button>
+    </div>
+  </div>
+
+  <div class="range-bar">
+    <div class="range-tab" onclick="setRange(7,this)">7d</div>
+    <div class="range-tab active" onclick="setRange(30,this)">30d</div>
+    <div class="range-tab" onclick="setRange(90,this)">90d</div>
+    <div class="range-tab" onclick="setRange(0,this)">all time</div>
+    <div class="range-sep"></div>
+    <div class="compare-toggle" onclick="toggleCompare(this)">
+      <div class="toggle-pill" id="compare-pill"></div>
+      compare to previous period
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- KPI strip -->
+    <div class="kpi-strip">
+      <div class="kpi">
+        <div class="kpi-label">Total visitors</div>
+        <div class="kpi-value" id="kpi-visitors">1,847</div>
+        <div class="kpi-delta up" id="kpi-visitors-d">↑ 34% vs prior period</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Unique visitors</div>
+        <div class="kpi-value" id="kpi-unique">1,203</div>
+        <div class="kpi-delta up">↑ 28%</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Avg. time on page</div>
+        <div class="kpi-value">2:41</div>
+        <div class="kpi-delta up">↑ 18s</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Bounce rate</div>
+        <div class="kpi-value">51<span style="font-size:16px;color:var(--muted)">%</span></div>
+        <div class="kpi-delta up">↓ 4pp (better)</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Signups</div>
+        <div class="kpi-value">38</div>
+        <div class="kpi-delta up">↑ 12 this period</div>
+      </div>
+    </div>
+
+    <!-- AI recommendation -->
+    <div class="rec-bar">
+      <div class="rec-icon">⚡</div>
+      <div class="rec-body">
+        <div class="rec-title">This week's recommendation</div>
+        <div class="rec-text">
+          Reddit is outperforming SEO on a per-post basis — <strong>340 visits from 3 posts</strong> vs 612 organic from 12 articles. Post 2 more targeted replies this week in r/freelance and r/solana. Suggested threads are ready in your inbox.
+        </div>
+        <div class="rec-actions">
+          <button class="btn btn-primary btn-xs">Review threads →</button>
+          <button class="btn btn-ghost btn-xs">Dismiss</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main chart -->
+    <div class="chart-panel">
+      <div class="chart-header">
+        <div class="chart-title">Visitors over time</div>
+        <div class="chart-legend">
+          <div class="legend-item" onclick="toggleSeries('organic',this)">
+            <div class="legend-dot" style="background:#2DD4A0"></div> Organic
+          </div>
+          <div class="legend-item" onclick="toggleSeries('reddit',this)">
+            <div class="legend-dot" style="background:#FF4500"></div> Reddit
+          </div>
+          <div class="legend-item" onclick="toggleSeries('hn',this)">
+            <div class="legend-dot" style="background:#FF6600"></div> Hacker News
+          </div>
+          <div class="legend-item" onclick="toggleSeries('dirs',this)">
+            <div class="legend-dot" style="background:#7B6EF6"></div> Directories
+          </div>
+          <div class="legend-item" onclick="toggleSeries('direct',this)">
+            <div class="legend-dot" style="background:#6B6B78"></div> Direct
+          </div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="main-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Bottom grid -->
+    <div class="bottom-grid">
+
+      <!-- Traffic sources -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Traffic sources</div>
+          <div class="panel-sub">last 30 days</div>
+        </div>
+        <table class="sources-table">
+          <thead>
+            <tr>
+              <th>Source</th>
+              <th></th>
+              <th style="text-align:right">Visits</th>
+              <th style="text-align:right">%</th>
+              <th style="text-align:right">Δ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><div class="src-name"><div class="src-icon" style="background:#1D9E7520;color:#2DD4A0">✦</div>Organic</div></td>
+              <td class="src-bar-cell"><div class="src-bar-wrap"><div class="src-bar" style="width:66%;background:#2DD4A0"></div></div></td>
+              <td class="num">612</td>
+              <td class="pct">33%</td>
+              <td class="delta-cell up">↑28%</td>
+            </tr>
+            <tr>
+              <td><div class="src-name"><div class="src-icon" style="background:#FF450020;color:#FF4500">◎</div>Reddit</div></td>
+              <td class="src-bar-cell"><div class="src-bar-wrap"><div class="src-bar" style="width:37%;background:#FF4500"></div></div></td>
+              <td class="num">340</td>
+              <td class="pct">18%</td>
+              <td class="delta-cell up">↑55%</td>
+            </tr>
+            <tr>
+              <td><div class="src-name"><div class="src-icon" style="background:#FF660020;color:#FF6600">⬡</div>HN</div></td>
+              <td class="src-bar-cell"><div class="src-bar-wrap"><div class="src-bar" style="width:24%;background:#FF6600"></div></div></td>
+              <td class="num">218</td>
+              <td class="pct">12%</td>
+              <td class="delta-cell up">↑12%</td>
+            </tr>
+            <tr>
+              <td><div class="src-name"><div class="src-icon" style="background:#7B6EF620;color:#A89DF8">⊞</div>Directories</div></td>
+              <td class="src-bar-cell"><div class="src-bar-wrap"><div class="src-bar" style="width:18%;background:#7B6EF6"></div></div></td>
+              <td class="num">164</td>
+              <td class="pct">9%</td>
+              <td class="delta-cell up">↑8%</td>
+            </tr>
+            <tr>
+              <td><div class="src-name"><div class="src-icon" style="background:#3A3A4420;color:#6B6B78">◈</div>Direct</div></td>
+              <td class="src-bar-cell"><div class="src-bar-wrap"><div class="src-bar" style="width:12%;background:#6B6B78"></div></div></td>
+              <td class="num">112</td>
+              <td class="pct">6%</td>
+              <td class="delta-cell flat">→ 0%</td>
+            </tr>
+            <tr>
+              <td><div class="src-name"><div class="src-icon" style="background:#3A3A4420;color:#6B6B78">·</div>Other</div></td>
+              <td class="src-bar-cell"><div class="src-bar-wrap"><div class="src-bar" style="width:5%;background:#3A3A44"></div></div></td>
+              <td class="num">47</td>
+              <td class="pct">3%</td>
+              <td class="delta-cell down">↓3%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Top content -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Top content</div>
+          <div class="panel-sub">by visits</div>
+        </div>
+        <div class="content-row">
+          <div class="cr-rank">1</div>
+          <div class="cr-body">
+            <div class="cr-title">USDC invoice generator for freelancers</div>
+            <div class="cr-meta"><span>article</span><span>·</span><span style="color:var(--teal)">pos #4</span></div>
+          </div>
+          <div class="cr-stats">
+            <div class="cr-views">284</div>
+            <div class="cr-kw up">↑ 6 ranks</div>
+          </div>
+        </div>
+        <div class="content-row">
+          <div class="cr-rank">2</div>
+          <div class="cr-body">
+            <div class="cr-title">How to invoice clients in USDC</div>
+            <div class="cr-meta"><span>article</span><span>·</span><span style="color:var(--amber)">pos #14</span></div>
+          </div>
+          <div class="cr-stats">
+            <div class="cr-views">198</div>
+            <div class="cr-kw up">↑ 3 ranks</div>
+          </div>
+        </div>
+        <div class="content-row">
+          <div class="cr-rank">3</div>
+          <div class="cr-body">
+            <div class="cr-title">Crypto invoicing vs traditional invoicing</div>
+            <div class="cr-meta"><span>comparison</span><span>·</span><span style="color:var(--amber)">pos #19</span></div>
+          </div>
+          <div class="cr-stats">
+            <div class="cr-views">142</div>
+            <div class="cr-kw down">↓ 2 ranks</div>
+          </div>
+        </div>
+        <div class="content-row">
+          <div class="cr-rank">4</div>
+          <div class="cr-body">
+            <div class="cr-title">Best USDC payment tools 2026</div>
+            <div class="cr-meta"><span>list post</span><span>·</span><span style="color:var(--teal)">pos #7</span></div>
+          </div>
+          <div class="cr-stats">
+            <div class="cr-views">96</div>
+            <div class="cr-kw up">↑ 11 ranks</div>
+          </div>
+        </div>
+        <div class="content-row">
+          <div class="cr-rank">5</div>
+          <div class="cr-body">
+            <div class="cr-title">Solana B2B payment guide</div>
+            <div class="cr-meta"><span>article</span><span>·</span><span style="color:var(--muted)">pos #31</span></div>
+          </div>
+          <div class="cr-stats">
+            <div class="cr-views">72</div>
+            <div class="cr-kw flat">→ no change</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Conversion funnel -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Conversion funnel</div>
+          <div class="panel-sub">visitors → signups</div>
+        </div>
+        <div class="funnel-wrap">
+          <div class="funnel-step">
+            <div class="funnel-label">
+              <span class="fl-name">Visitors</span>
+              <span class="fl-count">1,847</span>
+            </div>
+            <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:100%;background:#2DD4A0"></div></div>
+          </div>
+          <div class="funnel-arrow">↓ <span style="font-family:var(--mono);font-size:9.5px;color:var(--muted)">58% bounce</span></div>
+          <div class="funnel-step">
+            <div class="funnel-label">
+              <span class="fl-name">Engaged (>30s)</span>
+              <span class="fl-count">776</span>
+            </div>
+            <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:42%;background:#2DD4A0"></div></div>
+            <div class="funnel-rate">42% of visitors</div>
+          </div>
+          <div class="funnel-arrow">↓ <span style="font-family:var(--mono);font-size:9.5px;color:var(--muted)">clicked CTA</span></div>
+          <div class="funnel-step">
+            <div class="funnel-label">
+              <span class="fl-name">Pricing page view</span>
+              <span class="fl-count">184</span>
+            </div>
+            <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:10%;background:#F0A429"></div></div>
+            <div class="funnel-rate">10% of visitors</div>
+          </div>
+          <div class="funnel-arrow">↓ <span style="font-family:var(--mono);font-size:9.5px;color:var(--muted)">signed up</span></div>
+          <div class="funnel-step">
+            <div class="funnel-label">
+              <span class="fl-name">Signups</span>
+              <span class="fl-count">38</span>
+            </div>
+            <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:2%;background:#7B6EF6"></div></div>
+            <div class="funnel-rate">2.1% of visitors · <span style="color:var(--teal)">20.7% of pricing views</span></div>
+          </div>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+            <div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:6px">FUNNEL INSIGHT</div>
+            <div style="font-size:11.5px;color:var(--muted);line-height:1.6">Pricing page → signup conversion is strong at <span style="color:var(--teal)">20.7%</span>. Biggest drop: visitor → engaged. Focus on above-fold hook copy.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /bottom-grid -->
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<script>
+// ── Chart data ──────────────────────────────────────────────────────────────
+const rng = (seed,lo,hi) => {
+  let s=seed; return ()=>{ s=(s*1664525+1013904223)&0xFFFFFFFF; return lo+((s>>>0)/0x100000000)*(hi-lo); };
+};
+const r1=rng(1,8,55), r2=rng(7,3,28), r3=rng(13,4,18), r4=rng(19,2,12), r5=rng(23,2,8);
+
+const days30 = Array.from({length:30},(_,i)=>{
+  const d = new Date(2026,3,24); d.setDate(d.getDate()-(29-i)); return d;
+});
+const label = d => `${d.toLocaleString('en',{month:'short'})} ${d.getDate()}`;
+
+const data = days30.map((d,i)=>({
+  date: label(d),
+  organic: Math.round(r1() + i*0.8),
+  reddit:  Math.round(r2() + (i>14?i*0.4:0)),
+  hn:      Math.round(r3() + (i>20?i*0.2:0)),
+  dirs:    Math.round(r4() + i*0.15),
+  direct:  Math.round(r5()),
+}));
+
+const series = {
+  organic:{ color:'#2DD4A0', key:'organic', visible:true },
+  reddit: { color:'#FF4500', key:'reddit',  visible:true },
+  hn:     { color:'#FF6600', key:'hn',       visible:true },
+  dirs:   { color:'#7B6EF6', key:'dirs',     visible:true },
+  direct: { color:'#6B6B78', key:'direct',   visible:true },
+};
+
+let rangeData = data;
+let hoverIdx = -1;
+
+const canvas = document.getElementById('main-chart');
+const ctx = canvas.getContext('2d');
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
+}
+
+function buildChart() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr  = window.devicePixelRatio || 1;
+  canvas.width  = rect.width  * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const W = rect.width, H = rect.height;
+  const PL = 46, PR = 14, PT = 12, PB = 30;
+  const CW = W - PL - PR, CH = H - PT - PB;
+  const n  = rangeData.length;
+
+  // ── Max value
+  const visibleKeys = Object.values(series).filter(s=>s.visible).map(s=>s.key);
+  const maxVal = Math.max(...rangeData.map(d => visibleKeys.reduce((a,k)=>a+(d[k]||0),0)));
+  const yMax   = Math.ceil(maxVal/20)*20 + 10;
+
+  const xPos = i => PL + (i / (n-1)) * CW;
+  const yPos = v => PT + CH - (v / yMax) * CH;
+
+  // ── Background
+  ctx.clearRect(0, 0, W, H);
+
+  // ── Grid lines + Y labels
+  ctx.font = '10px "DM Mono", monospace';
+  ctx.fillStyle = '#6B6B78';
+  ctx.textAlign = 'right';
+  [0, 25, 50, 75, 100].forEach(pct => {
+    const y   = PT + CH * (1 - pct/100);
+    const val = Math.round(yMax * pct / 100);
+    ctx.strokeStyle = '#232328';
+    ctx.lineWidth   = 0.5;
+    ctx.beginPath(); ctx.moveTo(PL, y); ctx.lineTo(W-PR, y); ctx.stroke();
+    ctx.fillStyle = '#6B6B78';
+    ctx.fillText(val, PL - 6, y + 4);
+  });
+
+  // ── X labels
+  ctx.textAlign = 'center';
+  rangeData.forEach((d,i) => {
+    if (i % Math.ceil(n/6) === 0 || i === n-1) {
+      ctx.fillStyle = '#6B6B78';
+      ctx.fillText(d.date, xPos(i), H - 6);
+    }
+  });
+
+  // ── Hover vertical line
+  if (hoverIdx >= 0 && hoverIdx < n) {
+    const hx = xPos(hoverIdx);
+    ctx.strokeStyle = '#3A3A44';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(hx, PT); ctx.lineTo(hx, PT+CH); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // ── Draw areas then lines (back-to-front)
+  const drawOrder = ['direct','dirs','hn','reddit','organic'];
+
+  drawOrder.forEach(k => {
+    const s = series[k];
+    if (!s.visible) return;
+    const pts = rangeData.map((d,i) => ({ x: xPos(i), y: yPos(d[k]||0) }));
+
+    // area fill
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, yPos(0));
+    pts.forEach(p => ctx.lineTo(p.x, p.y));
+    ctx.lineTo(pts[n-1].x, yPos(0));
+    ctx.closePath();
+    ctx.fillStyle = `rgba(${hexToRgb(s.color)},0.10)`;
+    ctx.fill();
+
+    // line
+    ctx.beginPath();
+    pts.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth   = 1.5;
+    ctx.lineJoin    = 'round';
+    ctx.lineCap     = 'round';
+    ctx.stroke();
+
+    // hover dot
+    if (hoverIdx >= 0 && hoverIdx < n) {
+      const p = pts[hoverIdx];
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+      ctx.fillStyle   = s.color;
+      ctx.fill();
+      ctx.strokeStyle = '#0B0B0C';
+      ctx.lineWidth   = 1.5;
+      ctx.stroke();
+    }
+  });
+}
+
+// ── Hover / tooltip ──────────────────────────────────────────────────────────
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const PL   = 46, PR = 14;
+  const CW   = rect.width - PL - PR;
+  const n    = rangeData.length;
+  const mx   = e.clientX - rect.left - PL;
+  const idx  = Math.round((mx / CW) * (n-1));
+  hoverIdx   = Math.max(0, Math.min(n-1, idx));
+  buildChart();
+
+  const d = rangeData[hoverIdx];
+  document.getElementById('tt-date').textContent    = d.date;
+  document.getElementById('tt-organic').textContent = d.organic;
+  document.getElementById('tt-reddit').textContent  = d.reddit;
+  document.getElementById('tt-other').textContent   = (d.hn||0)+(d.dirs||0)+(d.direct||0);
+  const tt = document.getElementById('tooltip');
+  tt.style.display = 'block';
+  tt.style.left = (e.clientX + 14) + 'px';
+  tt.style.top  = (e.clientY - 50) + 'px';
+});
+
+canvas.addEventListener('mouseleave', () => {
+  hoverIdx = -1;
+  buildChart();
+  document.getElementById('tooltip').style.display = 'none';
+});
+
+function toggleSeries(key, el) {
+  series[key].visible = !series[key].visible;
+  el.style.opacity = series[key].visible ? '1' : '0.35';
+  buildChart();
+}
+
+function setRange(days, el) {
+  document.querySelectorAll('.range-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  rangeData = days===7 ? data.slice(-7) : days===90 ? data : days===0 ? data : data.slice(-30);
+  hoverIdx  = -1;
+  buildChart();
+}
+
+function toggleCompare(el) {
+  document.getElementById('compare-pill').classList.toggle('on');
+}
+
+// ── Init + resize ────────────────────────────────────────────────────────────
+window.addEventListener('resize', buildChart);
+// Wait for fonts + layout to settle before first draw
+requestAnimationFrame(() => requestAnimationFrame(buildChart));
+</script>
+</body>
+</html>

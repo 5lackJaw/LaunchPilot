@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LaunchPilot — Approval Inbox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0B0B0C;
+  --bg2:       #111113;
+  --bg3:       #17171A;
+  --bg4:       #1E1E22;
+  --border:    #232328;
+  --border2:   #2E2E35;
+  --border3:   #3A3A44;
+  --text:      #E8E8EC;
+  --muted:     #6B6B78;
+  --subtle:    #3A3A44;
+  --purple:    #7B6EF6;
+  --purple-d:  #5B52CC;
+  --purple-l:  #A89DF8;
+  --purple-dim:#7B6EF614;
+  --purple-glow:#7B6EF630;
+  --teal:      #2DD4A0;
+  --teal-d:    #1A9E75;
+  --teal-dim:  #2DD4A012;
+  --amber:     #F0A429;
+  --amber-dim: #F0A42914;
+  --red:       #F06060;
+  --red-dim:   #F0606014;
+  --blue:      #5B9EF6;
+  --blue-dim:  #5B9EF614;
+  --mono:      'DM Mono', monospace;
+  --serif:     'Instrument Serif', serif;
+  --sans:      'DM Sans', sans-serif;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; line-height: 1.5; overflow: hidden; }
+
+/* ── Layout ── */
+.shell { display: grid; grid-template-columns: 220px 1fr; height: 100vh; overflow: hidden; }
+
+/* ── Sidebar (same as dashboard) ── */
+aside {
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+}
+.logo-block { padding: 20px 18px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.logo-mark { width: 28px; height: 28px; background: var(--purple); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 12px; font-weight: 500; color: #fff; }
+.logo-name { font-family: var(--serif); font-size: 16px; color: var(--text); }
+.product-pill { margin: 14px 12px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.product-dot { width: 6px; height: 6px; background: var(--teal); border-radius: 50%; flex-shrink: 0; }
+.product-name { font-size: 12px; font-weight: 500; color: var(--text); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+nav { padding: 4px 0; flex: 1; }
+.nav-section { padding: 14px 18px 4px; font-size: 9.5px; font-family: var(--mono); letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+.nav-item { display: flex; align-items: center; gap: 9px; padding: 7px 18px; font-size: 12.5px; color: var(--muted); cursor: pointer; transition: color 0.12s, background 0.12s; position: relative; }
+.nav-item:hover { color: var(--text); background: var(--bg3); }
+.nav-item.active { color: var(--text); background: var(--purple-dim); }
+.nav-item.active::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 2px; background: var(--purple); border-radius: 0 2px 2px 0; }
+.nav-icon { width: 15px; text-align: center; font-size: 13px; opacity: 0.7; }
+.nav-item.active .nav-icon { opacity: 1; }
+.badge { margin-left: auto; background: var(--amber); color: #000; font-size: 9px; font-family: var(--mono); font-weight: 500; padding: 1px 5px; border-radius: 10px; min-width: 16px; text-align: center; }
+.sidebar-footer { border-top: 1px solid var(--border); padding: 12px 18px; display: flex; align-items: center; gap: 9px; }
+.avatar { width: 26px; height: 26px; background: var(--purple-dim); border: 1px solid var(--purple); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--purple-l); font-weight: 500; flex-shrink: 0; }
+.user-name { font-size: 12px; color: var(--text); font-weight: 500; }
+.user-plan { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+
+/* ── Inbox layout: topbar + two-pane ── */
+.inbox-shell { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 15px 24px; border-bottom: 1px solid var(--border); background: var(--bg); flex-shrink: 0; }
+.page-title { font-family: var(--serif); font-size: 20px; color: var(--text); font-style: italic; display: flex; align-items: center; gap: 10px; }
+.inbox-count { font-family: var(--mono); font-size: 11px; color: var(--amber); background: var(--amber-dim); border: 1px solid #F0A42930; padding: 2px 8px; border-radius: 10px; font-style: normal; }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; border-radius: 7px; font-size: 12px; font-family: var(--sans); font-weight: 500; cursor: pointer; transition: all 0.12s; border: none; }
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); border-color: var(--border2); }
+.btn-primary { background: var(--purple); color: #fff; }
+.btn-primary:hover { background: var(--purple-d); }
+.btn-danger  { background: var(--red-dim); color: var(--red); border: 1px solid #F0606030; }
+.btn-danger:hover { background: #F0606025; }
+.btn-success { background: var(--teal-dim); color: var(--teal); border: 1px solid #2DD4A030; }
+.btn-success:hover { background: #2DD4A020; }
+
+/* ── Filter bar ── */
+.filter-bar { display: flex; align-items: center; gap: 6px; padding: 10px 24px; border-bottom: 1px solid var(--border); background: var(--bg2); flex-shrink: 0; overflow-x: auto; }
+.filter-chip { padding: 4px 11px; border-radius: 20px; font-size: 11px; font-family: var(--mono); cursor: pointer; border: 1px solid var(--border); color: var(--muted); background: transparent; white-space: nowrap; transition: all 0.1s; }
+.filter-chip:hover { color: var(--text); border-color: var(--border2); }
+.filter-chip.active { color: var(--text); border-color: var(--border2); background: var(--bg3); }
+.filter-chip.fc-article.active { color: var(--purple-l); border-color: var(--purple-glow); background: var(--purple-dim); }
+.filter-chip.fc-reply.active   { color: var(--teal);     border-color: #2DD4A030; background: var(--teal-dim); }
+.filter-chip.fc-listing.active { color: var(--amber);    border-color: #F0A42930; background: var(--amber-dim); }
+.filter-chip.fc-outreach.active{ color: var(--red);      border-color: #F0606030; background: var(--red-dim); }
+.filter-sep { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; margin: 0 4px; }
+.sort-label { font-size: 11px; font-family: var(--mono); color: var(--muted); margin-left: auto; flex-shrink: 0; }
+
+/* ── Two-pane ── */
+.two-pane { display: grid; grid-template-columns: 380px 1fr; flex: 1; overflow: hidden; }
+
+/* ── List pane ── */
+.list-pane { border-right: 1px solid var(--border); overflow-y: auto; background: var(--bg2); }
+
+.card {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+  position: relative;
+}
+.card:hover { background: var(--bg3); }
+.card.selected { background: var(--bg3); border-left: 2px solid var(--purple); }
+.card.selected { padding-left: 14px; }
+.card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+
+.type-badge { padding: 2px 7px; border-radius: 4px; font-size: 9px; font-family: var(--mono); font-weight: 500; flex-shrink: 0; letter-spacing: 0.04em; }
+.tb-article  { background: var(--purple-dim); color: var(--purple-l); border: 1px solid #7B6EF625; }
+.tb-reply    { background: var(--teal-dim);   color: var(--teal);     border: 1px solid #2DD4A025; }
+.tb-listing  { background: var(--amber-dim);  color: var(--amber);    border: 1px solid #F0A42925; }
+.tb-outreach { background: var(--red-dim);    color: var(--red);      border: 1px solid #F0606025; }
+.tb-copy     { background: var(--blue-dim);   color: var(--blue);     border: 1px solid #5B9EF625; }
+
+.card-time { font-size: 10px; font-family: var(--mono); color: var(--subtle); margin-left: auto; }
+.card-title { font-size: 12.5px; font-weight: 500; color: var(--text); line-height: 1.4; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-sub { font-size: 11px; color: var(--muted); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-footer { display: flex; align-items: center; gap: 8px; }
+.conf-wrap { display: flex; align-items: center; gap: 6px; flex: 1; }
+.conf-bar { height: 3px; width: 56px; background: var(--border2); border-radius: 2px; overflow: hidden; }
+.conf-fill { height: 100%; border-radius: 2px; }
+.cf-high   { background: var(--teal); }
+.cf-mid    { background: var(--amber); }
+.cf-low    { background: var(--red); }
+.conf-pct  { font-size: 9.5px; font-family: var(--mono); color: var(--muted); }
+.impact-chip { font-size: 9.5px; font-family: var(--mono); padding: 1px 6px; border-radius: 3px; }
+.ic-traffic { color: var(--teal); background: var(--teal-dim); }
+.ic-reach   { color: var(--blue);  background: var(--blue-dim); }
+.ic-rank    { color: var(--purple-l); background: var(--purple-dim); }
+
+/* ── Detail pane ── */
+.detail-pane { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+
+.detail-header { padding: 20px 28px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.detail-eyebrow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.detail-title { font-family: var(--serif); font-size: 22px; color: var(--text); line-height: 1.3; margin-bottom: 8px; }
+.detail-meta { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.meta-item { display: flex; align-items: center; gap: 5px; font-size: 11px; font-family: var(--mono); color: var(--muted); }
+.meta-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--muted); }
+
+.detail-actions { padding: 14px 28px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-shrink: 0; background: var(--bg2); }
+.action-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+.detail-body { flex: 1; overflow-y: auto; padding: 24px 28px; }
+
+/* ── Confidence + impact score bar ── */
+.score-row { display: flex; align-items: stretch; gap: 12px; margin-bottom: 20px; }
+.score-block { flex: 1; background: var(--bg2); border: 1px solid var(--border); border-radius: 9px; padding: 14px 16px; }
+.score-label { font-size: 10px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+.score-value { font-size: 22px; font-family: var(--serif); color: var(--text); line-height: 1; margin-bottom: 6px; }
+.score-bar { height: 4px; background: var(--border2); border-radius: 2px; overflow: hidden; }
+.score-fill { height: 100%; border-radius: 2px; }
+
+/* ── Content preview ── */
+.content-section { margin-bottom: 20px; }
+.section-label { font-size: 10px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.article-preview { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.article-hero { background: var(--bg3); padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.article-h1 { font-family: var(--serif); font-size: 17px; color: var(--text); line-height: 1.4; margin-bottom: 6px; }
+.article-meta-row { display: flex; gap: 12px; font-size: 10px; font-family: var(--mono); color: var(--muted); }
+.article-body { padding: 16px 20px; }
+.article-p { font-size: 12px; color: var(--muted); line-height: 1.7; margin-bottom: 10px; }
+.article-p:last-child { margin-bottom: 0; }
+.article-p strong { color: var(--text); font-weight: 500; }
+.article-fade { position: relative; }
+.article-fade::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 48px; background: linear-gradient(transparent, var(--bg2)); pointer-events: none; }
+.view-full { display: block; text-align: center; padding: 10px; font-size: 11px; font-family: var(--mono); color: var(--purple-l); cursor: pointer; border-top: 1px solid var(--border); }
+.view-full:hover { background: var(--bg3); }
+
+/* ── SEO meta ── */
+.seo-block { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; }
+.seo-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.seo-row:last-child { margin-bottom: 0; }
+.seo-key { font-size: 10px; font-family: var(--mono); color: var(--muted); width: 84px; flex-shrink: 0; padding-top: 1px; }
+.seo-val { font-size: 12px; color: var(--text); line-height: 1.5; }
+.seo-val.keyword { color: var(--purple-l); }
+.kw-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.kw-tag { font-size: 10px; font-family: var(--mono); padding: 2px 7px; border-radius: 4px; background: var(--purple-dim); color: var(--purple-l); border: 1px solid #7B6EF625; }
+
+/* ── Internal linking ── */
+.link-list { display: flex; flex-direction: column; gap: 6px; }
+.link-item { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--muted); padding: 6px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; }
+.link-item .arrow { color: var(--purple-l); font-size: 10px; }
+
+/* ── History ── */
+.history-list { display: flex; flex-direction: column; gap: 0; }
+.history-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.history-item:last-child { border-bottom: none; }
+.h-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border2); flex-shrink: 0; margin-top: 5px; }
+.h-dot.active { background: var(--purple); }
+.h-text { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.h-time { font-size: 10px; font-family: var(--mono); color: var(--subtle); margin-top: 1px; }
+
+/* ── Rejection drawer (hidden by default) ── */
+.reject-drawer { background: var(--bg3); border-top: 1px solid var(--border); padding: 14px 28px; flex-shrink: 0; display: none; }
+.reject-drawer.open { display: block; }
+.reject-label { font-size: 11px; font-family: var(--mono); color: var(--red); margin-bottom: 6px; }
+.reject-options { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.reject-opt { padding: 4px 10px; border: 1px solid var(--border2); border-radius: 5px; font-size: 11px; color: var(--muted); cursor: pointer; transition: all 0.1s; }
+.reject-opt:hover, .reject-opt.sel { color: var(--red); border-color: #F0606040; background: var(--red-dim); }
+.reject-confirm { display: flex; gap: 8px; }
+.reject-input { flex: 1; background: var(--bg2); border: 1px solid var(--border2); border-radius: 6px; padding: 7px 11px; font-size: 12px; color: var(--text); font-family: var(--sans); outline: none; }
+.reject-input:focus { border-color: var(--red); }
+.reject-input::placeholder { color: var(--muted); }
+
+/* ── Dismiss animation ── */
+@keyframes slideOut {
+  from { opacity: 1; transform: translateX(0); max-height: 200px; }
+  to   { opacity: 0; transform: translateX(-20px); max-height: 0; padding: 0; border: none; }
+}
+.card.dismissed { animation: slideOut 0.3s ease forwards; overflow: hidden; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.detail-header, .score-row, .content-section { animation: slideIn 0.3s ease both; }
+.score-row { animation-delay: 0.05s; }
+.content-section:nth-child(1) { animation-delay: 0.08s; }
+.content-section:nth-child(2) { animation-delay: 0.12s; }
+.content-section:nth-child(3) { animation-delay: 0.16s; }
+
+/* scrollbars */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside>
+  <div class="logo-block">
+    <div class="logo-mark">LP</div>
+    <div class="logo-name">LaunchPilot</div>
+  </div>
+  <div class="product-pill">
+    <div class="product-dot"></div>
+    <div class="product-name">OnChainInvoice.com</div>
+    <span style="color:var(--muted);font-size:10px">⌄</span>
+  </div>
+  <nav>
+    <div class="nav-section">Overview</div>
+    <div class="nav-item">
+      <span class="nav-icon">⊡</span> Dashboard
+    </div>
+    <div class="nav-item active">
+      <span class="nav-icon">◫</span> Inbox
+      <span class="badge">7</span>
+    </div>
+    <div class="nav-section">Channels</div>
+    <div class="nav-item"><span class="nav-icon">✦</span> SEO Content</div>
+    <div class="nav-item"><span class="nav-icon">◎</span> Community</div>
+    <div class="nav-item"><span class="nav-icon">↗</span> Outreach</div>
+    <div class="nav-item"><span class="nav-icon">⊞</span> Directories</div>
+    <div class="nav-section">Insights</div>
+    <div class="nav-item"><span class="nav-icon">∿</span> Analytics</div>
+    <div class="nav-item"><span class="nav-icon">◈</span> Keywords</div>
+    <div class="nav-section">Product</div>
+    <div class="nav-item"><span class="nav-icon">⊘</span> Marketing Brief</div>
+    <div class="nav-item"><span class="nav-icon">⊕</span> Connections</div>
+    <div class="nav-item"><span class="nav-icon">○</span> Settings</div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="avatar">CS</div>
+    <div>
+      <div class="user-name">Chris</div>
+      <div class="user-plan">launch plan</div>
+    </div>
+  </div>
+</aside>
+
+<!-- INBOX SHELL -->
+<div class="inbox-shell">
+
+  <div class="topbar">
+    <div class="page-title">
+      Approval inbox
+      <span class="inbox-count" id="inbox-count">7 pending</span>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-ghost" onclick="approveAll()">✓ Approve all articles</button>
+      <button class="btn btn-ghost">↓ Skip all</button>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="filter-chip active" onclick="setFilter('all', this)">All  <span style="opacity:0.6">7</span></div>
+    <div class="filter-sep"></div>
+    <div class="filter-chip fc-article" onclick="setFilter('article', this)">article  <span style="opacity:0.6">3</span></div>
+    <div class="filter-chip fc-reply"   onclick="setFilter('reply',   this)">reply  <span style="opacity:0.6">2</span></div>
+    <div class="filter-chip fc-listing" onclick="setFilter('listing', this)">listing  <span style="opacity:0.6">1</span></div>
+    <div class="filter-chip fc-outreach"onclick="setFilter('outreach',this)">outreach  <span style="opacity:0.6">1</span></div>
+    <div class="filter-chip fc-copy"    onclick="setFilter('copy',    this)">copy  <span style="opacity:0.6">0</span></div>
+    <div class="filter-sep"></div>
+    <div class="sort-label">newest first ↓</div>
+  </div>
+
+  <div class="two-pane">
+
+    <!-- LIST -->
+    <div class="list-pane" id="list-pane">
+
+      <!-- Card 1 — selected -->
+      <div class="card selected" id="card-0" onclick="selectCard(0)" data-type="article">
+        <div class="card-top">
+          <span class="type-badge tb-article">article</span>
+          <span class="card-time">2h ago</span>
+        </div>
+        <div class="card-title">How to invoice clients in USDC: a freelancer's complete guide</div>
+        <div class="card-sub">1,840 words · targets "usdc invoice freelancer"</div>
+        <div class="card-footer">
+          <div class="conf-wrap">
+            <div class="conf-bar"><div class="conf-fill cf-high" style="width:88%"></div></div>
+            <span class="conf-pct">88%</span>
+          </div>
+          <span class="impact-chip ic-traffic">↑ est. 120/mo</span>
+        </div>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="card" id="card-1" onclick="selectCard(1)" data-type="reply">
+        <div class="card-top">
+          <span class="type-badge tb-reply">reply</span>
+          <span class="card-time">4h ago</span>
+        </div>
+        <div class="card-title">r/freelance · "Anyone actually accepting crypto payments from clients yet?"</div>
+        <div class="card-sub">Reddit reply · r/freelance · relevance 82</div>
+        <div class="card-footer">
+          <div class="conf-wrap">
+            <div class="conf-bar"><div class="conf-fill cf-high" style="width:74%;background:var(--teal)"></div></div>
+            <span class="conf-pct">74%</span>
+          </div>
+          <span class="impact-chip ic-reach">~3.4k readers</span>
+        </div>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="card" id="card-2" onclick="selectCard(2)" data-type="article">
+        <div class="card-top">
+          <span class="type-badge tb-article">article</span>
+          <span class="card-time">6h ago</span>
+        </div>
+        <div class="card-title">Crypto invoicing vs traditional invoicing: what changes for your accounting</div>
+        <div class="card-sub">1,210 words · comparison page · targets "crypto invoicing"</div>
+        <div class="card-footer">
+          <div class="conf-wrap">
+            <div class="conf-bar"><div class="conf-fill cf-high" style="width:91%"></div></div>
+            <span class="conf-pct">91%</span>
+          </div>
+          <span class="impact-chip ic-traffic">↑ est. 210/mo</span>
+        </div>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="card" id="card-3" onclick="selectCard(3)" data-type="listing">
+        <div class="card-top">
+          <span class="type-badge tb-listing">listing</span>
+          <span class="card-time">12h ago</span>
+        </div>
+        <div class="card-title">ProductHunt launch package — tagline, description, screenshots</div>
+        <div class="card-sub">5 assets generated · ready to submit</div>
+        <div class="card-footer">
+          <div class="conf-wrap">
+            <div class="conf-bar"><div class="conf-fill cf-high" style="width:95%;background:var(--amber)"></div></div>
+            <span class="conf-pct">95%</span>
+          </div>
+          <span class="impact-chip ic-reach">PH launch</span>
+        </div>
+      </div>
+
+      <!-- Card 5 -->
+      <div class="card" id="card-4" onclick="selectCard(4)" data-type="reply">
+        <div class="card-top">
+          <span class="type-badge tb-reply">reply</span>
+          <span class="card-time">1d ago</span>
+        </div>
+        <div class="card-title">HN · "Ask HN: how do you handle international contractor payments?"</div>
+        <div class="card-sub">Hacker News reply · relevance 71</div>
+        <div class="card-footer">
+          <div class="conf-wrap">
+            <div class="conf-bar"><div class="conf-fill" style="width:71%;background:var(--teal)"></div></div>
+            <span class="conf-pct">71%</span>
+          </div>
+          <span class="impact-chip ic-reach">~8k readers</span>
+        </div>
+      </div>
+
+      <!-- Card 6 -->
+      <div class="card" id="card-5" onclick="selectCard(5)" data-type="article">
+        <div class="card-top">
+          <span class="type-badge tb-article">article</span>
+          <span class="card-time">1d ago</span>
+        </div>
+        <div class="card-title">Best USDC payment tools for remote teams in 2026</div>
+        <div class="card-sub">1,550 words · list post · targets "usdc payment tools"</div>
+        <div class="card-footer">
+          <div class="conf-wrap">
+            <div class="conf-bar"><div class="conf-fill cf-mid" style="width:66%"></div></div>
+            <span class="conf-pct">66%</span>
+          </div>
+          <span class="impact-chip ic-traffic">↑ est. 85/mo</span>
+        </div>
+      </div>
+
+      <!-- Card 7 -->
+      <div class="card" id="card-6" onclick="selectCard(6)" data-type="outreach">
+        <div class="card-top">
+          <span class="type-badge tb-outreach">outreach</span>
+          <span class="card-time">2d ago</span>
+        </div>
+        <div class="card-title">Pitch email — The Bootstrapped Founder newsletter (Arvid Kahl)</div>
+        <div class="card-sub">Cold pitch · est. 14k subscribers · score 78</div>
+        <div class="card-footer">
+          <div class="conf-wrap">
+            <div class="conf-bar"><div class="conf-fill cf-high" style="width:81%;background:var(--red)"></div></div>
+            <span class="conf-pct">81%</span>
+          </div>
+          <span class="impact-chip ic-reach">~14k subscribers</span>
+        </div>
+      </div>
+
+    </div><!-- /list-pane -->
+
+    <!-- DETAIL PANE -->
+    <div class="detail-pane" id="detail-pane">
+
+      <div class="detail-header" id="detail-header">
+        <div class="detail-eyebrow">
+          <span class="type-badge tb-article" id="detail-badge">article</span>
+          <span style="font-size:11px;font-family:var(--mono);color:var(--muted)">SEO content · Ghost CMS → onchaininvoice.com/blog</span>
+        </div>
+        <div class="detail-title" id="detail-title">How to invoice clients in USDC: a freelancer's complete guide</div>
+        <div class="detail-meta">
+          <span class="meta-item">1,840 words</span>
+          <span class="meta-dot"></span>
+          <span class="meta-item">~7 min read</span>
+          <span class="meta-dot"></span>
+          <span class="meta-item" style="color:var(--purple-l)">targets: usdc invoice freelancer</span>
+          <span class="meta-dot"></span>
+          <span class="meta-item">generated 2h ago</span>
+        </div>
+      </div>
+
+      <div class="detail-actions" id="detail-actions">
+        <button class="btn btn-success" onclick="approveCard()">✓ Approve &amp; publish</button>
+        <button class="btn btn-ghost" onclick="openReject()">✕ Reject</button>
+        <button class="btn btn-ghost">✎ Edit in-app</button>
+        <button class="btn btn-ghost">↺ Regenerate</button>
+        <div class="action-sep"></div>
+        <button class="btn btn-ghost" style="font-size:11px;color:var(--muted)">⟩ Skip</button>
+      </div>
+
+      <div class="detail-body" id="detail-body">
+
+        <!-- Scores -->
+        <div class="score-row">
+          <div class="score-block">
+            <div class="score-label">AI confidence</div>
+            <div class="score-value">88<span style="font-size:14px;color:var(--muted)">%</span></div>
+            <div class="score-bar"><div class="score-fill cf-high" style="width:88%"></div></div>
+          </div>
+          <div class="score-block">
+            <div class="score-label">Est. monthly traffic</div>
+            <div class="score-value">120<span style="font-size:14px;color:var(--muted)">/mo</span></div>
+            <div class="score-bar"><div class="score-fill" style="width:48%;background:var(--teal)"></div></div>
+          </div>
+          <div class="score-block">
+            <div class="score-label">Time to review</div>
+            <div class="score-value" style="font-family:var(--mono);font-size:18px">~90<span style="font-size:13px;color:var(--muted)">s</span></div>
+            <div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:4px">skim or approve</div>
+          </div>
+          <div class="score-block">
+            <div class="score-label">Keyword difficulty</div>
+            <div class="score-value" style="color:var(--teal)">Low</div>
+            <div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:4px">KD 18 · vol 880/mo</div>
+          </div>
+        </div>
+
+        <!-- Article preview -->
+        <div class="content-section">
+          <div class="section-label">Content preview</div>
+          <div class="article-preview">
+            <div class="article-hero">
+              <div class="article-h1">How to invoice clients in USDC: a freelancer's complete guide</div>
+              <div class="article-meta-row">
+                <span>onchaininvoice.com/blog</span>
+                <span>·</span>
+                <span>1,840 words</span>
+                <span>·</span>
+                <span>April 2026</span>
+              </div>
+            </div>
+            <div class="article-body article-fade">
+              <div class="article-p">
+                If you freelance across borders, you already know the pain: international wire transfers that take 3–5 business days, SWIFT fees that eat into your invoice, and currency conversion rates you didn't agree to. <strong>USDC invoicing changes this equation entirely</strong> — payments settle in minutes, fees are measured in cents, and the dollar value is locked at the time of invoice.
+              </div>
+              <div class="article-p">
+                This guide walks you through exactly how to set up USDC invoicing for your freelance business, what your clients need on their end, how to handle accounting, and which tools make the whole process professional enough to present to enterprise clients.
+              </div>
+              <div class="article-p">
+                <strong>What is USDC and why does it work for invoicing?</strong> USDC (USD Coin) is a stablecoin — a cryptocurrency pegged 1:1 to the US dollar and backed by cash and US Treasuries held in reserve. Unlike Bitcoin or Ethereum, USDC doesn't fluctuate in value. When you invoice a client for $2,400, they pay $2,400 in USDC and you receive $2,400 in USDC. No exchange rate surprises...
+              </div>
+            </div>
+            <div class="view-full">View full article (1,840 words) ↓</div>
+          </div>
+        </div>
+
+        <!-- SEO meta -->
+        <div class="content-section">
+          <div class="section-label">SEO metadata</div>
+          <div class="seo-block">
+            <div class="seo-row">
+              <span class="seo-key">meta title</span>
+              <span class="seo-val">How to Invoice Clients in USDC: A Freelancer's Complete Guide (2026)</span>
+            </div>
+            <div class="seo-row">
+              <span class="seo-key">description</span>
+              <span class="seo-val">Step-by-step guide to setting up USDC invoicing for freelancers. Covers client setup, accounting, tools, and how to get paid in stablecoins without the wire transfer hassle.</span>
+            </div>
+            <div class="seo-row">
+              <span class="seo-key">target kw</span>
+              <span class="seo-val keyword">usdc invoice freelancer</span>
+            </div>
+            <div class="seo-row">
+              <span class="seo-key">related kws</span>
+              <div class="kw-tags">
+                <span class="kw-tag">usdc payment freelance</span>
+                <span class="kw-tag">crypto invoice generator</span>
+                <span class="kw-tag">solana stablecoin payment</span>
+                <span class="kw-tag">invoice paid in usdc</span>
+              </div>
+            </div>
+            <div class="seo-row">
+              <span class="seo-key">schema</span>
+              <span class="seo-val" style="color:var(--teal)">Article + HowTo + FAQ</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Internal links -->
+        <div class="content-section">
+          <div class="section-label">Internal linking plan</div>
+          <div class="link-list">
+            <div class="link-item">
+              <span class="arrow">→</span>
+              <span style="flex:1;font-size:12px">Links to: <span style="color:var(--text)">"Crypto invoicing vs traditional invoicing"</span></span>
+              <span style="font-size:10px;font-family:var(--mono);color:var(--amber)">pending approval</span>
+            </div>
+            <div class="link-item">
+              <span class="arrow">→</span>
+              <span style="flex:1;font-size:12px">Links to: <span style="color:var(--text)">"Best USDC payment tools for remote teams"</span></span>
+              <span style="font-size:10px;font-family:var(--mono);color:var(--amber)">pending approval</span>
+            </div>
+            <div class="link-item">
+              <span class="arrow">→</span>
+              <span style="flex:1;font-size:12px">Links to: <span style="color:var(--text)">OnChainInvoice homepage</span></span>
+              <span style="font-size:10px;font-family:var(--mono);color:var(--teal)">live</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Generation history -->
+        <div class="content-section">
+          <div class="section-label">Generation history</div>
+          <div class="history-list">
+            <div class="history-item">
+              <div class="h-dot active"></div>
+              <div>
+                <div class="h-text">Draft v1 generated · brief keyword cluster "stablecoin payments" · confidence 88%</div>
+                <div class="h-time">Today, 08:14 CET</div>
+              </div>
+            </div>
+            <div class="history-item">
+              <div class="h-dot"></div>
+              <div>
+                <div class="h-text">Keyword opportunity identified · KD 18, vol 880/mo · scheduled for next content batch</div>
+                <div class="h-time">Yesterday, 22:00 CET</div>
+              </div>
+            </div>
+            <div class="history-item">
+              <div class="h-dot"></div>
+              <div>
+                <div class="h-text">Marketing brief updated · "freelancer" persona added to target segments</div>
+                <div class="h-time">Apr 19, 14:30 CET</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /detail-body -->
+
+      <!-- Reject drawer -->
+      <div class="reject-drawer" id="reject-drawer">
+        <div class="reject-label">Why are you rejecting this?</div>
+        <div class="reject-options">
+          <div class="reject-opt" onclick="selRejectOpt(this)">Wrong tone</div>
+          <div class="reject-opt" onclick="selRejectOpt(this)">Off-brand</div>
+          <div class="reject-opt" onclick="selRejectOpt(this)">Wrong keyword focus</div>
+          <div class="reject-opt" onclick="selRejectOpt(this)">Too promotional</div>
+          <div class="reject-opt" onclick="selRejectOpt(this)">Poor quality</div>
+          <div class="reject-opt" onclick="selRejectOpt(this)">Other</div>
+        </div>
+        <div class="reject-confirm">
+          <input class="reject-input" placeholder="Optional: add a note to guide regeneration…" id="reject-note">
+          <button class="btn btn-danger" onclick="confirmReject()">Reject &amp; regenerate</button>
+          <button class="btn btn-ghost" onclick="closeReject()">Cancel</button>
+        </div>
+      </div>
+
+    </div><!-- /detail-pane -->
+  </div><!-- /two-pane -->
+</div><!-- /inbox-shell -->
+</div><!-- /shell -->
+
+<script>
+let selected = 0;
+let pending = 7;
+let rejectOpen = false;
+
+const cards = [
+  {
+    type: 'article', badge: 'tb-article', typeLabel: 'article',
+    dest: 'SEO content · Ghost CMS → onchaininvoice.com/blog',
+    title: 'How to invoice clients in USDC: a freelancer\'s complete guide',
+    meta: ['1,840 words', '~7 min read', 'targets: usdc invoice freelancer', 'generated 2h ago'],
+    metaColors: ['','','var(--purple-l)',''],
+    conf: 88, traffic: '120/mo', kd: 'Low', kdNote: 'KD 18 · vol 880/mo', reviewTime: '~90s',
+    approveLabel: '✓ Approve & publish', approveClass: 'btn-success',
+  },
+  {
+    type: 'reply', badge: 'tb-reply', typeLabel: 'reply',
+    dest: 'Reddit reply · r/freelance · 3.4k readers in thread',
+    title: 'r/freelance · "Anyone actually accepting crypto payments from clients yet?"',
+    meta: ['Reddit reply', 'r/freelance', 'relevance score 82', '4h ago'],
+    metaColors: ['','var(--teal)','',''],
+    conf: 74, traffic: '~3.4k readers', kd: 'n/a', kdNote: 'community thread', reviewTime: '~30s',
+    approveLabel: '✓ Approve & post', approveClass: 'btn-success',
+  },
+  {
+    type: 'article', badge: 'tb-article', typeLabel: 'article',
+    dest: 'SEO content · Ghost CMS → onchaininvoice.com/blog',
+    title: 'Crypto invoicing vs traditional invoicing: what changes for your accounting',
+    meta: ['1,210 words', '~5 min read', 'targets: crypto invoicing', 'generated 6h ago'],
+    metaColors: ['','','var(--purple-l)',''],
+    conf: 91, traffic: '210/mo', kd: 'Medium', kdNote: 'KD 32 · vol 1.4k/mo', reviewTime: '~60s',
+    approveLabel: '✓ Approve & publish', approveClass: 'btn-success',
+  },
+  {
+    type: 'listing', badge: 'tb-listing', typeLabel: 'listing',
+    dest: 'ProductHunt · 5 assets generated',
+    title: 'ProductHunt launch package — tagline, description, screenshots',
+    meta: ['5 assets', 'PH launch', 'confidence 95%', '12h ago'],
+    metaColors: ['','var(--amber)','',''],
+    conf: 95, traffic: 'PH launch', kd: 'n/a', kdNote: 'directory submission', reviewTime: '~2 min',
+    approveLabel: '✓ Approve & submit', approveClass: 'btn-success',
+  },
+  {
+    type: 'reply', badge: 'tb-reply', typeLabel: 'reply',
+    dest: 'Hacker News reply · ~8k readers in thread',
+    title: 'HN · "Ask HN: how do you handle international contractor payments?"',
+    meta: ['HN reply', '~8k readers', 'relevance score 71', '1d ago'],
+    metaColors: ['','var(--teal)','',''],
+    conf: 71, traffic: '~8k readers', kd: 'n/a', kdNote: 'HN thread', reviewTime: '~30s',
+    approveLabel: '✓ Approve & post', approveClass: 'btn-success',
+  },
+  {
+    type: 'article', badge: 'tb-article', typeLabel: 'article',
+    dest: 'SEO content · Ghost CMS → onchaininvoice.com/blog',
+    title: 'Best USDC payment tools for remote teams in 2026',
+    meta: ['1,550 words', '~6 min read', 'targets: usdc payment tools', '1d ago'],
+    metaColors: ['','','var(--purple-l)',''],
+    conf: 66, traffic: '85/mo', kd: 'Low', kdNote: 'KD 14 · vol 590/mo', reviewTime: '~75s',
+    approveLabel: '✓ Approve & publish', approveClass: 'btn-success',
+  },
+  {
+    type: 'outreach', badge: 'tb-outreach', typeLabel: 'outreach',
+    dest: 'Cold email · The Bootstrapped Founder newsletter',
+    title: 'Pitch email — The Bootstrapped Founder newsletter (Arvid Kahl)',
+    meta: ['cold pitch', '~14k subscribers', 'score 78', '2d ago'],
+    metaColors: ['','var(--red)','',''],
+    conf: 81, traffic: '~14k subscribers', kd: 'n/a', kdNote: 'newsletter pitch', reviewTime: '~60s',
+    approveLabel: '✓ Approve & send', approveClass: 'btn-success',
+  },
+];
+
+function selectCard(i) {
+  document.querySelectorAll('.card').forEach((c,j) => c.classList.toggle('selected', j===i));
+  selected = i;
+  const c = cards[i];
+  closeReject();
+
+  document.getElementById('detail-badge').className = 'type-badge ' + c.badge;
+  document.getElementById('detail-badge').textContent = c.typeLabel;
+  document.querySelector('.detail-eyebrow span:last-child').textContent = c.dest;
+  document.getElementById('detail-title').textContent = c.title;
+
+  const metas = document.querySelectorAll('.meta-item');
+  c.meta.forEach((m, j) => {
+    metas[j].textContent = m;
+    metas[j].style.color = c.metaColors[j] || '';
+  });
+
+  // update scores
+  const sb = document.querySelectorAll('.score-block');
+  sb[0].querySelector('.score-value').innerHTML = c.conf + '<span style="font-size:14px;color:var(--muted)">%</span>';
+  sb[0].querySelector('.score-fill').style.width = c.conf + '%';
+  sb[0].querySelector('.score-fill').className = 'score-fill ' + (c.conf >= 80 ? 'cf-high' : c.conf >= 65 ? 'cf-mid' : 'cf-low');
+
+  sb[1].querySelector('.score-value').innerHTML = c.traffic + (c.traffic.includes('/') ? '' : '');
+  sb[2].querySelector('.score-value').innerHTML = c.reviewTime.replace('~','~') + '<span style="font-size:13px;color:var(--muted)"></span>';
+  sb[3].querySelector('.score-value').style.color = c.kd === 'Low' ? 'var(--teal)' : c.kd === 'Medium' ? 'var(--amber)' : 'var(--muted)';
+  sb[3].querySelector('.score-value').textContent = c.kd;
+  sb[3].querySelectorAll('div')[2].textContent = c.kdNote;
+
+  const approveBtn = document.querySelector('.detail-actions .btn-success, .detail-actions .btn-primary');
+  if (approveBtn) { approveBtn.textContent = c.approveLabel; }
+}
+
+function approveCard() {
+  const card = document.getElementById('card-' + selected);
+  card.classList.add('dismissed');
+  pending--;
+  document.getElementById('inbox-count').textContent = pending + ' pending';
+  setTimeout(() => {
+    card.style.display = 'none';
+    const next = selected < cards.length - 1 ? selected + 1 : selected - 1;
+    if (next >= 0) selectCard(next);
+  }, 300);
+}
+
+function approveAll() {
+  document.querySelectorAll('.card[data-type="article"]').forEach(c => {
+    c.classList.add('dismissed');
+    pending -= 1;
+    setTimeout(() => { c.style.display = 'none'; }, 300);
+  });
+  document.getElementById('inbox-count').textContent = pending + ' pending';
+}
+
+function openReject() {
+  document.getElementById('reject-drawer').classList.add('open');
+  rejectOpen = true;
+}
+function closeReject() {
+  document.getElementById('reject-drawer').classList.remove('open');
+  rejectOpen = false;
+}
+function confirmReject() {
+  approveCard();
+  closeReject();
+}
+function selRejectOpt(el) {
+  document.querySelectorAll('.reject-opt').forEach(o => o.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function setFilter(type, el) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.card').forEach(c => {
+    const show = type === 'all' || c.dataset.type === type;
+    c.style.display = show ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>
