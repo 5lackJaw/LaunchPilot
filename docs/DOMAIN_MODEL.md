@@ -81,6 +81,27 @@ Rules:
 - crawl jobs are triggered server-side and executed by durable workflow events
 - crawl progress must be persisted so onboarding can resume safely
 
+### crawl_results
+Purpose: persisted output from a product URL crawl.
+Fields:
+- id
+- product_id
+- crawl_job_id
+- source_url
+- final_url
+- http_status
+- page_title
+- meta_description
+- h1
+- extracted_signals
+- provenance
+- created_at
+
+Rules:
+- crawl results belong to a product and must be tenant-checked through product ownership
+- crawl results store raw crawl-derived signals, not generated Marketing Brief conclusions
+- downstream brief generation should reference a specific crawl result
+
 ### content_assets
 Purpose: generated content objects.
 Fields:

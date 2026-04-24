@@ -19,4 +19,20 @@ export const crawlJobSchema = z.object({
   completedAt: z.string().nullable(),
 });
 
+export const crawlResultSchema = z.object({
+  id: z.string().uuid(),
+  productId: z.string().uuid(),
+  crawlJobId: z.string().uuid(),
+  sourceUrl: z.string().url(),
+  finalUrl: z.string().url().nullable(),
+  httpStatus: z.number().int().min(100).max(599).nullable(),
+  pageTitle: z.string().nullable(),
+  metaDescription: z.string().nullable(),
+  h1: z.string().nullable(),
+  extractedSignals: z.record(z.string(), z.unknown()),
+  provenance: z.record(z.string(), z.unknown()),
+  createdAt: z.string(),
+});
+
 export type CrawlJob = z.infer<typeof crawlJobSchema>;
+export type CrawlResult = z.infer<typeof crawlResultSchema>;

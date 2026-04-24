@@ -34,6 +34,7 @@ For every task:
 - If code changes a product contract, update the relevant doc in `docs/` within the same change.
 - Update `docs/IMPLEMENTATION_CHECKLIST.md` when a checklist item is completed.
 - Record contradictions, unresolved gaps, and decisions requiring product input in `docs/OPEN_QUESTIONS.md`.
+- Record non-blocking technical risks, dependency advisories, cleanup items, and "keep an eye on this" notes in `docs/FOLLOW_UPS.md`; do not use it for product decisions.
 
 ## UI rules
 - Use `mockup_html/` as the visual authority when present.

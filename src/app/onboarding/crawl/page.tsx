@@ -4,7 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { CrawlJob } from "@/server/schemas/crawl";
+import type { CrawlJob, CrawlResult } from "@/server/schemas/crawl";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { CrawlService } from "@/server/services/crawl-service";
@@ -64,7 +64,7 @@ export default async function OnboardingCrawlPage({ searchParams }: PageProps) {
               </Alert>
             ) : null}
 
-            {data?.product ? <CrawlPanel product={data.product} crawlJob={data.crawlJob} /> : <ProductCreatePanel />}
+            {data?.product ? <CrawlPanel product={data.product} crawlJob={data.crawlJob} crawlResult={data.crawlResult} /> : <ProductCreatePanel />}
           </div>
 
           <Card>
@@ -100,7 +100,15 @@ function ProductCreatePanel() {
   );
 }
 
-function CrawlPanel({ product, crawlJob }: { product: Product; crawlJob: CrawlJob | null }) {
+function CrawlPanel({
+  product,
+  crawlJob,
+  crawlResult,
+}: {
+  product: Product;
+  crawlJob: CrawlJob | null;
+  crawlResult: CrawlResult | null;
+}) {
   const crawlInFlight = crawlJob?.status === "queued" || crawlJob?.status === "running";
 
   return (
@@ -119,8 +127,51 @@ function CrawlPanel({ product, crawlJob }: { product: Product; crawlJob: CrawlJo
       <CardContent className="flex flex-col gap-5">
         <StartCrawlForm productId={product.id} disabled={crawlInFlight} />
         {crawlJob ? <CrawlProgress crawlJob={crawlJob} /> : <p className="text-sm text-muted-foreground">No crawl job exists yet.</p>}
+        {crawlResult ? <CrawlResultPanel crawlResult={crawlResult} /> : null}
       </CardContent>
     </Card>
+  );
+}
+
+function CrawlResultPanel({ crawlResult }: { crawlResult: CrawlResult }) {
+  const headings = Array.isArray(crawlResult.extractedSignals.headings) ? crawlResult.extractedSignals.headings : [];
+
+  return (
+    <div className="flex flex-col gap-3 rounded-md border bg-secondary p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-sm font-medium">Latest crawl result</h3>
+          <p className="text-xs text-muted-foreground">{crawlResult.finalUrl ?? crawlResult.sourceUrl}</p>
+        </div>
+        <Badge variant="outline">{crawlResult.httpStatus ?? "no status"}</Badge>
+      </div>
+      <dl className="grid gap-3 text-sm">
+        <ResultRow label="Title" value={crawlResult.pageTitle} />
+        <ResultRow label="Description" value={crawlResult.metaDescription} />
+        <ResultRow label="H1" value={crawlResult.h1} />
+      </dl>
+      {headings.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Detected headings</p>
+          <div className="flex flex-wrap gap-2">
+            {headings.slice(0, 6).map((heading) => (
+              <Badge key={String(heading)} variant="secondary">
+                {String(heading)}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ResultRow({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="grid gap-1">
+      <dt className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</dt>
+      <dd className="text-sm">{value ?? "Not found"}</dd>
+    </div>
   );
 }
 
@@ -167,31 +218,34 @@ function StepIcon({ status }: { status: CrawlJob["steps"][number]["status"] }) {
 async function loadCrawlPageData(productId: string): Promise<{
   product: Product | null;
   crawlJob: CrawlJob | null;
+  crawlResult: CrawlResult | null;
   error: string | null;
 }> {
   try {
     const supabase = await createSupabaseServerClient();
     const productService = new ProductService(supabase);
     const crawlService = new CrawlService(supabase);
-    const [product, crawlJob] = await Promise.all([
+    const [product, crawlJob, crawlResult] = await Promise.all([
       productService.getProduct({ productId }),
       crawlService.getLatestCrawlJob({ productId }),
+      crawlService.getLatestCrawlResult({ productId }),
     ]);
 
-    return { product, crawlJob, error: null };
+    return { product, crawlJob, crawlResult, error: null };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { product: null, crawlJob: null, error: error.message };
+      return { product: null, crawlJob: null, crawlResult: null, error: error.message };
     }
 
     if (error instanceof ProductReadError) {
-      return { product: null, crawlJob: null, error: error.message };
+      return { product: null, crawlJob: null, crawlResult: null, error: error.message };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
       return {
         product: null,
         crawlJob: null,
+        crawlResult: null,
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
       };
     }

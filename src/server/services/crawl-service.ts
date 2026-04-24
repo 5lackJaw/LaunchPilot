@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { inngest } from "@/inngest/client";
 import { AuthService } from "@/server/services/auth-service";
-import { crawlJobSchema } from "@/server/schemas/crawl";
+import { crawlJobSchema, crawlResultSchema } from "@/server/schemas/crawl";
 import { productIdSchema } from "@/server/schemas/product";
 
 const initialSteps = [
@@ -76,6 +76,27 @@ export class CrawlService {
 
     return data ? mapCrawlJob(data) : null;
   }
+
+  async getLatestCrawlResult(input: unknown) {
+    const { productId } = productIdSchema.parse(input);
+    await new AuthService(this.supabase).requireUser();
+
+    const { data, error } = await this.supabase
+      .from("crawl_results")
+      .select(
+        "id,product_id,crawl_job_id,source_url,final_url,http_status,page_title,meta_description,h1,extracted_signals,provenance,created_at",
+      )
+      .eq("product_id", productId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw new CrawlReadError(error.message);
+    }
+
+    return data ? mapCrawlResult(data) : null;
+  }
 }
 
 export class CrawlStartError extends Error {
@@ -113,5 +134,35 @@ function mapCrawlJob(data: {
     createdAt: data.created_at,
     updatedAt: data.updated_at,
     completedAt: data.completed_at,
+  });
+}
+
+function mapCrawlResult(data: {
+  id: string;
+  product_id: string;
+  crawl_job_id: string;
+  source_url: string;
+  final_url: string | null;
+  http_status: number | null;
+  page_title: string | null;
+  meta_description: string | null;
+  h1: string | null;
+  extracted_signals: unknown;
+  provenance: unknown;
+  created_at: string;
+}) {
+  return crawlResultSchema.parse({
+    id: data.id,
+    productId: data.product_id,
+    crawlJobId: data.crawl_job_id,
+    sourceUrl: data.source_url,
+    finalUrl: data.final_url,
+    httpStatus: data.http_status,
+    pageTitle: data.page_title,
+    metaDescription: data.meta_description,
+    h1: data.h1,
+    extractedSignals: data.extracted_signals,
+    provenance: data.provenance,
+    createdAt: data.created_at,
   });
 }

@@ -16,7 +16,7 @@ Use this as the execution checklist. Check items only when fully implemented.
 ## Phase 1 — onboarding and brief
 - [x] Product creation flow
 - [x] URL crawl trigger and progress UI
-- [ ] Crawl result persistence
+- [x] Crawl result persistence
 - [ ] Guided interview UI
 - [ ] Interview answer persistence
 - [ ] Marketing Brief generation workflow
