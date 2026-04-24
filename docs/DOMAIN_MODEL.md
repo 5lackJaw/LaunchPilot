@@ -57,6 +57,30 @@ Rules:
 - one brief version is current for a product
 - downstream generation references a specific brief version
 
+### crawl_jobs
+Purpose: durable crawl trigger and progress record for product onboarding.
+Fields:
+- id
+- product_id
+- status
+- progress_percent
+- steps
+- error_message
+- created_at
+- updated_at
+- completed_at
+
+Recommended `crawl_jobs.status`:
+- queued
+- running
+- completed
+- failed
+
+Rules:
+- crawl jobs belong to a product and must be tenant-checked through product ownership
+- crawl jobs are triggered server-side and executed by durable workflow events
+- crawl progress must be persisted so onboarding can resume safely
+
 ### content_assets
 Purpose: generated content objects.
 Fields:

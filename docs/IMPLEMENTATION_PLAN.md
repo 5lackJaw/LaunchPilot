@@ -3,7 +3,7 @@
 This plan is intentionally scoped for Codex-friendly execution. Build in vertical slices, not giant all-system jumps.
 
 ## Phase 0 — foundation
-- bootstrap Next.js app, shared types, environment handling, Supabase wiring, auth shell, base layout, design primitives
+- bootstrap Next.js 16 app, shared types, environment handling, Supabase wiring, auth shell, base layout, design primitives
 - set up worker/orchestration skeleton and billing skeleton
 
 ## Phase 1 — onboarding and brief

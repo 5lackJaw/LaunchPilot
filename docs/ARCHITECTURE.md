@@ -14,9 +14,10 @@ Responsibilities:
 - manual editing and review flows
 
 Recommended implementation:
-- Next.js App Router
+- Next.js 16 App Router
 - server components by default where practical
 - client components only for interactive islands
+- Node.js 20.9+ runtime baseline
 
 ### 2. Persistence layer
 Responsibilities:

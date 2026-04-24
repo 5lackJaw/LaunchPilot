@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+dist
+coverage
+.env
+.env*.local
+*.tsbuildinfo
+.vercel
+.railway
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.next-dev.log
+.next-dev.err.log
+supabase/.temp

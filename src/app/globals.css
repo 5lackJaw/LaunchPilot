@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 240 5% 5%;
+  --foreground: 240 10% 92%;
+  --card: 240 7% 8%;
+  --card-foreground: 240 10% 92%;
+  --primary: 246 88% 70%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 7% 11%;
+  --secondary-foreground: 240 10% 92%;
+  --muted: 240 7% 12%;
+  --muted-foreground: 240 6% 48%;
+  --accent: 163 65% 50%;
+  --accent-foreground: 160 80% 8%;
+  --destructive: 0 82% 66%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 240 7% 16%;
+  --input: 240 7% 16%;
+  --ring: 246 88% 70%;
+  --radius: 0.5rem;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-serif: "Instrument Serif", Georgia, serif;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html {
+  background: hsl(var(--background));
+}
+
+body {
+  min-height: 100vh;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}

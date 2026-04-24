@@ -3,19 +3,19 @@
 Use this as the execution checklist. Check items only when fully implemented.
 
 ## Phase 0 — foundation
-- [ ] Initialize Next.js app, TypeScript, Tailwind, shadcn/ui baseline
-- [ ] Configure Supabase auth, database access, storage wiring
-- [ ] Add environment and secret handling scaffold
-- [ ] Add shared schema/validation layer
-- [ ] Add service layer skeleton
-- [ ] Add Inngest workflow scaffold
-- [ ] Add Railway worker scaffold
-- [ ] Add Stripe baseline wiring
-- [ ] Add Sentry baseline wiring
+- [x] Initialize Next.js app, TypeScript, Tailwind, shadcn/ui baseline
+- [x] Configure Supabase auth, database access, storage wiring
+- [x] Add environment and secret handling scaffold
+- [x] Add shared schema/validation layer
+- [x] Add service layer skeleton
+- [x] Add Inngest workflow scaffold
+- [x] Add Railway worker scaffold
+- [x] Add Stripe baseline wiring
+- [x] Add Sentry baseline wiring
 
 ## Phase 1 — onboarding and brief
-- [ ] Product creation flow
-- [ ] URL crawl trigger and progress UI
+- [x] Product creation flow
+- [x] URL crawl trigger and progress UI
 - [ ] Crawl result persistence
 - [ ] Guided interview UI
 - [ ] Interview answer persistence

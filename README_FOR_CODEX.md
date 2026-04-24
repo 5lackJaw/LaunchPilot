@@ -18,7 +18,7 @@ LaunchPilot is a multi-tenant SaaS for solo developers and indie founders. It cr
 - Feedback layer: analytics ingestion, summaries, recommendations, performance tracking
 
 ## Baseline stack
-- Next.js 14 App Router + TypeScript
+- Next.js 16 App Router + TypeScript
 - Tailwind CSS + shadcn/ui
 - Route Handlers + tRPC
 - Supabase Postgres/Auth/Storage/Realtime
@@ -30,6 +30,25 @@ LaunchPilot is a multi-tenant SaaS for solo developers and indie founders. It cr
 - Stripe for subscriptions and billing
 - Plausible, optionally GA4 + GSC, for analytics
 - Sentry for monitoring
+
+## Framework baseline notes
+- Next.js 16 is the official baseline.
+- Node.js 20.9+ is required.
+- Use ESLint through the ESLint CLI and flat config; do not use the removed `next lint` command.
+- Turbopack is the default for `next dev` and `next build`; avoid adding Webpack-only configuration unless explicitly required and documented.
+- React 19.2 is the matching React baseline for this Next.js 16 setup.
+- Request-time APIs such as `cookies()`, `headers()`, and route params/search params must be treated as async in new server code.
+- Future image handling must use current `next/image` configuration. Do not add deprecated `images.domains`; use `remotePatterns` when external image optimization is needed.
+
+## Supabase key baseline
+- Use `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for browser and request-scoped server clients.
+- Use `SUPABASE_SECRET_KEY` only for privileged server-side admin operations.
+- Legacy aliases `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are accepted for compatibility, but new environments should prefer the publishable/secret key names.
+- Never expose `SUPABASE_SECRET_KEY` to client components or public routes.
+
+## Inngest local development
+- Use `INNGEST_DEV=1` for local development when no Inngest signing key is configured.
+- Production and deployed preview environments must use `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY`.
 
 ## Use of mockup_html/
  
