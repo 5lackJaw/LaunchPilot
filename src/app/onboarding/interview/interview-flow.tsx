@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import type { InterviewAnswer } from "@/server/schemas/interview";
+import { requestBriefGenerationAction } from "@/app/onboarding/brief/actions";
 import { saveInterviewAnswerAction, type InterviewSaveState } from "@/app/onboarding/interview/actions";
 import { interviewQuestions } from "@/app/onboarding/interview/interview-questions";
 
@@ -176,6 +177,16 @@ export function InterviewFlow({ productId, initialAnswers }: { productId: string
               );
             })}
           </div>
+          <form action={requestBriefGenerationAction} className="border-t pt-4">
+            <input type="hidden" name="productId" value={productId} />
+            <Button type="submit" className="w-full" disabled={completedCount < interviewQuestions.length}>
+              Generate brief
+              <ArrowRight data-icon="inline-end" />
+            </Button>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Uses saved answers and the latest crawl result to create a versioned Marketing Brief.
+            </p>
+          </form>
           <p className="font-mono text-[10px] text-muted-foreground">Product ID {productId}</p>
         </CardContent>
       </Card>

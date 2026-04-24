@@ -12,6 +12,8 @@ Use `mockup_html/` for:
 - responsive visual structure
 - component visual treatment
 - interaction polish suggested by the markup and CSS
+- visual fidelity targets for final production UI
+- shared visual language for unmocked routes
 
 Do not use `mockup_html/` as authority for:
 - route contracts
@@ -29,6 +31,7 @@ Convert the mockups into production UI components:
 - preserve accessibility
 - integrate real data and loading/error states
 - do not keep static placeholder content beyond initial scaffolding
+- avoid drifting to generic component-library defaults when the mockup provides a more specific layout, color, or density treatment
 
 ## Conflict rule
 If a mockup conflicts with this suite:

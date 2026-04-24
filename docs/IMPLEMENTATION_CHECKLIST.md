@@ -19,8 +19,8 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Crawl result persistence
 - [x] Guided interview UI
 - [x] Interview answer persistence
-- [ ] Marketing Brief generation workflow
-- [ ] Brief review UI
+- [x] Marketing Brief generation workflow
+- [x] Brief review UI
 - [ ] Brief edit and versioning support
 
 ## Phase 2 — inbox backbone

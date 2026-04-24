@@ -81,5 +81,9 @@ These routes should follow a common pattern:
 ## Relationship to mockup_html/
 When `mockup_html/` exists:
 - use it as the primary visual reference
+- treat the mockup sizing, spacing, density, color treatment, and placement as target product design, not loose inspiration
+- carry the same visual concepts to routes that do not yet have dedicated mockups
 - preserve these behavioral rules if the mockups are silent
 - where a mockup and this guide differ, prefer the mockup for visual specifics and this guide for behavior
+
+Production UI should converge toward the mockups over time. Early scaffolds may use shared primitives and simplified content, but final page implementations should closely resemble the mockup composition while remaining componentized, accessible, and connected to real data.

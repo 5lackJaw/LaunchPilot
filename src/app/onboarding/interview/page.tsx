@@ -16,6 +16,7 @@ export const metadata: Metadata = {
 type PageProps = {
   searchParams: Promise<{
     productId?: string;
+    briefError?: string;
   }>;
 };
 
@@ -44,6 +45,12 @@ export default async function OnboardingInterviewPage({ searchParams }: PageProp
             <Alert variant="destructive">
               <AlertTitle>Interview could not be loaded</AlertTitle>
               <AlertDescription>{data.error}</AlertDescription>
+            </Alert>
+          ) : null}
+          {params.briefError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Brief generation was not requested</AlertTitle>
+              <AlertDescription>{params.briefError}</AlertDescription>
             </Alert>
           ) : null}
 
