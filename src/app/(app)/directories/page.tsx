@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requestDirectoryPackagesAction } from "@/app/(app)/directories/actions";
+import { requestDirectoryPackagesAction, updateDirectorySubmissionStatusAction } from "@/app/(app)/directories/actions";
 import type { DirectoryTrackerItem } from "@/server/schemas/directory";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
@@ -17,6 +17,8 @@ type PageProps = {
   searchParams: Promise<{
     packageRequested?: string;
     packageError?: string;
+    statusUpdated?: string;
+    statusError?: string;
   }>;
 };
 
@@ -72,13 +74,25 @@ export default async function DirectoriesPage({ searchParams }: PageProps) {
             <AlertDescription>Try again after confirming the product and workflow configuration.</AlertDescription>
           </Alert>
         ) : null}
+        {params.statusUpdated ? (
+          <Alert className="xl:col-span-2">
+            <AlertTitle>Directory status updated</AlertTitle>
+            <AlertDescription>The tracker now reflects the manual submission state.</AlertDescription>
+          </Alert>
+        ) : null}
+        {params.statusError ? (
+          <Alert variant="destructive" className="xl:col-span-2">
+            <AlertTitle>Directory status update failed</AlertTitle>
+            <AlertDescription>Reload the page and try again.</AlertDescription>
+          </Alert>
+        ) : null}
         <div className="overflow-hidden rounded-lg border bg-card">
-          <div className="grid grid-cols-[minmax(0,1.4fr)_120px_120px_120px_auto] border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+          <div className="grid grid-cols-[minmax(0,1.4fr)_120px_120px_120px_180px] border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
             <span>Directory</span>
             <span>Method</span>
             <span>Status</span>
             <span>Review</span>
-            <span className="text-right">Authority</span>
+            <span className="text-right">Action</span>
           </div>
           {data.product ? (
             data.items.length ? (
@@ -121,7 +135,7 @@ function DirectoryRow({ item }: { item: DirectoryTrackerItem }) {
   const status = item.submission?.status ?? "pending";
 
   return (
-    <div className="grid grid-cols-[minmax(0,1.4fr)_120px_120px_120px_auto] items-center gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-secondary/60">
+    <div className="grid grid-cols-[minmax(0,1.4fr)_120px_120px_120px_180px] items-center gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-secondary/60">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <FolderKanban className="size-4 text-muted-foreground" aria-hidden="true" />
@@ -142,12 +156,61 @@ function DirectoryRow({ item }: { item: DirectoryTrackerItem }) {
       <span className="font-mono text-[11px] text-muted-foreground">
         {item.directory.reviewTimeDays === null ? "unknown" : `${item.directory.reviewTimeDays}d`}
       </span>
+      <DirectoryActions item={item} />
+    </div>
+  );
+}
+
+function DirectoryActions({ item }: { item: DirectoryTrackerItem }) {
+  if (!item.submission) {
+    return (
       <Button variant="ghost" size="sm" asChild>
         <Link href={item.directory.url} target="_blank" rel="noreferrer">
-          {item.submission?.listingPayload && Object.keys(item.submission.listingPayload).length ? "Package" : (item.directory.avgDa ?? "n/a")}
+          DA {item.directory.avgDa ?? "n/a"}
           <ExternalLink data-icon="inline-end" />
         </Link>
       </Button>
+    );
+  }
+
+  const status = item.submission.status;
+  const nextStatuses =
+    status === "submitted"
+      ? [
+          { status: "live", label: "Mark live" },
+          { status: "rejected", label: "Rejected" },
+        ]
+      : status === "live"
+        ? []
+        : status === "pending"
+          ? [
+            { status: "submitted", label: "Submitted" },
+            { status: "skipped", label: "Skip" },
+            ]
+          : [{ status: "pending", label: "Retry" }];
+
+  if (!nextStatuses.length) {
+    return (
+      <Button variant="ghost" size="sm" asChild>
+        <Link href={item.directory.url} target="_blank" rel="noreferrer">
+          View
+          <ExternalLink data-icon="inline-end" />
+        </Link>
+      </Button>
+    );
+  }
+
+  return (
+    <div className="flex justify-end gap-1.5">
+      {nextStatuses.map((next) => (
+        <form key={next.status} action={updateDirectorySubmissionStatusAction}>
+          <input type="hidden" name="submissionId" value={item.submission?.id} />
+          <input type="hidden" name="status" value={next.status} />
+          <Button type="submit" variant={next.status === "submitted" || next.status === "live" ? "secondary" : "ghost"} size="sm">
+            {next.label}
+          </Button>
+        </form>
+      ))}
     </div>
   );
 }

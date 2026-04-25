@@ -5,6 +5,7 @@ import {
   directorySubmissionSchema,
   listDirectoryTrackerSchema,
   requestDirectoryPackageGenerationSchema,
+  updateDirectorySubmissionStatusSchema,
 } from "@/server/schemas/directory";
 import type { Directory, DirectorySubmission, DirectoryTrackerItem } from "@/server/schemas/directory";
 import { ProductService } from "@/server/services/product-service";
@@ -55,12 +56,61 @@ export class DirectoryService {
       },
     });
   }
+
+  async updateSubmissionStatus(input: unknown): Promise<DirectorySubmission> {
+    const parsed = updateDirectorySubmissionStatusSchema.parse(input);
+    const current = await this.getSubmission({ submissionId: parsed.submissionId });
+    await new ProductService(this.supabase).getProduct({ productId: current.productId });
+    assertAllowedSubmissionTransition(current.status, parsed.status);
+    const submittedAt =
+      parsed.status === "submitted" || (parsed.status === "live" && !current.submittedAt)
+        ? new Date().toISOString()
+        : current.submittedAt;
+
+    const { data, error } = await this.supabase
+      .from("directory_submissions")
+      .update({
+        status: parsed.status,
+        submitted_at: submittedAt,
+        notes: parsed.notes ?? current.notes,
+      })
+      .eq("id", parsed.submissionId)
+      .select(submissionSelect)
+      .single();
+
+    if (error) {
+      throw new DirectoryUpdateError(error.message);
+    }
+
+    return mapSubmission(data);
+  }
+
+  private async getSubmission(input: { submissionId: string }): Promise<DirectorySubmission> {
+    const { data, error } = await this.supabase
+      .from("directory_submissions")
+      .select(submissionSelect)
+      .eq("id", input.submissionId)
+      .single();
+
+    if (error) {
+      throw new DirectoryReadError(error.message);
+    }
+
+    return mapSubmission(data);
+  }
 }
 
 export class DirectoryReadError extends Error {
   constructor(message: string) {
     super(`Directory tracker could not be loaded: ${message}`);
     this.name = "DirectoryReadError";
+  }
+}
+
+export class DirectoryUpdateError extends Error {
+  constructor(message: string) {
+    super(`Directory submission could not be updated: ${message}`);
+    this.name = "DirectoryUpdateError";
   }
 }
 
@@ -118,4 +168,19 @@ function mapSubmission(data: {
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   });
+}
+
+function assertAllowedSubmissionTransition(current: DirectorySubmission["status"], next: DirectorySubmission["status"]) {
+  const allowed: Record<DirectorySubmission["status"], DirectorySubmission["status"][]> = {
+    pending: ["submitted", "skipped", "failed"],
+    submitted: ["live", "rejected", "failed"],
+    live: [],
+    rejected: ["pending"],
+    skipped: ["pending"],
+    failed: ["pending"],
+  };
+
+  if (!allowed[current].includes(next)) {
+    throw new DirectoryUpdateError(`Cannot move a directory submission from ${current} to ${next}.`);
+  }
 }

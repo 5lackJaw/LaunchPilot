@@ -44,6 +44,12 @@ export const requestDirectoryPackageGenerationSchema = z.object({
   productId: z.string().uuid(),
 });
 
+export const updateDirectorySubmissionStatusSchema = z.object({
+  submissionId: z.string().uuid(),
+  status: z.enum(["pending", "submitted", "live", "rejected", "skipped", "failed"]),
+  notes: z.string().trim().max(1000).optional(),
+});
+
 export type Directory = z.infer<typeof directorySchema>;
 export type DirectorySubmission = z.infer<typeof directorySubmissionSchema>;
 export type DirectoryTrackerItem = z.infer<typeof directoryTrackerItemSchema>;

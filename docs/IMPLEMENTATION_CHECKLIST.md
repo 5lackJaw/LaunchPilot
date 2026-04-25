@@ -56,9 +56,9 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Directory catalog model
 - [x] Listing package generation
 - [x] Directory tracker page
-- [ ] Submission state transitions
+- [x] Submission state transitions
 - [ ] Auto-submit support for supported directories
-- [ ] Manual flow support for unsupported directories
+- [x] Manual flow support for unsupported directories
 
 ## Phase 6 — community intelligence
 - [ ] Thread ingestion pipeline
