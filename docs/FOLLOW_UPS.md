@@ -88,3 +88,10 @@ Format:
 - Current implication: The app can safely auto-submit only catalog entries marked `auto_supported`, but the seeded directory catalog remains manual/assisted until real directory APIs or credentialed flows are configured.
 - Follow-up trigger: Before enabling any production directory auto-submit provider.
 - Safe current behavior: The server rejects unsupported directories and pending submissions without generated listing packages; manual and assisted directories remain review-gated.
+
+- Date: 2026-04-26
+- Area: Community intelligence
+- Item: Thread ingestion currently uses deterministic Marketing Brief-derived candidates rather than live Reddit, Hacker News, or other community APIs.
+- Current implication: The Phase 6 pipeline can persist and score observed community threads, but it should not be treated as live monitoring yet.
+- Follow-up trigger: When external community connections, polling, OAuth, or provider-specific API limits are implemented.
+- Safe current behavior: Store provenance on every observed thread, keep replies ungenerated, and require later review-gated workflows before any posting action exists.

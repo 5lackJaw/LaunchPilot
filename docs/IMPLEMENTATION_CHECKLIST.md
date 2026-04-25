@@ -61,8 +61,8 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Manual flow support for unsupported directories
 
 ## Phase 6 — community intelligence
-- [ ] Thread ingestion pipeline
-- [ ] Relevance scoring
+- [x] Thread ingestion pipeline
+- [x] Relevance scoring
 - [ ] Reply draft generation
 - [ ] Authenticity guardrail scoring
 - [ ] Community page
