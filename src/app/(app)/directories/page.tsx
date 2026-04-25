@@ -6,13 +6,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requestDirectoryPackagesAction } from "@/app/(app)/directories/actions";
 import type { DirectoryTrackerItem } from "@/server/schemas/directory";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { DirectoryReadError, DirectoryService } from "@/server/services/directory-service";
 import { ProductReadError, ProductService } from "@/server/services/product-service";
 
-export default async function DirectoriesPage() {
+type PageProps = {
+  searchParams: Promise<{
+    packageRequested?: string;
+    packageError?: string;
+  }>;
+};
+
+export default async function DirectoriesPage({ searchParams }: PageProps) {
+  const params = await searchParams;
   const data = await loadDirectoryData();
 
   if (data.error) {
@@ -36,10 +45,33 @@ export default async function DirectoriesPage() {
       <AppTopbar
         title="Directories"
         eyebrow={data.product ? `Submission tracker / ${data.product.name}` : "Submission tracker"}
-        actions={<Badge variant="secondary">{data.items.length} directories</Badge>}
+        actions={
+          <>
+            <Badge variant="secondary">{data.items.length} directories</Badge>
+            {data.product ? (
+              <form action={requestDirectoryPackagesAction}>
+                <Button type="submit" size="sm">
+                  Generate packages
+                </Button>
+              </form>
+            ) : null}
+          </>
+        }
       />
 
       <section className="grid gap-4 p-6 xl:grid-cols-[1fr_340px]">
+        {params.packageRequested ? (
+          <Alert className="xl:col-span-2">
+            <AlertTitle>Listing package generation requested</AlertTitle>
+            <AlertDescription>Directory packages will appear here and in the approval inbox after the workflow runs.</AlertDescription>
+          </Alert>
+        ) : null}
+        {params.packageError ? (
+          <Alert variant="destructive" className="xl:col-span-2">
+            <AlertTitle>Listing package generation failed</AlertTitle>
+            <AlertDescription>Try again after confirming the product and workflow configuration.</AlertDescription>
+          </Alert>
+        ) : null}
         <div className="overflow-hidden rounded-lg border bg-card">
           <div className="grid grid-cols-[minmax(0,1.4fr)_120px_120px_120px_auto] border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
             <span>Directory</span>
@@ -112,7 +144,7 @@ function DirectoryRow({ item }: { item: DirectoryTrackerItem }) {
       </span>
       <Button variant="ghost" size="sm" asChild>
         <Link href={item.directory.url} target="_blank" rel="noreferrer">
-          {item.directory.avgDa ?? "n/a"}
+          {item.submission?.listingPayload && Object.keys(item.submission.listingPayload).length ? "Package" : (item.directory.avgDa ?? "n/a")}
           <ExternalLink data-icon="inline-end" />
         </Link>
       </Button>

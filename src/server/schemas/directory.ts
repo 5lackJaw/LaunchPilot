@@ -40,6 +40,10 @@ export const listDirectoryTrackerSchema = z.object({
   productId: z.string().uuid(),
 });
 
+export const requestDirectoryPackageGenerationSchema = z.object({
+  productId: z.string().uuid(),
+});
+
 export type Directory = z.infer<typeof directorySchema>;
 export type DirectorySubmission = z.infer<typeof directorySubmissionSchema>;
 export type DirectoryTrackerItem = z.infer<typeof directoryTrackerItemSchema>;

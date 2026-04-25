@@ -20,6 +20,7 @@ For every task:
 - Approval decisions, trust gating, plan enforcement, publishing, credentials use, and automation eligibility must remain server-authoritative.
 - Do not implement out-of-scope v1 features unless the task explicitly says to do so.
 - Prefer extending existing primitives over creating near-duplicate patterns.
+- Conserve token usage where practical by avoiding unnecessary explanation, repeated context, broad exploration, and unrelated commentary. Do not conserve tokens at the expense of implementation quality: code must remain complete, maintainable, type-safe, well-scoped, and consistent with the existing architecture and documented requirements.
 
 ## Required architecture posture
 - Modular monolith, not microservices, for v1.

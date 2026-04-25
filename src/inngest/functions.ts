@@ -136,13 +136,30 @@ export const productCrawlPlaceholder = inngest.createFunction(
       });
 
       const crawlResult = await step.run("fetch-and-extract-page", async () => {
-        const response = await fetch(product.url, {
-          headers: {
-            "user-agent": "LaunchPilotBot/0.1 (+https://launchpilot.local)",
-            accept: "text/html,application/xhtml+xml",
-          },
-          redirect: "follow",
-        });
+        let response;
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+          
+          response = await fetch(product.url, {
+            headers: {
+              "user-agent": "Mozilla/5.0 (compatible; LaunchPilotBot/0.1)",
+              accept: "text/html,application/xhtml+xml",
+            },
+            redirect: "follow",
+            signal: controller.signal,
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status} ${response.statusText} from ${product.url}`);
+          }
+        } catch (fetchError) {
+          const errorMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+          throw new Error(`Failed to fetch ${product.url}: ${errorMsg}`);
+        }
+
         const contentType = response.headers.get("content-type") ?? "";
         const html = contentType.includes("text/html") ? await response.text() : "";
         const signals = html ? extractPageSignals(html) : extractPageSignals("");
@@ -203,6 +220,15 @@ export const productCrawlPlaceholder = inngest.createFunction(
         }
 
         return crawlResult;
+      });
+
+      await step.run("trigger-brief-generation", async () => {
+        await inngest.send({
+          name: "brief/generation.requested",
+          data: {
+            productId,
+          },
+        });
       });
     } catch (error) {
       await step.run("mark-failed", async () => {

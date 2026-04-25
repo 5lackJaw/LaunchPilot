@@ -1,5 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { directorySchema, directorySubmissionSchema, listDirectoryTrackerSchema } from "@/server/schemas/directory";
+import { inngest } from "@/inngest/client";
+import {
+  directorySchema,
+  directorySubmissionSchema,
+  listDirectoryTrackerSchema,
+  requestDirectoryPackageGenerationSchema,
+} from "@/server/schemas/directory";
 import type { Directory, DirectorySubmission, DirectoryTrackerItem } from "@/server/schemas/directory";
 import { ProductService } from "@/server/services/product-service";
 
@@ -36,6 +42,18 @@ export class DirectoryService {
       directory: mapDirectory(directory),
       submission: submissionsByDirectory.get(directory.id) ?? null,
     }));
+  }
+
+  async requestPackageGeneration(input: unknown) {
+    const parsed = requestDirectoryPackageGenerationSchema.parse(input);
+    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+
+    await inngest.send({
+      name: "directory_package/generation.requested",
+      data: {
+        productId: parsed.productId,
+      },
+    });
   }
 }
 

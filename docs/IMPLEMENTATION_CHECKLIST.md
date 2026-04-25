@@ -54,7 +54,7 @@ Use this as the execution checklist. Check items only when fully implemented.
 
 ## Phase 5 — directory agent
 - [x] Directory catalog model
-- [ ] Listing package generation
+- [x] Listing package generation
 - [x] Directory tracker page
 - [ ] Submission state transitions
 - [ ] Auto-submit support for supported directories
