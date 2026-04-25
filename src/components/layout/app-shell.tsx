@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, FileEdit, Hash, Inbox, LayoutDashboard, Plug, Search, Send, Settings, Share2, Workflow } from "lucide-react";
+import { BarChart3, FileEdit, FileText, Hash, Inbox, LayoutDashboard, Plug, Search, Send, Settings, Share2, Workflow } from "lucide-react";
 import { appConfig } from "@/config/app";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +17,7 @@ const navGroups = [
   {
     label: "Channels",
     items: [
+      { href: "/content",     label: "Content",     icon: FileText },
       { href: "/seo",         label: "SEO Content", icon: Search  },
       { href: "/community",   label: "Community",   icon: Share2  },
       { href: "/outreach",    label: "Outreach",    icon: Send    },

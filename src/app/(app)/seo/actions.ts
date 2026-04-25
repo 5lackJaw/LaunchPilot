@@ -17,7 +17,8 @@ export async function selectKeywordOpportunityAction(formData: FormData) {
     const asset = await new ContentService(supabase).selectKeywordOpportunity({ productId, opportunityId });
 
     revalidatePath("/seo");
-    redirectTo = `/seo?selected=${encodeURIComponent(asset.id)}`;
+    revalidatePath("/content");
+    redirectTo = `/content/${asset.id}?selected=1`;
   } catch (error) {
     const message = toSelectionErrorMessage(error);
     redirectTo = `/seo?selectionError=${encodeURIComponent(message)}`;

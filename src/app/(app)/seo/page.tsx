@@ -125,7 +125,7 @@ export default async function SeoPage({ searchParams }: PageProps) {
                   <div key={asset.id} className="border-b pb-3 last:border-b-0 last:pb-0">
                     <p className="truncate text-sm font-medium">{asset.title}</p>
                     <p className="font-mono text-[11px] text-muted-foreground">
-                      {asset.targetKeyword ?? "No keyword"} · {asset.status}
+                      {asset.targetKeyword ?? "No keyword"} - {asset.status}
                     </p>
                   </div>
                 ))

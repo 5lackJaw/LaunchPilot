@@ -1,0 +1,212 @@
+import { ArrowLeft, ExternalLink } from "lucide-react";
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { AppTopbar } from "@/components/layout/app-topbar";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { updateContentAssetAction } from "@/app/(app)/content/[assetId]/actions";
+import type { ContentAsset } from "@/server/schemas/content";
+import { AuthRequiredError } from "@/server/services/auth-service";
+import { ContentAssetReadError, ContentService } from "@/server/services/content-service";
+
+type PageProps = {
+  params: Promise<{ assetId: string }>;
+  searchParams: Promise<{
+    selected?: string;
+    saved?: string;
+    saveError?: string;
+  }>;
+};
+
+export default async function ContentAssetPage({ params, searchParams }: PageProps) {
+  const [{ assetId }, query] = await Promise.all([params, searchParams]);
+  const data = await loadContentAsset(assetId);
+
+  if (data.authRequired) {
+    return <ContentAssetShell title="Content asset" errorTitle="Sign in required" error="Sign in before editing content assets." />;
+  }
+
+  if (data.error || !data.asset) {
+    return <ContentAssetShell title="Content asset" errorTitle="Content asset could not be loaded" error={data.error ?? "Content asset was not found."} destructive />;
+  }
+
+  return (
+    <main className="flex min-h-screen flex-col">
+      <AppTopbar
+        title="Content Editor"
+        eyebrow={`${data.asset.type} / ${data.asset.status}`}
+        actions={
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/content">
+              <ArrowLeft />
+              Library
+            </Link>
+          </Button>
+        }
+      />
+
+      <section className="grid gap-4 p-6 xl:grid-cols-[1fr_360px]">
+        <div className="flex flex-col gap-3">
+          {query.selected ? (
+            <Alert>
+              <AlertTitle>Content draft queued</AlertTitle>
+              <AlertDescription>This content asset is now ready for draft generation or manual editing.</AlertDescription>
+            </Alert>
+          ) : null}
+          {query.saved ? (
+            <Alert>
+              <AlertTitle>Content saved</AlertTitle>
+              <AlertDescription>The draft fields were updated.</AlertDescription>
+            </Alert>
+          ) : null}
+          {query.saveError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Save failed</AlertTitle>
+              <AlertDescription>{query.saveError}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{data.asset.title}</CardTitle>
+              <CardDescription>{data.asset.targetKeyword ?? "No target keyword"}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form action={updateContentAssetAction} className="flex flex-col gap-4">
+                <input type="hidden" name="assetId" value={data.asset.id} />
+                <div className="grid gap-2">
+                  <Label htmlFor="title">Title</Label>
+                  <Input id="title" name="title" defaultValue={data.asset.title} required maxLength={240} />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="metaTitle">Meta title</Label>
+                  <Input id="metaTitle" name="metaTitle" defaultValue={data.asset.metaTitle ?? ""} maxLength={120} />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="metaDescription">Meta description</Label>
+                  <Input id="metaDescription" name="metaDescription" defaultValue={data.asset.metaDescription ?? ""} maxLength={300} />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="bodyMd">Body markdown</Label>
+                  <textarea
+                    id="bodyMd"
+                    name="bodyMd"
+                    defaultValue={data.asset.bodyMd}
+                    className="min-h-[420px] rounded-md border bg-background px-3 py-2 font-mono text-sm text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
+                    placeholder="Article draft markdown will appear here after generation. You can also edit it manually."
+                  />
+                </div>
+                <div className="flex items-center justify-end gap-2">
+                  <Button type="button" variant="outline" asChild>
+                    <Link href="/content">Cancel</Link>
+                  </Button>
+                  <Button type="submit">Save draft</Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+
+        <aside className="flex flex-col gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Asset state</CardTitle>
+              <CardDescription>Server-owned status and provenance for this draft.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <Row label="Status" value={<Badge variant="outline">{data.asset.status}</Badge>} />
+              <Row label="Type" value={data.asset.type} />
+              <Row label="Brief" value={`v${data.asset.briefVersion}`} />
+              <Row label="Confidence" value={data.asset.aiConfidence === null ? "Not scored" : `${Math.round(data.asset.aiConfidence * 100)}%`} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Publishing</CardTitle>
+              <CardDescription>Publishing adapters are not wired yet. Markdown export comes before CMS publishing.</CardDescription>
+            </CardHeader>
+            {data.asset.publishedUrl ? (
+              <CardContent>
+                <Button size="sm" variant="outline" asChild>
+                  <a href={data.asset.publishedUrl} target="_blank" rel="noreferrer">
+                    Open published URL
+                    <ExternalLink data-icon="inline-end" />
+                  </a>
+                </Button>
+              </CardContent>
+            ) : null}
+          </Card>
+        </aside>
+      </section>
+    </main>
+  );
+}
+
+function Row({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b pb-2 last:border-b-0 last:pb-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="min-w-0 truncate text-right font-mono text-xs">{value}</span>
+    </div>
+  );
+}
+
+function ContentAssetShell({
+  title,
+  errorTitle,
+  error,
+  destructive,
+}: {
+  title: string;
+  errorTitle: string;
+  error: string;
+  destructive?: boolean;
+}) {
+  return (
+    <main className="flex min-h-screen flex-col">
+      <AppTopbar title={title} eyebrow="Generated assets" />
+      <div className="p-6">
+        <Alert variant={destructive ? "destructive" : "default"}>
+          <AlertTitle>{errorTitle}</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    </main>
+  );
+}
+
+async function loadContentAsset(assetId: string): Promise<{
+  asset: ContentAsset | null;
+  error: string | null;
+  authRequired: boolean;
+}> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const asset = await new ContentService(supabase).getContentAsset({ assetId });
+    return { asset, error: null, authRequired: false };
+  } catch (error) {
+    if (error instanceof AuthRequiredError) {
+      return { asset: null, error: null, authRequired: true };
+    }
+
+    if (error instanceof ContentAssetReadError) {
+      return { asset: null, error: error.message, authRequired: false };
+    }
+
+    if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
+      return {
+        asset: null,
+        error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
+        authRequired: false,
+      };
+    }
+
+    throw error;
+  }
+}

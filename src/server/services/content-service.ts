@@ -1,9 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  contentAssetIdSchema,
   contentAssetSchema,
   listContentAssetsSchema,
   listKeywordOpportunitiesSchema,
   selectKeywordOpportunitySchema,
+  updateContentAssetSchema,
 } from "@/server/schemas/content";
 import type { ContentAsset, ContentAssetType, KeywordOpportunity } from "@/server/schemas/content";
 import type { MarketingBrief } from "@/server/schemas/brief";
@@ -104,6 +106,49 @@ export class ContentService {
     return data.map(mapContentAsset);
   }
 
+  async getContentAsset(input: unknown): Promise<ContentAsset> {
+    const parsed = contentAssetIdSchema.parse(input);
+
+    const { data, error } = await this.supabase
+      .from("content_assets")
+      .select(contentAssetSelect)
+      .eq("id", parsed.assetId)
+      .single();
+
+    if (error) {
+      throw new ContentAssetReadError(error.message);
+    }
+
+    return mapContentAsset(data);
+  }
+
+  async updateContentAsset(input: unknown): Promise<ContentAsset> {
+    const parsed = updateContentAssetSchema.parse(input);
+    const current = await this.getContentAsset({ assetId: parsed.assetId });
+
+    if (!["draft", "pending_review", "rejected"].includes(current.status)) {
+      throw new ContentAssetUpdateError("Only draft, pending review, or rejected content assets can be edited.");
+    }
+
+    const { data, error } = await this.supabase
+      .from("content_assets")
+      .update({
+        title: parsed.title,
+        body_md: parsed.bodyMd,
+        meta_title: parsed.metaTitle || null,
+        meta_description: parsed.metaDescription || null,
+      })
+      .eq("id", parsed.assetId)
+      .select(contentAssetSelect)
+      .single();
+
+    if (error) {
+      throw new ContentAssetUpdateError(error.message);
+    }
+
+    return mapContentAsset(data);
+  }
+
   private async findActiveAssetForKeyword(input: { productId: string; targetKeyword: string }) {
     const { data, error } = await this.supabase
       .from("content_assets")
@@ -134,6 +179,13 @@ export class ContentAssetReadError extends Error {
   constructor(message: string) {
     super(`Content assets could not be loaded: ${message}`);
     this.name = "ContentAssetReadError";
+  }
+}
+
+export class ContentAssetUpdateError extends Error {
+  constructor(message: string) {
+    super(`Content asset could not be updated: ${message}`);
+    this.name = "ContentAssetUpdateError";
   }
 }
 

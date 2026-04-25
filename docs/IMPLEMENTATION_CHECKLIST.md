@@ -37,8 +37,8 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Keyword opportunity selection flow
 - [ ] Article generation workflow
 - [x] Content asset storage model
-- [ ] Content library page
-- [ ] Content detail/editor page
+- [x] Content library page
+- [x] Content detail/editor page
 - [ ] Markdown export
 - [ ] Ghost publishing adapter
 - [ ] WordPress publishing adapter

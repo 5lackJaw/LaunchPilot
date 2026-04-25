@@ -43,9 +43,21 @@ export const selectKeywordOpportunitySchema = z.object({
   opportunityId: z.string().trim().min(1).max(240),
 });
 
+export const contentAssetIdSchema = z.object({
+  assetId: z.string().uuid(),
+});
+
 export const listContentAssetsSchema = z.object({
   productId: z.string().uuid(),
   status: contentAssetStatusSchema.optional(),
+});
+
+export const updateContentAssetSchema = z.object({
+  assetId: z.string().uuid(),
+  title: z.string().trim().min(1, "Title is required.").max(240, "Use 240 characters or fewer."),
+  bodyMd: z.string().max(100_000, "Use 100,000 characters or fewer."),
+  metaTitle: z.string().trim().max(120, "Use 120 characters or fewer.").nullable().optional(),
+  metaDescription: z.string().trim().max(300, "Use 300 characters or fewer.").nullable().optional(),
 });
 
 export type KeywordOpportunity = z.infer<typeof keywordOpportunitySchema>;
