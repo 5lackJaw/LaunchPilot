@@ -22,6 +22,12 @@ const envSchema = z.object({
   WORDPRESS_SITE_URL: optionalUrl,
   WORDPRESS_USERNAME: optionalNonEmptyString,
   WORDPRESS_APPLICATION_PASSWORD: optionalNonEmptyString,
+  WEBFLOW_API_TOKEN: optionalNonEmptyString,
+  WEBFLOW_COLLECTION_ID: optionalNonEmptyString,
+  WEBFLOW_BODY_FIELD_SLUG: z.string().default("body"),
+  WEBFLOW_SUMMARY_FIELD_SLUG: z.string().default("summary"),
+  WEBFLOW_META_TITLE_FIELD_SLUG: z.string().default("meta-title"),
+  WEBFLOW_META_DESCRIPTION_FIELD_SLUG: z.string().default("meta-description"),
   SENTRY_DSN: optionalNonEmptyString,
 });
 

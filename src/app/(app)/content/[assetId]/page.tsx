@@ -11,11 +11,13 @@ import { AppTopbar } from "@/components/layout/app-topbar";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   publishContentAssetToGhostAction,
+  publishContentAssetToWebflowAction,
   publishContentAssetToWordPressAction,
   requestArticleGenerationAction,
   updateContentAssetAction,
 } from "@/app/(app)/content/[assetId]/actions";
 import { isGhostPublishingConfigured } from "@/server/publishing/ghost-adapter";
+import { isWebflowPublishingConfigured } from "@/server/publishing/webflow-adapter";
 import { isWordPressPublishingConfigured } from "@/server/publishing/wordpress-adapter";
 import type { ContentAsset } from "@/server/schemas/content";
 import { AuthRequiredError } from "@/server/services/auth-service";
@@ -33,6 +35,8 @@ type PageProps = {
     ghostError?: string;
     wordpressPublished?: string;
     wordpressError?: string;
+    webflowPublished?: string;
+    webflowError?: string;
   }>;
 };
 
@@ -95,6 +99,12 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
               <AlertDescription>The content asset was sent to WordPress as a draft.</AlertDescription>
             </Alert>
           ) : null}
+          {query.webflowPublished ? (
+            <Alert>
+              <AlertTitle>Webflow draft created</AlertTitle>
+              <AlertDescription>The content asset was sent to Webflow as a staged CMS item.</AlertDescription>
+            </Alert>
+          ) : null}
           {query.saveError ? (
             <Alert variant="destructive">
               <AlertTitle>Save failed</AlertTitle>
@@ -117,6 +127,12 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
             <Alert variant="destructive">
               <AlertTitle>WordPress publish failed</AlertTitle>
               <AlertDescription>{query.wordpressError}</AlertDescription>
+            </Alert>
+          ) : null}
+          {query.webflowError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Webflow publish failed</AlertTitle>
+              <AlertDescription>{query.webflowError}</AlertDescription>
             </Alert>
           ) : null}
 
@@ -244,6 +260,20 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
               </form>
               {!isWordPressPublishingConfigured() ? (
                 <p className="text-xs text-muted-foreground">Set WORDPRESS_SITE_URL, WORDPRESS_USERNAME, and WORDPRESS_APPLICATION_PASSWORD to enable WordPress publishing.</p>
+              ) : null}
+              <form action={publishContentAssetToWebflowAction}>
+                <input type="hidden" name="assetId" value={data.asset.id} />
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="w-full"
+                  disabled={!isWebflowPublishingConfigured() || !data.asset.bodyMd.trim() || !["approved", "pending_review"].includes(data.asset.status)}
+                >
+                  Send draft to Webflow
+                </Button>
+              </form>
+              {!isWebflowPublishingConfigured() ? (
+                <p className="text-xs text-muted-foreground">Set WEBFLOW_API_TOKEN and WEBFLOW_COLLECTION_ID to enable Webflow publishing.</p>
               ) : null}
             </CardContent>
             {data.asset.publishedUrl ? (

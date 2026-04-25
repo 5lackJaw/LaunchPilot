@@ -53,3 +53,10 @@ Format:
 - Current implication: The adapter can create WordPress drafts for local/server-configured testing, but it is not yet the final multi-tenant OAuth/connection model.
 - Follow-up trigger: When the connections settings area and encrypted `external_connections` storage are implemented.
 - Safe current behavior: Keep WordPress credentials server-only, use draft status, and require review before any live publishing workflow is added.
+
+- Date: 2026-04-25
+- Area: Webflow publishing
+- Item: Webflow publishing is currently configured with server environment variables and collection field slugs instead of encrypted per-user connections.
+- Current implication: The adapter can create staged CMS items for one configured collection, but it is not yet the final multi-tenant connection and collection-mapping model.
+- Follow-up trigger: When the connections settings area and encrypted `external_connections` storage are implemented.
+- Safe current behavior: Keep the API token server-only, create draft/staged CMS items, and require explicit collection field mapping through environment variables.

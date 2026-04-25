@@ -55,6 +55,27 @@ export async function publishContentAssetToWordPressAction(formData: FormData) {
   redirect(redirectTo);
 }
 
+export async function publishContentAssetToWebflowAction(formData: FormData) {
+  const assetId = String(formData.get("assetId") ?? "");
+  let redirectTo = assetId ? `/content/${encodeURIComponent(assetId)}` : "/content";
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const asset = await new ContentService(supabase).publishToWebflow({ assetId });
+
+    revalidatePath("/content");
+    revalidatePath(`/content/${asset.id}`);
+    redirectTo = `/content/${asset.id}?webflowPublished=1`;
+  } catch (error) {
+    const message = toWebflowPublishMessage(error);
+    redirectTo = assetId
+      ? `/content/${encodeURIComponent(assetId)}?webflowError=${encodeURIComponent(message)}`
+      : `/content?webflowError=${encodeURIComponent(message)}`;
+  }
+
+  redirect(redirectTo);
+}
+
 export async function requestArticleGenerationAction(formData: FormData) {
   const assetId = String(formData.get("assetId") ?? "");
   let redirectTo = assetId ? `/content/${encodeURIComponent(assetId)}` : "/content";
@@ -201,4 +222,28 @@ function toWordPressPublishMessage(error: unknown) {
   }
 
   return "WordPress publish failed.";
+}
+
+function toWebflowPublishMessage(error: unknown) {
+  if (error instanceof ZodError) {
+    return "Choose a valid content asset.";
+  }
+
+  if (error instanceof AuthRequiredError) {
+    return error.message;
+  }
+
+  if (error instanceof ContentAssetReadError || error instanceof ContentPublishError) {
+    return error.message;
+  }
+
+  if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
+    return "Supabase is not configured yet.";
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Webflow publish failed.";
 }
