@@ -1,6 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { dashboardSummarySchema, listAnalyticsSchema } from "@/server/schemas/analytics";
-import type { ContentPerformance, DashboardSummary, KeywordMovement, TrafficSourceBreakdown } from "@/server/schemas/analytics";
+import { inngest } from "@/inngest/client";
+import { dashboardSummarySchema, listAnalyticsSchema, weeklyBriefSchema } from "@/server/schemas/analytics";
+import type {
+  ContentPerformance,
+  DashboardSummary,
+  KeywordMovement,
+  TrafficSourceBreakdown,
+  WeeklyBrief,
+  WeeklyRecommendation,
+} from "@/server/schemas/analytics";
 import { ProductService } from "@/server/services/product-service";
 
 const dayMs = 24 * 60 * 60 * 1000;
@@ -40,16 +48,88 @@ export class AnalyticsService {
   async getDashboardSummary(input: unknown): Promise<DashboardSummary> {
     const parsed = listAnalyticsSchema.parse(input);
     await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+    return this.buildDashboardSummary(parsed.productId);
+  }
+
+  async getDashboardSummaryForWorkflow(productId: string): Promise<DashboardSummary> {
+    const { error } = await this.supabase.from("products").select("id").eq("id", productId).single();
+
+    if (error) {
+      throw new AnalyticsReadError(error.message);
+    }
+
+    return this.buildDashboardSummary(productId);
+  }
+
+  async requestWeeklyDigest(input: unknown) {
+    const parsed = listAnalyticsSchema.parse(input);
+    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+
+    await inngest.send({
+      name: "weekly_digest/generation.requested",
+      data: { productId: parsed.productId },
+    });
+  }
+
+  async getLatestWeeklyBrief(input: unknown): Promise<WeeklyBrief | null> {
+    const parsed = listAnalyticsSchema.parse(input);
+    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+
+    const { data, error } = await this.supabase
+      .from("weekly_briefs")
+      .select("id,product_id,week_start,summary_md,recommendations,sent_at,created_at")
+      .eq("product_id", parsed.productId)
+      .order("week_start", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw new AnalyticsReadError(error.message);
+    }
+
+    return data ? mapWeeklyBrief(data) : null;
+  }
+
+  async upsertWeeklyBrief(input: {
+    productId: string;
+    weekStart: string;
+    summaryMd: string;
+    recommendations: WeeklyRecommendation[];
+    sentAt?: string | null;
+  }): Promise<WeeklyBrief> {
+    const { data, error } = await this.supabase
+      .from("weekly_briefs")
+      .upsert(
+        {
+          product_id: input.productId,
+          week_start: input.weekStart,
+          summary_md: input.summaryMd,
+          recommendations: input.recommendations,
+          sent_at: input.sentAt ?? null,
+        },
+        { onConflict: "product_id,week_start" },
+      )
+      .select("id,product_id,week_start,summary_md,recommendations,sent_at,created_at")
+      .single();
+
+    if (error) {
+      throw new AnalyticsReadError(error.message);
+    }
+
+    return mapWeeklyBrief(data);
+  }
+
+  private async buildDashboardSummary(productId: string): Promise<DashboardSummary> {
 
     const periods = getRollingPeriods(new Date());
 
     const [currentTraffic, previousTraffic, traffic30d, rankRows, contentRows, pendingInboxRows] = await Promise.all([
-      this.listTrafficRows(parsed.productId, periods.current.startsAt),
-      this.listTrafficRows(parsed.productId, periods.previous.startsAt, periods.current.startsAt),
-      this.listTrafficRows(parsed.productId, new Date(Date.now() - 30 * dayMs).toISOString()),
-      this.listKeywordRows(parsed.productId),
-      this.listContentRows(parsed.productId),
-      this.listPendingInboxRows(parsed.productId),
+      this.listTrafficRows(productId, periods.current.startsAt),
+      this.listTrafficRows(productId, periods.previous.startsAt, periods.current.startsAt),
+      this.listTrafficRows(productId, new Date(Date.now() - 30 * dayMs).toISOString()),
+      this.listKeywordRows(productId),
+      this.listContentRows(productId),
+      this.listPendingInboxRows(productId),
     ]);
 
     const visitors = sumTraffic(currentTraffic, "visits");
@@ -62,7 +142,7 @@ export class AnalyticsService {
     const previousPublishedAssets = countPublishedAssets(contentRows, periods.previous.startsAt, periods.current.startsAt);
 
     return dashboardSummarySchema.parse({
-      productId: parsed.productId,
+      productId,
       currentPeriod: periods.current,
       previousPeriod: periods.previous,
       visitors,
@@ -159,6 +239,109 @@ export class AnalyticsReadError extends Error {
     super(`Analytics could not be loaded: ${message}`);
     this.name = "AnalyticsReadError";
   }
+}
+
+export function buildWeeklyDigest(input: { productName: string; summary: DashboardSummary }) {
+  const recommendations = buildWeeklyRecommendations(input.summary);
+  const lines = [
+    `# ${input.productName} weekly digest`,
+    "",
+    input.summary.weeklyInsight.body,
+    "",
+    "## Metrics",
+    `- Visitors: ${input.summary.visitors.toLocaleString()} (${formatPercentDelta(input.summary.visitorDeltaPercent)})`,
+    `- Conversions: ${input.summary.conversions.toLocaleString()} (${formatPercentDelta(input.summary.conversionDeltaPercent)})`,
+    `- Pending inbox items: ${input.summary.pendingInboxItems}`,
+    "",
+    "## Recommended actions",
+    ...recommendations.map((item) => `- ${item.title}: ${item.rationale}`),
+  ];
+
+  return {
+    weekStart: weekStartDate(new Date()),
+    summaryMd: lines.join("\n"),
+    recommendations,
+  };
+}
+
+function buildWeeklyRecommendations(summary: DashboardSummary): WeeklyRecommendation[] {
+  const recommendations: WeeklyRecommendation[] = [];
+  const leadingSource = summary.sourceBreakdown[0];
+  const risingKeyword = summary.keywordMovement.find((keyword) => keyword.trend === "up");
+  const pendingContent = summary.contentPerformance.find((asset) => asset.status === "pending_review");
+
+  if (pendingContent) {
+    recommendations.push({
+      title: "Review the strongest pending content asset",
+      rationale: `${pendingContent.title} is waiting for review and can move the content pipeline forward.`,
+      actionLabel: "Open content library",
+      priority: "high",
+    });
+  }
+
+  if (risingKeyword) {
+    recommendations.push({
+      title: `Refresh content around ${risingKeyword.keyword}`,
+      rationale: `The keyword is moving up and is now at position #${risingKeyword.currentPosition}. Use the momentum for an internal link or supporting article.`,
+      actionLabel: "Open SEO content",
+      priority: "medium",
+    });
+  }
+
+  if (leadingSource) {
+    recommendations.push({
+      title: `Double down on ${formatSourceLabel(leadingSource.sourceType)}`,
+      rationale: `${formatSourceLabel(leadingSource.sourceType)} produced ${leadingSource.visits.toLocaleString()} visits in the current source window.`,
+      actionLabel: "Open analytics",
+      priority: leadingSource.visits > 0 ? "medium" : "low",
+    });
+  }
+
+  if (!recommendations.length) {
+    recommendations.push({
+      title: "Connect analytics inputs",
+      rationale: "Traffic and keyword ingestion are ready, but this product has no measured performance signals yet.",
+      actionLabel: "Open analytics",
+      priority: "low",
+    });
+  }
+
+  return recommendations.slice(0, 3);
+}
+
+function mapWeeklyBrief(data: {
+  id: string;
+  product_id: string;
+  week_start: string;
+  summary_md: string;
+  recommendations: unknown;
+  sent_at: string | null;
+  created_at: string;
+}) {
+  return weeklyBriefSchema.parse({
+    id: data.id,
+    productId: data.product_id,
+    weekStart: data.week_start,
+    summaryMd: data.summary_md,
+    recommendations: data.recommendations,
+    sentAt: data.sent_at,
+    createdAt: data.created_at,
+  });
+}
+
+function weekStartDate(now: Date) {
+  const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const day = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() - day + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function formatPercentDelta(value: number | null) {
+  if (value === null) {
+    return "no prior data";
+  }
+
+  return `${value >= 0 ? "+" : ""}${value}%`;
 }
 
 function getRollingPeriods(now: Date) {

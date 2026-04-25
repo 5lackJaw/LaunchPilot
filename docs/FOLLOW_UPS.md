@@ -74,3 +74,10 @@ Format:
 - Current implication: Supabase Auth will not reject passwords found in known breach datasets until the project-level setting is enabled.
 - Follow-up trigger: Before inviting real users or deploying the app publicly.
 - Safe current behavior: Keep this as a deployment-readiness item because it is controlled in Supabase Auth settings, not by repository code.
+
+- Date: 2026-04-25
+- Area: Weekly digest email
+- Item: Weekly digest delivery uses Resend when `RESEND_API_KEY` and `WEEKLY_DIGEST_FROM_EMAIL` are configured.
+- Current implication: In local or unconfigured environments, the workflow still persists `weekly_briefs` and creates a weekly recommendation inbox item, but it skips email delivery and leaves `sent_at` empty.
+- Follow-up trigger: Before live deployment or when choosing the final production email provider/sender domain.
+- Safe current behavior: Keep email credentials server-only and require explicit provider configuration before sending external email.

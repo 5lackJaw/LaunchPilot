@@ -59,6 +59,23 @@ export const dashboardSummarySchema = z.object({
   }),
 });
 
+export const weeklyRecommendationSchema = z.object({
+  title: z.string(),
+  rationale: z.string(),
+  actionLabel: z.string(),
+  priority: z.enum(["low", "medium", "high"]),
+});
+
+export const weeklyBriefSchema = z.object({
+  id: z.string().uuid(),
+  productId: z.string().uuid(),
+  weekStart: z.string(),
+  summaryMd: z.string(),
+  recommendations: z.array(weeklyRecommendationSchema),
+  sentAt: z.string().nullable(),
+  createdAt: z.string(),
+});
+
 export const listAnalyticsSchema = z.object({
   productId: z.string().uuid(),
 });
@@ -67,3 +84,5 @@ export type TrafficSourceBreakdown = z.infer<typeof trafficSourceBreakdownSchema
 export type KeywordMovement = z.infer<typeof keywordMovementSchema>;
 export type ContentPerformance = z.infer<typeof contentPerformanceSchema>;
 export type DashboardSummary = z.infer<typeof dashboardSummarySchema>;
+export type WeeklyRecommendation = z.infer<typeof weeklyRecommendationSchema>;
+export type WeeklyBrief = z.infer<typeof weeklyBriefSchema>;

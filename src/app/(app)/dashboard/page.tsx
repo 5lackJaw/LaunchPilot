@@ -3,6 +3,7 @@ import { AppTopbar } from "@/components/layout/app-topbar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requestWeeklyDigestAction } from "@/app/(app)/dashboard/actions";
 import type { DashboardSummary, KeywordMovement, TrafficSourceBreakdown } from "@/server/schemas/analytics";
 import type { InboxItem } from "@/server/schemas/inbox";
 import type { Product } from "@/server/schemas/product";
@@ -11,7 +12,15 @@ import { AuthRequiredError } from "@/server/services/auth-service";
 import { InboxItemReadError, InboxService } from "@/server/services/inbox-service";
 import { ProductReadError, ProductService } from "@/server/services/product-service";
 
-export default async function DashboardPage() {
+type PageProps = {
+  searchParams: Promise<{
+    digestRequested?: string;
+    digestError?: string;
+  }>;
+};
+
+export default async function DashboardPage({ searchParams }: PageProps) {
+  const params = await searchParams;
   const data = await loadDashboardData();
 
   if (data.authRequired) {
@@ -46,6 +55,11 @@ export default async function DashboardPage() {
         actions={
           <div className="flex items-center gap-2">
             <span className="font-mono text-[11.5px] text-muted-foreground">{summary.currentPeriod.label}</span>
+            <form action={requestWeeklyDigestAction}>
+              <Button type="submit" variant="outline" size="sm">
+                Generate digest
+              </Button>
+            </form>
             <Button size="sm" asChild>
               <Link href="/inbox">Review inbox</Link>
             </Button>
@@ -54,6 +68,18 @@ export default async function DashboardPage() {
       />
 
       <div className="flex flex-col gap-5 p-7">
+        {params.digestRequested ? (
+          <Alert>
+            <AlertTitle>Weekly digest requested</AlertTitle>
+            <AlertDescription>The digest workflow will persist a weekly brief, create an inbox recommendation, and send email if configured.</AlertDescription>
+          </Alert>
+        ) : null}
+        {params.digestError ? (
+          <Alert variant="destructive">
+            <AlertTitle>Weekly digest request failed</AlertTitle>
+            <AlertDescription>Try again after confirming the product and workflow configuration.</AlertDescription>
+          </Alert>
+        ) : null}
         <InsightBar summary={summary} />
 
         <section className="grid grid-cols-2 gap-3 md:grid-cols-4">

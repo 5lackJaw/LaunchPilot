@@ -3,8 +3,10 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { buildInitialBrief } from "@/server/brief/build-initial-brief";
 import { buildArticleDraft } from "@/server/content/build-article-draft";
 import { extractPageSignals } from "@/server/crawl/extract-page-signals";
+import { isWeeklyDigestEmailConfigured, sendWeeklyDigestEmail } from "@/server/email/weekly-digest-email";
 import { contentAssetSchema } from "@/server/schemas/content";
 import { marketingBriefSchema } from "@/server/schemas/brief";
+import { AnalyticsService, buildWeeklyDigest } from "@/server/services/analytics-service";
 
 export const briefGenerationWorkflow = inngest.createFunction(
   { id: "brief-generation-workflow", triggers: [{ event: "brief/generation.requested" }] },
@@ -410,4 +412,130 @@ export const contentGenerationWorkflow = inngest.createFunction(
   },
 );
 
-export const functions = [briefGenerationWorkflow, productCrawlPlaceholder, contentGenerationWorkflow];
+export const weeklyDigestGenerationWorkflow = inngest.createFunction(
+  { id: "weekly-digest-generation-workflow", triggers: [{ event: "weekly_digest/generation.requested" }] },
+  async ({ event, step }) => {
+    const productId = event.data.productId as string;
+    const supabase = createSupabaseAdminClient();
+    const analyticsService = new AnalyticsService(supabase);
+
+    const inputs = await step.run("load-weekly-digest-inputs", async () => {
+      const productResult = await supabase.from("products").select("id,name,user_id").eq("id", productId).single();
+
+      if (productResult.error) {
+        throw productResult.error;
+      }
+
+      const userResult = await supabase.from("users").select("email").eq("id", productResult.data.user_id).single();
+
+      if (userResult.error) {
+        throw userResult.error;
+      }
+
+      const summary = await analyticsService.getDashboardSummaryForWorkflow(productId);
+
+      return {
+        product: productResult.data,
+        userEmail: userResult.data.email,
+        summary,
+      };
+    });
+
+    const digest = await step.run("compose-weekly-digest", async () =>
+      buildWeeklyDigest({
+        productName: inputs.product.name,
+        summary: inputs.summary,
+      }),
+    );
+
+    const persisted = await step.run("persist-weekly-brief", async () =>
+      analyticsService.upsertWeeklyBrief({
+        productId,
+        weekStart: digest.weekStart,
+        summaryMd: digest.summaryMd,
+        recommendations: digest.recommendations,
+      }),
+    );
+
+    await step.run("create-weekly-recommendation-inbox-item", async () => {
+      const existing = await supabase
+        .from("inbox_items")
+        .select("id")
+        .eq("product_id", productId)
+        .eq("source_entity_type", "weekly_brief")
+        .eq("source_entity_id", persisted.id)
+        .eq("status", "pending")
+        .maybeSingle();
+
+      if (existing.error) {
+        throw existing.error;
+      }
+
+      if (existing.data) {
+        return existing.data;
+      }
+
+      const primaryRecommendation = persisted.recommendations[0];
+      const itemResult = await supabase
+        .from("inbox_items")
+        .insert({
+          product_id: productId,
+          item_type: "weekly_recommendation",
+          source_entity_type: "weekly_brief",
+          source_entity_id: persisted.id,
+          payload: {
+            title: primaryRecommendation?.title ?? "Weekly digest ready",
+            preview: primaryRecommendation?.rationale ?? "Review this week's performance summary.",
+            body: persisted.summaryMd,
+            suggestedAction: primaryRecommendation?.actionLabel ?? "Review weekly digest",
+            metadata: { weekStart: persisted.weekStart, recommendations: persisted.recommendations },
+          },
+          ai_confidence: 0.82,
+          impact_estimate: primaryRecommendation?.priority === "high" ? "high" : "medium",
+          review_time_estimate_seconds: 300,
+        })
+        .select("id,product_id")
+        .single();
+
+      if (itemResult.error) {
+        throw itemResult.error;
+      }
+
+      const eventResult = await supabase.from("inbox_item_events").insert({
+        inbox_item_id: itemResult.data.id,
+        product_id: itemResult.data.product_id,
+        event_type: "created",
+        metadata: { sourceEntityType: "weekly_brief", sourceEntityId: persisted.id, workflow: "weekly_digest_generation" },
+      });
+
+      if (eventResult.error) {
+        throw eventResult.error;
+      }
+
+      return itemResult.data;
+    });
+
+    if (!isWeeklyDigestEmailConfigured()) {
+      return persisted;
+    }
+
+    await step.run("send-weekly-digest-email", async () => {
+      await sendWeeklyDigestEmail({
+        to: inputs.userEmail,
+        productName: inputs.product.name,
+        brief: persisted,
+      });
+
+      const sentAt = new Date().toISOString();
+      return analyticsService.upsertWeeklyBrief({
+        productId,
+        weekStart: persisted.weekStart,
+        summaryMd: persisted.summaryMd,
+        recommendations: persisted.recommendations,
+        sentAt,
+      });
+    });
+  },
+);
+
+export const functions = [briefGenerationWorkflow, productCrawlPlaceholder, contentGenerationWorkflow, weeklyDigestGenerationWorkflow];

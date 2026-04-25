@@ -28,6 +28,8 @@ const envSchema = z.object({
   WEBFLOW_SUMMARY_FIELD_SLUG: z.string().default("summary"),
   WEBFLOW_META_TITLE_FIELD_SLUG: z.string().default("meta-title"),
   WEBFLOW_META_DESCRIPTION_FIELD_SLUG: z.string().default("meta-description"),
+  RESEND_API_KEY: optionalNonEmptyString,
+  WEEKLY_DIGEST_FROM_EMAIL: optionalNonEmptyString,
   SENTRY_DSN: optionalNonEmptyString,
 });
 

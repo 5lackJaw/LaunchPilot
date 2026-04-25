@@ -49,8 +49,8 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Source/channel breakdown
 - [x] Content performance view
 - [x] Keyword movement view
-- [ ] Weekly recommendation generation
-- [ ] Weekly digest email
+- [x] Weekly recommendation generation
+- [x] Weekly digest email
 
 ## Phase 5 — directory agent
 - [ ] Directory catalog model
