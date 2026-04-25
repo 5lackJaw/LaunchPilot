@@ -39,3 +39,10 @@ Format:
 - Current implication: The workflow exercises the durable pipeline, content asset updates, and approval inbox handoff, but generated copy is placeholder-quality and should not be treated as production-ready.
 - Follow-up trigger: When Anthropic/OpenAI generation is wired, replace the deterministic composer with the provider-backed outline, draft, and SEO review steps.
 - Safe current behavior: Keep generated content in `pending_review`, create an inbox item, and require human review before publishing or export.
+
+- Date: 2026-04-25
+- Area: Ghost publishing
+- Item: Ghost publishing is currently configured with server environment variables instead of encrypted per-user connections.
+- Current implication: The adapter can create Ghost drafts for local/server-configured testing, but it is not yet the final multi-tenant connection model.
+- Follow-up trigger: When the connections settings area and encrypted `external_connections` storage are implemented.
+- Safe current behavior: Keep Ghost Admin API credentials server-only, never expose them to the client, and create drafts rather than directly publishing live posts.

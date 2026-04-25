@@ -9,7 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requestArticleGenerationAction, updateContentAssetAction } from "@/app/(app)/content/[assetId]/actions";
+import {
+  publishContentAssetToGhostAction,
+  requestArticleGenerationAction,
+  updateContentAssetAction,
+} from "@/app/(app)/content/[assetId]/actions";
+import { isGhostPublishingConfigured } from "@/server/publishing/ghost-adapter";
 import type { ContentAsset } from "@/server/schemas/content";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { ContentAssetReadError, ContentService } from "@/server/services/content-service";
@@ -22,6 +27,8 @@ type PageProps = {
     saveError?: string;
     generationRequested?: string;
     generationError?: string;
+    ghostPublished?: string;
+    ghostError?: string;
   }>;
 };
 
@@ -72,6 +79,12 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
               <AlertDescription>The content workflow will generate a draft and create an inbox review item.</AlertDescription>
             </Alert>
           ) : null}
+          {query.ghostPublished ? (
+            <Alert>
+              <AlertTitle>Ghost draft created</AlertTitle>
+              <AlertDescription>The content asset was sent to Ghost as a draft.</AlertDescription>
+            </Alert>
+          ) : null}
           {query.saveError ? (
             <Alert variant="destructive">
               <AlertTitle>Save failed</AlertTitle>
@@ -82,6 +95,12 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
             <Alert variant="destructive">
               <AlertTitle>Generation request failed</AlertTitle>
               <AlertDescription>{query.generationError}</AlertDescription>
+            </Alert>
+          ) : null}
+          {query.ghostError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Ghost publish failed</AlertTitle>
+              <AlertDescription>{query.ghostError}</AlertDescription>
             </Alert>
           ) : null}
 
@@ -181,6 +200,20 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
               )}
               {!data.asset.bodyMd.trim() ? (
                 <p className="text-xs text-muted-foreground">Generate or write body markdown before export.</p>
+              ) : null}
+              <form action={publishContentAssetToGhostAction}>
+                <input type="hidden" name="assetId" value={data.asset.id} />
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="w-full"
+                  disabled={!isGhostPublishingConfigured() || !data.asset.bodyMd.trim() || !["approved", "pending_review"].includes(data.asset.status)}
+                >
+                  Send draft to Ghost
+                </Button>
+              </form>
+              {!isGhostPublishingConfigured() ? (
+                <p className="text-xs text-muted-foreground">Set GHOST_ADMIN_URL and GHOST_ADMIN_API_KEY to enable Ghost publishing.</p>
               ) : null}
             </CardContent>
             {data.asset.publishedUrl ? (

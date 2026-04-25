@@ -40,7 +40,7 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Content library page
 - [x] Content detail/editor page
 - [x] Markdown export
-- [ ] Ghost publishing adapter
+- [x] Ghost publishing adapter
 - [ ] WordPress publishing adapter
 - [ ] Webflow publishing adapter
 

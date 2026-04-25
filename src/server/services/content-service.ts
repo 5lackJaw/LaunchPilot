@@ -10,6 +10,7 @@ import {
 } from "@/server/schemas/content";
 import type { ContentAsset, ContentAssetType, KeywordOpportunity } from "@/server/schemas/content";
 import type { MarketingBrief } from "@/server/schemas/brief";
+import { isGhostPublishingConfigured, publishContentAssetToGhost } from "@/server/publishing/ghost-adapter";
 import { BriefService } from "@/server/services/brief-service";
 import { ProductService } from "@/server/services/product-service";
 
@@ -170,6 +171,47 @@ export class ContentService {
     return asset;
   }
 
+  async publishToGhost(input: unknown): Promise<ContentAsset> {
+    const parsed = contentAssetIdSchema.parse(input);
+    const asset = await this.getContentAsset({ assetId: parsed.assetId });
+    await new ProductService(this.supabase).getProduct({ productId: asset.productId });
+
+    if (!isGhostPublishingConfigured()) {
+      throw new ContentPublishError("Ghost publishing is not configured.");
+    }
+
+    if (!["approved", "pending_review"].includes(asset.status)) {
+      throw new ContentPublishError("Only approved or pending review content assets can be sent to Ghost as drafts.");
+    }
+
+    const published = await publishContentAssetToGhost(asset);
+    const provenance = {
+      ...asset.provenance,
+      ghost: {
+        providerPostId: published.providerPostId,
+        providerStatus: published.providerStatus,
+        sentAt: new Date().toISOString(),
+      },
+    };
+
+    const { data, error } = await this.supabase
+      .from("content_assets")
+      .update({
+        status: "published",
+        published_url: published.publishedUrl,
+        provenance,
+      })
+      .eq("id", asset.id)
+      .select(contentAssetSelect)
+      .single();
+
+    if (error) {
+      throw new ContentPublishError(error.message);
+    }
+
+    return mapContentAsset(data);
+  }
+
   private async findActiveAssetForKeyword(input: { productId: string; targetKeyword: string }) {
     const { data, error } = await this.supabase
       .from("content_assets")
@@ -214,6 +256,13 @@ export class ContentGenerationRequestError extends Error {
   constructor(message: string) {
     super(`Content generation could not be requested: ${message}`);
     this.name = "ContentGenerationRequestError";
+  }
+}
+
+export class ContentPublishError extends Error {
+  constructor(message: string) {
+    super(`Content asset could not be published: ${message}`);
+    this.name = "ContentPublishError";
   }
 }
 

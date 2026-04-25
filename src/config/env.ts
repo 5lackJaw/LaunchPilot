@@ -16,6 +16,9 @@ const envSchema = z.object({
   INNGEST_EVENT_KEY: optionalNonEmptyString,
   INNGEST_SIGNING_KEY: optionalNonEmptyString,
   ENABLE_DEV_INBOX_SEED: optionalNonEmptyString,
+  GHOST_ADMIN_URL: optionalUrl,
+  GHOST_ADMIN_API_KEY: optionalNonEmptyString,
+  GHOST_API_VERSION: z.string().default("v6.0"),
   SENTRY_DSN: optionalNonEmptyString,
 });
 

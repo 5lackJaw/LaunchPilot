@@ -9,8 +9,30 @@ import {
   ContentAssetReadError,
   ContentAssetUpdateError,
   ContentGenerationRequestError,
+  ContentPublishError,
   ContentService,
 } from "@/server/services/content-service";
+
+export async function publishContentAssetToGhostAction(formData: FormData) {
+  const assetId = String(formData.get("assetId") ?? "");
+  let redirectTo = assetId ? `/content/${encodeURIComponent(assetId)}` : "/content";
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const asset = await new ContentService(supabase).publishToGhost({ assetId });
+
+    revalidatePath("/content");
+    revalidatePath(`/content/${asset.id}`);
+    redirectTo = `/content/${asset.id}?ghostPublished=1`;
+  } catch (error) {
+    const message = toGhostPublishMessage(error);
+    redirectTo = assetId
+      ? `/content/${encodeURIComponent(assetId)}?ghostError=${encodeURIComponent(message)}`
+      : `/content?ghostError=${encodeURIComponent(message)}`;
+  }
+
+  redirect(redirectTo);
+}
 
 export async function requestArticleGenerationAction(formData: FormData) {
   const assetId = String(formData.get("assetId") ?? "");
@@ -110,4 +132,28 @@ function toGenerationRequestMessage(error: unknown) {
   }
 
   return "Content generation could not be requested.";
+}
+
+function toGhostPublishMessage(error: unknown) {
+  if (error instanceof ZodError) {
+    return "Choose a valid content asset.";
+  }
+
+  if (error instanceof AuthRequiredError) {
+    return error.message;
+  }
+
+  if (error instanceof ContentAssetReadError || error instanceof ContentPublishError) {
+    return error.message;
+  }
+
+  if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
+    return "Supabase is not configured yet.";
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Ghost publish failed.";
 }
