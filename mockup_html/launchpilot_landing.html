@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LaunchPilot — Marketing, in pull requests.</title>
+<meta name="description" content="Marketing autopilot for solo developers. LaunchPilot drafts every article, community reply, directory listing and press pitch your product needs. You review weekly, like reviewing a PR.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Fraunces:ital,opsz,wght@0,9..144,200;0,9..144,400;0,9..144,600;1,9..144,200;1,9..144,400;1,9..144,700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:#0C0C0E;--ink2:#131316;--ink3:#1A1A1E;--ink4:#222228;
+  --rule:#2A2A32;--rule2:#36363F;
+  --fg:#EEEEF2;--fg2:#A8A8B8;--fg3:#5C5C6E;--fg4:#3A3A48;
+  --p:#7C6FF7;--pl:#A99DF9;--pd:#5B54CE;--pdim:rgba(124,111,247,0.10);--pglow:rgba(124,111,247,0.22);
+  --teal:#2DD9A4;--tdim:rgba(45,217,164,0.09);
+  --amber:#F2A827;--adim:rgba(242,168,39,0.10);
+  --red:#F06060;--rdim:rgba(240,96,96,0.08);
+  --sans:'DM Sans',sans-serif;--serif:'Fraunces',serif;--mono:'DM Mono',monospace;
+  --ease:cubic-bezier(0.22,1,0.36,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;font-size:16px}
+body{background:var(--ink);color:var(--fg);font-family:var(--sans);line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+a{color:inherit;text-decoration:none}
+button{cursor:pointer;font-family:inherit;border:none;outline:none;color:inherit;background:transparent}
+
+/* noise */
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  background-size:200px 200px;opacity:.5}
+
+.wrap{max-width:1180px;margin:0 auto;padding:0 32px;position:relative;z-index:1}
+.wrap-narrow{max-width:780px;margin:0 auto;padding:0 32px;position:relative;z-index:1}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;border-bottom:1px solid transparent;transition:background .3s,border-color .3s,backdrop-filter .3s}
+nav.scrolled{background:rgba(12,12,14,.85);border-color:var(--rule);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.nav-inner{display:flex;align-items:center;max-width:1180px;margin:0 auto;padding:0 32px;height:64px}
+.nav-logo{display:flex;align-items:center;gap:10px;font-family:var(--serif);font-size:18px;font-weight:600;letter-spacing:-.02em;color:var(--fg)}
+.nav-logo-mark{width:30px;height:30px;background:var(--p);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:500;color:#fff}
+.nav-links{display:flex;align-items:center;gap:28px;margin-left:auto;font-size:13.5px;color:var(--fg2);list-style:none}
+.nav-links a:hover{color:var(--fg);transition:color .15s}
+.nav-cta{margin-left:28px;padding:8px 18px;border-radius:8px;background:var(--p);color:#fff;font-size:13.5px;font-weight:500;transition:background .15s,transform .15s}
+.nav-cta:hover{background:var(--pd);transform:translateY(-1px)}
+.nav-toggle{display:none;margin-left:auto;width:36px;height:36px;align-items:center;justify-content:center;color:var(--fg2);border-radius:8px}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:120px 32px 72px;position:relative;overflow:hidden}
+.hero::after{content:'';position:absolute;top:-10%;left:50%;transform:translateX(-50%);width:900px;height:600px;
+  background:radial-gradient(ellipse at 50% 40%,rgba(124,111,247,.14) 0%,rgba(45,217,164,.05) 50%,transparent 70%);pointer-events:none;z-index:0}
+.hero-grid{position:absolute;inset:0;z-index:0;
+  background-image:linear-gradient(var(--rule) 1px,transparent 1px),linear-gradient(90deg,var(--rule) 1px,transparent 1px);
+  background-size:64px 64px;
+  mask-image:radial-gradient(ellipse 80% 70% at 50% 30%,black 30%,transparent 100%);
+  -webkit-mask-image:radial-gradient(ellipse 80% 70% at 50% 30%,black 30%,transparent 100%);opacity:.4}
+.hero-content{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;text-align:center;max-width:880px}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 13px;border-radius:20px;border:1px solid var(--rule2);background:var(--ink2);
+  font-family:var(--mono);font-size:11px;color:var(--fg2);letter-spacing:.05em;text-transform:uppercase;margin-bottom:28px;animation:fadeUp .7s var(--ease) both}
+.eyebrow-dot{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 6px var(--teal);animation:blink 2s ease infinite}
+@keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.8)}}
+.hero-h1{font-family:var(--serif);font-size:clamp(46px,8vw,92px);font-weight:400;line-height:1.04;letter-spacing:-.035em;color:var(--fg);margin-bottom:26px;animation:fadeUp .7s var(--ease) .1s both}
+.hero-h1 em{font-style:italic;color:var(--pl);font-weight:200}
+.ul-word{position:relative;display:inline-block}
+.ul-word::after{content:'';position:absolute;left:0;bottom:4px;right:0;height:3px;background:linear-gradient(90deg,var(--teal),var(--p));border-radius:2px;animation:expandW .8s var(--ease) .7s both;transform-origin:left}
+@keyframes expandW{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.hero-sub{font-size:clamp(16px,2vw,19px);color:var(--fg2);line-height:1.65;max-width:620px;margin-bottom:40px;font-weight:300;animation:fadeUp .7s var(--ease) .2s both}
+.hero-sub strong{color:var(--fg);font-weight:500}
+.hero-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center;animation:fadeUp .7s var(--ease) .3s both}
+.btn-primary{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:10px;background:var(--p);color:#fff;font-size:15px;font-weight:500;transition:all .2s var(--ease);box-shadow:0 0 0 0 var(--pglow);cursor:pointer}
+.btn-primary:hover{background:var(--pd);transform:translateY(-2px);box-shadow:0 8px 32px var(--pglow)}
+.btn-secondary{display:inline-flex;align-items:center;gap:8px;padding:14px 24px;border-radius:10px;border:1px solid var(--rule2);background:var(--ink2);color:var(--fg2);font-size:15px;transition:all .15s;cursor:pointer}
+.btn-secondary:hover{color:var(--fg);background:var(--ink3)}
+.hero-note{margin-top:14px;font-size:12px;color:var(--fg3);font-family:var(--mono);animation:fadeUp .7s var(--ease) .4s both}
+
+/* HERO INBOX PREVIEW */
+.hero-inbox-wrap{position:relative;z-index:2;margin-top:64px;width:100%;max-width:880px;animation:fadeUp .8s var(--ease) .5s both}
+.feed-lbl{font-size:10.5px;font-family:var(--mono);color:var(--fg3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;text-align:left;display:flex;align-items:center;gap:10px}
+.feed-lbl::before{content:'';display:block;width:16px;height:1px;background:var(--fg4)}
+.feed-lbl-pulse{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 0 var(--teal);animation:pulse 1.8s ease-in-out infinite;margin-right:auto}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(45,217,164,.5)}70%{box-shadow:0 0 0 8px rgba(45,217,164,0)}100%{box-shadow:0 0 0 0 rgba(45,217,164,0)}}
+.feed-window{background:var(--ink2);border:1px solid var(--rule);border-radius:14px;overflow:hidden;box-shadow:0 30px 80px -30px rgba(0,0,0,.6)}
+.feed-bar{display:flex;align-items:center;gap:6px;padding:10px 14px;border-bottom:1px solid var(--rule);background:var(--ink3)}
+.fd{width:10px;height:10px;border-radius:50%}
+.fd-r{background:#FF5F57}.fd-a{background:#FEBC2E}.fd-g{background:#28C840}
+.feed-bar-lbl{margin:0 auto;font-size:11px;font-family:var(--mono);color:var(--fg3)}
+.feed-body{max-height:320px;overflow:hidden;position:relative}
+.feed-body::after{content:'';position:absolute;bottom:0;left:0;right:0;height:90px;background:linear-gradient(transparent,var(--ink2));pointer-events:none;z-index:2}
+.feed-scroll{display:flex;flex-direction:column;animation:feedScroll 28s linear infinite}
+@keyframes feedScroll{0%{transform:translateY(0)}100%{transform:translateY(-50%)}}
+.feed-item{display:flex;align-items:flex-start;gap:12px;padding:12px 18px;border-bottom:1px solid var(--rule);font-size:13px}
+.feed-t{font-family:var(--mono);font-size:10px;color:var(--fg3);flex-shrink:0;padding-top:2px;min-width:54px}
+.feed-i{font-size:13px;flex-shrink:0;margin-top:1px;width:18px;text-align:center}
+.feed-tx{color:var(--fg2);line-height:1.5;flex:1}
+.feed-tx strong{color:var(--fg);font-weight:500}
+.hi-t{color:var(--teal)}.hi-p{color:var(--pl)}.hi-a{color:var(--amber)}
+
+/* TRUST STRIP */
+.trust-strip{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);background:var(--ink2);padding:28px 0;position:relative;z-index:1}
+.trust-inner{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:32px 56px}
+.trust-lbl{font-family:var(--mono);font-size:10.5px;color:var(--fg3);text-transform:uppercase;letter-spacing:.1em;border-right:1px solid var(--rule2);padding-right:32px;margin-right:0}
+.trust-item{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--fg2);font-weight:400}
+.trust-item svg{flex-shrink:0;opacity:.85}
+.trust-item strong{color:var(--fg);font-weight:500}
+
+/* SECTIONS */
+section{padding:96px 0;position:relative;z-index:1}
+.s-label{display:inline-block;font-family:var(--mono);font-size:10.5px;color:var(--pl);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px}
+.s-h2{font-family:var(--serif);font-size:clamp(30px,4.5vw,52px);font-weight:400;line-height:1.1;letter-spacing:-.025em;color:var(--fg);margin-bottom:18px}
+.s-h2 em{font-style:italic;color:var(--pl);font-weight:200}
+.s-sub{font-size:17px;color:var(--fg2);line-height:1.7;font-weight:300;max-width:560px}
+
+/* PROBLEM */
+.problem{background:var(--ink2);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.prob-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule);border-radius:14px;overflow:hidden;margin-top:48px;background:var(--ink)}
+.prob-col{padding:36px 32px;border-right:1px solid var(--rule)}
+.prob-col:last-child{border-right:none}
+.prob-col-lbl{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:22px;padding-bottom:12px;border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:8px}
+.lbl-bad{color:var(--red)}.lbl-good{color:var(--teal)}
+.prob-item{display:flex;align-items:flex-start;gap:12px;margin-bottom:18px;font-size:14px;line-height:1.6}
+.prob-item:last-child{margin-bottom:0}
+.pi-ic{font-size:14px;flex-shrink:0;margin-top:2px;width:18px;height:18px;border-radius:5px;display:flex;align-items:center;justify-content:center}
+.pi-ic-bad{background:var(--rdim);color:var(--red)}
+.pi-ic-good{background:var(--tdim);color:var(--teal)}
+.pi-tx{color:var(--fg2)}
+.pi-tx strong{color:var(--fg);display:block;margin-bottom:2px;font-weight:500;font-size:13.5px}
+
+/* HOW */
+.how-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:14px;overflow:hidden;margin-top:48px}
+.how-step{background:var(--ink2);padding:36px 30px;position:relative}
+.how-step::after{content:'';position:absolute;left:0;top:0;height:2px;width:0;background:var(--p);transition:width .5s var(--ease)}
+.how-step:hover::after{width:100%}
+.step-num{font-family:var(--mono);font-size:10px;color:var(--fg4);margin-bottom:18px;letter-spacing:.06em}
+.step-icon{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:18px;border:1px solid var(--rule2)}
+.si-p{background:var(--pdim)}.si-t{background:var(--tdim)}.si-a{background:var(--adim)}
+.step-title{font-family:var(--serif);font-size:21px;font-weight:400;color:var(--fg);line-height:1.2;margin-bottom:10px;letter-spacing:-.02em}
+.step-desc{font-size:13.5px;color:var(--fg2);line-height:1.65}
+
+/* DASHBOARD PREVIEW */
+.dashboard-section{background:var(--ink2);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding-bottom:40px}
+.dash-header{text-align:center;max-width:680px;margin:0 auto 56px}
+.dash-header .s-label{margin-bottom:14px}
+.dash-header .s-h2{margin-bottom:14px}
+.dash-header .s-sub{margin:0 auto;text-align:center}
+.dash-frame{position:relative;background:var(--ink);border:1px solid var(--rule);border-radius:14px;overflow:hidden;box-shadow:0 60px 120px -40px rgba(0,0,0,.7);max-width:1240px;margin:0 auto}
+.dash-frame::before{content:'';position:absolute;top:-1px;left:50%;transform:translateX(-50%);width:60%;height:1px;background:linear-gradient(90deg,transparent,var(--p) 30%,var(--teal) 70%,transparent);opacity:.6}
+.dash-grid{display:grid;grid-template-columns:200px 1fr 280px;min-height:600px}
+/* Sidebar */
+.dash-sidebar{background:var(--ink);border-right:1px solid var(--rule);padding:18px 12px}
+.dash-side-logo{display:flex;align-items:center;gap:9px;padding:6px 10px 22px}
+.dash-side-logo-mark{width:26px;height:26px;background:var(--p);border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9.5px;color:#fff;font-weight:500}
+.dash-side-name{font-family:var(--serif);font-size:15px;font-weight:600;letter-spacing:-.02em}
+.dash-nav-group-lbl{font-family:var(--mono);font-size:9.5px;color:var(--fg4);text-transform:uppercase;letter-spacing:.08em;padding:14px 10px 6px}
+.dash-nav-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:6px;font-size:12.5px;color:var(--fg2);cursor:default;margin-bottom:1px}
+.dash-nav-item.active{background:rgba(124,111,247,.10);color:var(--fg);border:1px solid rgba(124,111,247,.25)}
+.dash-nav-icon{font-size:11px;width:14px;color:var(--fg3)}
+.dash-nav-item.active .dash-nav-icon{color:var(--pl)}
+.dash-nav-badge{margin-left:auto;background:var(--amber);color:var(--ink);font-size:9.5px;font-family:var(--mono);font-weight:500;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+/* Main */
+.dash-main{padding:22px 26px;border-right:1px solid var(--rule)}
+.dash-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+.dash-page-title{font-family:var(--serif);font-size:24px;font-weight:400;letter-spacing:-.02em}
+.dash-product-pill{display:inline-flex;align-items:center;gap:7px;background:var(--ink2);border:1px solid var(--rule);border-radius:8px;padding:6px 12px;margin-left:12px;font-size:12px;color:var(--fg2)}
+.dash-product-pill::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--teal)}
+.dash-week{font-family:var(--mono);font-size:10.5px;color:var(--fg3)}
+/* Insight */
+.dash-insight{border:1px solid rgba(124,111,247,.25);background:linear-gradient(180deg,rgba(124,111,247,.06),transparent);border-radius:11px;padding:18px 20px;margin-bottom:18px;display:flex;gap:14px}
+.dash-insight-icon{width:32px;height:32px;border-radius:8px;background:var(--pdim);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.dash-insight-lbl{font-family:var(--mono);font-size:9.5px;color:var(--pl);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.dash-insight-h{font-family:var(--serif);font-size:18px;font-weight:400;letter-spacing:-.015em;margin-bottom:6px}
+.dash-insight-p{font-size:12.5px;color:var(--fg2);line-height:1.55}
+.dash-insight-p strong{color:var(--fg);font-weight:500}
+.dash-insight-actions{display:flex;gap:8px;margin-top:10px}
+.dash-insight-btn{padding:5px 11px;border-radius:6px;font-size:11.5px;font-weight:500;background:var(--p);color:#fff}
+.dash-insight-btn.ghost{background:transparent;border:1px solid var(--rule2);color:var(--fg2)}
+/* Stats */
+.dash-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.dash-stat{background:var(--ink2);border:1px solid var(--rule);border-radius:10px;padding:14px}
+.dash-stat-lbl{font-family:var(--mono);font-size:9.5px;color:var(--fg3);text-transform:uppercase;letter-spacing:.06em;display:flex;justify-content:space-between;margin-bottom:8px}
+.dash-stat-val{font-family:var(--serif);font-size:30px;font-weight:400;letter-spacing:-.02em;line-height:1;margin-bottom:6px}
+.dash-stat-delta{font-family:var(--mono);font-size:10px;color:var(--teal)}
+.dash-stat-delta.amber{color:var(--amber)}
+.dash-stat-spark{margin-top:8px;height:18px;display:flex;align-items:flex-end;gap:2px}
+.dash-stat-spark span{flex:1;background:var(--pl);border-radius:1px;opacity:.7}
+.dash-stat-spark.t span{background:var(--teal);opacity:.8}
+/* Inbox */
+.dash-inbox{background:var(--ink2);border:1px solid var(--rule);border-radius:11px;overflow:hidden}
+.dash-inbox-head{display:flex;align-items:center;padding:14px 16px;border-bottom:1px solid var(--rule)}
+.dash-inbox-h{font-size:13px;font-weight:500;display:flex;align-items:center;gap:9px}
+.dash-inbox-pending{font-family:var(--mono);font-size:10px;background:var(--adim);color:var(--amber);padding:2px 8px;border-radius:10px}
+.dash-inbox-link{margin-left:auto;font-size:11.5px;color:var(--pl);font-family:var(--mono)}
+.dash-inbox-item{display:grid;grid-template-columns:auto auto 1fr auto;gap:12px;padding:12px 16px;border-bottom:1px solid var(--rule);align-items:center}
+.dash-inbox-item:last-child{border-bottom:none}
+.dash-inbox-cb{width:14px;height:14px;border:1px solid var(--rule2);border-radius:3px}
+.dash-inbox-tag{font-family:var(--mono);font-size:9.5px;padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:.04em;font-weight:500}
+.tag-art{background:var(--pdim);color:var(--pl)}
+.tag-rep{background:var(--tdim);color:var(--teal)}
+.tag-lst{background:var(--adim);color:var(--amber)}
+.dash-inbox-title{font-size:12.5px;color:var(--fg);font-weight:500;margin-bottom:2px}
+.dash-inbox-meta{font-size:11px;color:var(--fg3)}
+.dash-inbox-conf{font-family:var(--mono);font-size:10px;color:var(--teal);text-align:right}
+.dash-inbox-conf-bar{width:60px;height:3px;background:var(--rule);border-radius:2px;overflow:hidden;margin-top:4px;margin-left:auto}
+.dash-inbox-conf-bar span{display:block;height:100%;background:var(--teal)}
+/* Right rail */
+.dash-rail{padding:22px 18px;background:var(--ink)}
+.dash-rail-block{margin-bottom:24px}
+.dash-rail-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.dash-rail-h{font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px}
+.dash-rail-h::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--teal)}
+.dash-rail-meta{font-family:var(--mono);font-size:9.5px;color:var(--fg3)}
+.dash-channel{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--rule);font-size:11.5px}
+.dash-channel:last-child{border-bottom:none}
+.dash-channel-icon{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
+.ch-seo{background:var(--tdim);color:var(--teal)}
+.ch-red{background:#FF450020;color:#FF7B47}
+.ch-hn{background:#FF660020;color:#FF8B47}
+.ch-dir{background:var(--pdim);color:var(--pl)}
+.ch-x{background:var(--ink3);color:var(--fg2)}
+.dash-channel-name{font-size:11.5px;color:var(--fg);font-weight:500}
+.dash-channel-status{font-size:10.5px;color:var(--fg3);margin-top:2px;line-height:1.4}
+.dash-channel-tag{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--teal);text-align:right;flex-shrink:0}
+.dash-channel-tag.amber{color:var(--amber)}
+.dash-channel-tag.dim{color:var(--fg3)}
+.dash-source-row{display:flex;align-items:center;gap:10px;font-size:11.5px;margin-bottom:9px}
+.dash-source-name{flex-shrink:0;width:90px;color:var(--fg2)}
+.dash-source-bar{flex:1;height:5px;background:var(--ink3);border-radius:3px;overflow:hidden}
+.dash-source-bar span{display:block;height:100%;background:var(--teal);border-radius:3px}
+.dash-source-bar.p span{background:var(--p)}
+.dash-source-bar.a span{background:var(--amber)}
+.dash-source-val{font-family:var(--mono);font-size:10px;color:var(--fg3);width:32px;text-align:right}
+/* Live ribbon */
+.dash-live{position:absolute;top:14px;right:14px;display:flex;align-items:center;gap:6px;background:rgba(45,217,164,.10);border:1px solid rgba(45,217,164,.25);padding:4px 10px;border-radius:20px;font-family:var(--mono);font-size:10px;color:var(--teal);text-transform:uppercase;letter-spacing:.06em;z-index:5}
+.dash-live::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--teal);animation:blink 1.5s ease infinite}
+
+/* WEEKLY REVIEW */
+.weekly-review{background:var(--ink)}
+.weekly-times{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:48px;position:relative}
+.weekly-times::before{content:'';position:absolute;top:32px;left:5%;right:5%;height:1px;background:linear-gradient(90deg,transparent,var(--rule2) 10%,var(--rule2) 90%,transparent);z-index:0}
+.weekly-step{background:var(--ink2);border:1px solid var(--rule);border-radius:11px;padding:20px 18px;position:relative;z-index:1}
+.weekly-time{font-family:var(--mono);font-size:11px;color:var(--pl);margin-bottom:14px;letter-spacing:.04em}
+.weekly-dot{width:8px;height:8px;border-radius:50%;background:var(--p);position:absolute;top:28px;left:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 4px var(--ink),0 0 0 5px var(--rule2);z-index:2}
+.weekly-step.done .weekly-dot{background:var(--teal);box-shadow:0 0 0 4px var(--ink),0 0 0 5px rgba(45,217,164,.4)}
+.weekly-action{font-size:13.5px;color:var(--fg);font-weight:500;margin-top:18px;line-height:1.4}
+.weekly-detail{font-size:12px;color:var(--fg3);line-height:1.55;margin-top:6px}
+
+/* FEATURES */
+.features{padding:84px 0}
+.feat-row{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;padding:64px 0;border-bottom:1px solid var(--rule)}
+.feat-row:first-child{border-top:1px solid var(--rule);margin-top:36px}
+.feat-row.rev{direction:rtl}
+.feat-row.rev>*{direction:ltr}
+.feat-lbl{font-family:var(--mono);font-size:10.5px;color:var(--pl);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px}
+.feat-h3{font-family:var(--serif);font-size:clamp(24px,3vw,38px);font-weight:400;line-height:1.15;letter-spacing:-.02em;color:var(--fg);margin-bottom:16px}
+.feat-h3 em{font-style:italic;font-weight:200;color:var(--pl)}
+.feat-desc{font-size:15px;color:var(--fg2);line-height:1.7;margin-bottom:24px;font-weight:300}
+.feat-bullets{display:flex;flex-direction:column;gap:10px}
+.feat-bullet{display:flex;align-items:flex-start;gap:10px;font-size:13.5px;color:var(--fg2)}
+.fb-ck{width:18px;height:18px;border-radius:5px;background:var(--tdim);border:1px solid rgba(45,217,164,.25);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--teal);flex-shrink:0;margin-top:1px}
+.feat-visual{background:var(--ink2);border:1px solid var(--rule);border-radius:14px;overflow:hidden;box-shadow:0 24px 60px -30px rgba(0,0,0,.6)}
+.fv-header{padding:14px 16px;border-bottom:1px solid var(--rule);background:var(--ink3);display:flex;align-items:center;justify-content:space-between}
+.fv-title{font-size:12px;font-family:var(--mono);color:var(--fg3)}
+.kw-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--rule);font-size:12.5px}
+.kw-row:last-child{border-bottom:none}
+.kw-name{flex:1;color:var(--fg);font-weight:500}
+.kw-vol{font-family:var(--mono);font-size:11px;color:var(--fg2)}
+.kw-pos{font-family:var(--mono);font-size:11px;font-weight:500}
+.pos-g{color:var(--teal)}.pos-m{color:var(--amber)}
+.kw-mv{font-family:var(--mono);font-size:10px}
+.mv-u{color:var(--teal)}.mv-d{color:var(--red)}
+.ct{padding:14px 16px;border-bottom:1px solid var(--rule)}
+.ct:last-child{border-bottom:none}
+.ct-plat{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.ct-icon{width:18px;height:18px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600}
+.ct-pn{font-family:var(--mono);font-size:10px;color:var(--fg3)}
+.ct-sc{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--teal)}
+.ct-title{font-size:12.5px;color:var(--fg);font-weight:500;margin-bottom:4px}
+.ct-sub{font-size:11.5px;color:var(--fg2);line-height:1.5}
+.ct-acts{display:flex;gap:6px;margin-top:10px}
+.ct-btn{padding:4px 10px;border-radius:5px;font-size:11px;font-family:var(--mono);cursor:pointer;border:none;transition:all .1s}
+.ct-app{background:var(--tdim);color:var(--teal);border:1px solid rgba(45,217,164,.2)}
+.ct-skip{background:transparent;color:var(--fg3);border:1px solid var(--rule2)}
+.oe{padding:16px}
+.oe-to{font-size:11px;font-family:var(--mono);color:var(--fg3);margin-bottom:6px}
+.oe-to span{color:var(--pl)}
+.oe-sub{font-size:13px;font-weight:500;color:var(--fg);margin-bottom:10px;border-bottom:1px solid var(--rule);padding-bottom:10px}
+.oe-body{font-size:12.5px;color:var(--fg2);line-height:1.65}
+.oe-body strong{color:var(--fg);font-weight:500}
+.oe-send{display:flex;justify-content:flex-end;margin-top:14px}
+.oe-btn{padding:7px 16px;border-radius:7px;background:var(--p);color:#fff;font-size:12px;font-weight:500;border:none;cursor:pointer}
+
+/* METRICS */
+.metrics-bar{background:var(--ink2);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:60px 0}
+.metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:14px;overflow:hidden}
+.metric-block{background:var(--ink2);padding:36px 28px;text-align:center}
+.mb-val{font-family:var(--serif);font-size:clamp(36px,5vw,58px);font-weight:400;color:var(--fg);letter-spacing:-.03em;line-height:1;margin-bottom:8px}
+.mb-val em{font-style:italic;color:var(--pl)}
+.mb-lbl{font-family:var(--mono);font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+.mb-note{font-size:12px;color:var(--fg3)}
+.metrics-cap{text-align:center;margin-top:18px;font-size:12.5px;color:var(--fg3);font-family:var(--mono)}
+
+/* WHY DIFFERENT */
+.why-diff{background:var(--ink)}
+.why-loop{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:14px;overflow:hidden;margin-top:48px}
+.why-loop-cell{background:var(--ink2);padding:24px 18px;text-align:center;position:relative}
+.why-loop-num{font-family:var(--mono);font-size:9.5px;color:var(--fg4);margin-bottom:14px;letter-spacing:.06em}
+.why-loop-icon{font-size:22px;margin-bottom:12px;display:block}
+.why-loop-h{font-family:var(--serif);font-size:15px;font-weight:500;letter-spacing:-.01em;margin-bottom:6px}
+.why-loop-d{font-size:11.5px;color:var(--fg3);line-height:1.5}
+.why-loop-arrow{position:absolute;right:-9px;top:50%;transform:translateY(-50%);width:18px;height:18px;background:var(--ink);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--fg4);font-size:11px;z-index:2}
+.why-loop-cell:last-child .why-loop-arrow{display:none}
+
+.compare-table{margin-top:40px;border:1px solid var(--rule);border-radius:14px;overflow:hidden;background:var(--ink2)}
+.compare-row{display:grid;grid-template-columns:1.4fr repeat(4,1fr);border-bottom:1px solid var(--rule);font-size:13px}
+.compare-row:last-child{border-bottom:none}
+.compare-row.head{background:var(--ink3);font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--fg3)}
+.compare-row.head .compare-cell.lp{color:var(--pl)}
+.compare-cell{padding:14px 16px;border-right:1px solid var(--rule);display:flex;align-items:center}
+.compare-cell:last-child{border-right:none}
+.compare-cell.lp{background:rgba(124,111,247,.04)}
+.compare-cell.row-lbl{font-weight:500;color:var(--fg);font-size:13px}
+.cmp-yes{color:var(--teal);font-weight:500}
+.cmp-no{color:var(--fg4)}
+.cmp-partial{color:var(--amber)}
+
+/* WHO */
+.who{background:var(--ink2);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.who-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--rule);border-radius:14px;overflow:hidden;margin-top:48px;background:var(--ink)}
+.who-col{padding:36px 32px;border-right:1px solid var(--rule)}
+.who-col:last-child{border-right:none}
+.who-col-h{font-family:var(--serif);font-size:22px;font-weight:400;letter-spacing:-.02em;margin-bottom:18px;display:flex;align-items:center;gap:10px}
+.who-col-h em{font-style:italic;font-weight:200}
+.who-col.fit .who-col-h{color:var(--fg)}
+.who-col.fit .who-col-h em{color:var(--teal)}
+.who-col.unfit .who-col-h em{color:var(--fg3)}
+.who-item{display:flex;align-items:flex-start;gap:11px;font-size:13.5px;color:var(--fg2);line-height:1.55;margin-bottom:14px}
+.who-item:last-child{margin-bottom:0}
+.who-ic{flex-shrink:0;width:18px;height:18px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;margin-top:1px}
+.who-ic.fit{background:var(--tdim);color:var(--teal);border:1px solid rgba(45,217,164,.2)}
+.who-ic.unfit{background:var(--ink3);color:var(--fg3);border:1px solid var(--rule2)}
+
+/* CASE STUDY / EARLY ACCESS */
+.proof-section{padding:96px 0}
+.proof-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:32px;margin-top:48px;align-items:start}
+.case-card{background:var(--ink2);border:1px solid var(--rule);border-radius:14px;padding:32px;position:relative;overflow:hidden}
+.case-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:linear-gradient(180deg,var(--p),var(--teal))}
+.case-tag{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10.5px;color:var(--teal);text-transform:uppercase;letter-spacing:.08em;background:var(--tdim);border:1px solid rgba(45,217,164,.2);padding:4px 10px;border-radius:20px;margin-bottom:18px}
+.case-tag::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--teal)}
+.case-h{font-family:var(--serif);font-size:24px;font-weight:400;letter-spacing:-.02em;margin-bottom:8px;line-height:1.25}
+.case-h em{font-style:italic;color:var(--pl);font-weight:200}
+.case-sub{font-size:13.5px;color:var(--fg2);margin-bottom:24px;line-height:1.65}
+.case-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--rule);border-radius:10px;overflow:hidden;margin-bottom:24px}
+.case-stat{background:var(--ink3);padding:18px 14px}
+.case-stat-val{font-family:var(--serif);font-size:28px;font-weight:400;letter-spacing:-.02em;line-height:1;margin-bottom:4px;color:var(--fg)}
+.case-stat-val em{color:var(--pl);font-style:italic;font-weight:200}
+.case-stat-lbl{font-family:var(--mono);font-size:9.5px;color:var(--fg3);text-transform:uppercase;letter-spacing:.06em}
+.case-list{font-size:13px;color:var(--fg2);line-height:1.7}
+.case-list-item{display:flex;gap:10px;padding:8px 0;border-top:1px dashed var(--rule)}
+.case-list-item:first-child{border-top:none;padding-top:0}
+.case-list-day{font-family:var(--mono);font-size:11px;color:var(--fg3);flex-shrink:0;width:60px}
+.case-list-tx strong{color:var(--fg);font-weight:500}
+
+.beta-card{background:var(--ink2);border:1px solid var(--rule);border-radius:14px;padding:28px;position:sticky;top:96px}
+.beta-h{font-family:var(--serif);font-size:18px;font-weight:500;margin-bottom:8px;letter-spacing:-.015em}
+.beta-d{font-size:13px;color:var(--fg2);line-height:1.65;margin-bottom:20px}
+.beta-progress-lbl{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--fg3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.beta-progress-lbl span:last-child{color:var(--pl)}
+.beta-progress{height:6px;background:var(--ink3);border-radius:4px;overflow:hidden;margin-bottom:18px}
+.beta-progress span{display:block;height:100%;background:linear-gradient(90deg,var(--p),var(--teal));border-radius:4px;width:62%;animation:fillBar 1.5s var(--ease) .3s both}
+@keyframes fillBar{from{width:0}to{width:62%}}
+.beta-cohort{font-family:var(--mono);font-size:11px;color:var(--fg3);margin-bottom:18px;line-height:1.6}
+.beta-cohort strong{color:var(--fg)}
+.beta-cta{display:block;width:100%;padding:11px;border-radius:9px;text-align:center;font-size:13.5px;font-weight:500;background:var(--p);color:#fff;transition:all .15s}
+.beta-cta:hover{background:var(--pd);transform:translateY(-1px)}
+.beta-meta{font-family:var(--mono);font-size:10.5px;color:var(--fg3);text-align:center;margin-top:10px}
+
+/* PRICING */
+.pricing-header{text-align:center;max-width:640px;margin:0 auto 16px}
+.pricing-anchor{display:inline-flex;align-items:center;gap:9px;background:var(--ink2);border:1px solid var(--rule);padding:7px 14px;border-radius:20px;font-size:12.5px;color:var(--fg2);margin-bottom:24px;font-family:var(--mono)}
+.pricing-anchor strong{color:var(--teal);font-weight:500}
+.pricing-anchor s{color:var(--fg4);text-decoration:line-through;text-decoration-thickness:1px}
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:48px;align-items:start}
+.price-card{background:var(--ink2);border:1px solid var(--rule);border-radius:14px;padding:32px 28px;position:relative;transition:border-color .2s,transform .2s}
+.price-card:hover{border-color:var(--rule2)}
+.price-card.featured{background:var(--ink3);border-color:var(--p);box-shadow:0 0 0 1px var(--pdim),0 24px 60px rgba(124,111,247,.12);transform:translateY(-6px)}
+.feat-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);padding:4px 14px;border-radius:20px;background:var(--p);color:#fff;font-size:10.5px;font-family:var(--mono);font-weight:500;white-space:nowrap;letter-spacing:.04em;text-transform:uppercase}
+.price-tier{font-family:var(--mono);font-size:12px;color:var(--fg3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
+.price-amt{font-family:var(--serif);font-size:48px;font-weight:400;color:var(--fg);letter-spacing:-.03em;line-height:1;margin-bottom:4px;display:flex;align-items:flex-start;gap:4px}
+.price-cur{font-family:var(--sans);font-size:22px;font-weight:300;margin-top:8px}
+.price-per{font-size:13px;color:var(--fg3);margin-bottom:20px;font-family:var(--mono)}
+.price-desc{font-size:13.5px;color:var(--fg2);line-height:1.65;margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid var(--rule)}
+.price-feats{display:flex;flex-direction:column;gap:9px;margin-bottom:28px}
+.price-feat{display:flex;align-items:flex-start;gap:9px;font-size:13px;color:var(--fg2)}
+.pf-ck{color:var(--teal);font-size:11px;margin-top:1px;flex-shrink:0;width:14px}
+.pf-dim{color:var(--fg4)}
+.price-feat.dim .pf-ck{color:var(--fg4)}
+.price-cta{display:block;width:100%;padding:12px;border-radius:9px;text-align:center;font-size:14px;font-weight:500;transition:all .15s;cursor:pointer;border:none}
+.cta-ghost{background:transparent;border:1px solid var(--rule2);color:var(--fg2)}
+.cta-ghost:hover{border-color:var(--fg3);color:var(--fg)}
+.cta-primary{background:var(--p);color:#fff}
+.cta-primary:hover{background:var(--pd);transform:translateY(-1px)}
+.pricing-footer{text-align:center;margin-top:32px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.guarantee{display:inline-flex;align-items:center;gap:10px;background:var(--tdim);border:1px solid rgba(45,217,164,.25);padding:9px 18px;border-radius:24px;font-size:13px;color:var(--teal)}
+.guarantee strong{color:var(--fg);font-weight:500}
+.pricing-note{font-size:12.5px;color:var(--fg3);font-family:var(--mono)}
+
+/* FAQ */
+.faq-list{margin-top:40px;border:1px solid var(--rule);border-radius:14px;overflow:hidden}
+.faq-item{border-bottom:1px solid var(--rule)}
+.faq-item:last-child{border-bottom:none}
+.faq-q{width:100%;display:flex;align-items:center;justify-content:space-between;padding:20px 24px;text-align:left;background:transparent;color:var(--fg);font-size:15px;font-weight:500;cursor:pointer;transition:background .15s;gap:16px}
+.faq-q:hover{background:var(--ink2)}
+.faq-q.open{background:var(--ink2);color:var(--pl)}
+.faq-chev{color:var(--fg3);font-size:18px;transition:transform .2s var(--ease);flex-shrink:0;line-height:1}
+.faq-q.open .faq-chev{transform:rotate(45deg);color:var(--pl)}
+.faq-a{display:none;padding:0 24px 22px;font-size:14px;color:var(--fg2);line-height:1.75;background:var(--ink2)}
+.faq-a.open{display:block}
+.faq-a strong{color:var(--fg);font-weight:500}
+
+/* FINAL CTA */
+.final-cta{padding:120px 0;text-align:center;position:relative;overflow:hidden}
+.final-cta::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:800px;height:400px;background:radial-gradient(ellipse at 50% 60%,rgba(124,111,247,.18) 0%,transparent 65%);pointer-events:none}
+.final-h2{font-family:var(--serif);font-size:clamp(36px,6vw,72px);font-weight:400;line-height:1.06;letter-spacing:-.035em;color:var(--fg);margin-bottom:22px}
+.final-h2 em{font-style:italic;font-weight:200;color:var(--pl)}
+.final-sub{font-size:17px;color:var(--fg2);max-width:520px;margin:0 auto 40px;font-weight:300;line-height:1.65}
+.final-acts{display:flex;align-items:center;gap:14px;justify-content:center;flex-wrap:wrap}
+
+/* FOOTER */
+footer{border-top:1px solid var(--rule);padding:56px 0 36px;background:var(--ink2)}
+.footer-grid{display:grid;grid-template-columns:1.5fr repeat(3,1fr);gap:48px;margin-bottom:36px}
+.footer-brand-logo{display:flex;align-items:center;gap:10px;font-family:var(--serif);font-size:18px;font-weight:600;letter-spacing:-.02em;color:var(--fg);margin-bottom:14px}
+.footer-tag{font-size:13px;color:var(--fg3);line-height:1.65;max-width:300px}
+.footer-built{margin-top:14px;display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10.5px;color:var(--fg3);padding:5px 12px;border:1px solid var(--rule);border-radius:6px;background:var(--ink3)}
+.footer-col-h{font-family:var(--mono);font-size:10.5px;color:var(--fg3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px}
+.footer-col ul{list-style:none;display:flex;flex-direction:column;gap:9px}
+.footer-col a{font-size:13px;color:var(--fg2)}
+.footer-col a:hover{color:var(--fg)}
+.footer-bottom{border-top:1px solid var(--rule);padding-top:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
+.footer-copy{font-size:12px;font-family:var(--mono);color:var(--fg4)}
+.footer-meta{font-size:11.5px;font-family:var(--mono);color:var(--fg4);display:flex;align-items:center;gap:14px}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.rd1{transition-delay:.08s}.rd2{transition-delay:.16s}.rd3{transition-delay:.24s}.rd4{transition-delay:.32s}
+
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--rule2);border-radius:4px}
+
+/* RESPONSIVE */
+@media (max-width:1024px){
+  .dash-grid{grid-template-columns:180px 1fr 240px}
+  .dash-stats{grid-template-columns:repeat(2,1fr)}
+  .proof-grid{grid-template-columns:1fr;gap:24px}
+  .beta-card{position:static}
+  .feat-row{gap:48px}
+}
+@media (max-width:860px){
+  .nav-links{display:none}
+  .nav-toggle{display:flex}
+  .nav-cta{margin-left:auto}
+  .hero{padding:104px 24px 56px;min-height:auto}
+  .hero-grid{background-size:48px 48px}
+  .wrap,.wrap-narrow{padding:0 24px}
+  section{padding:72px 0}
+  .features{padding:64px 0}
+  .feat-row{grid-template-columns:1fr;gap:32px;padding:48px 0}
+  .feat-row.rev{direction:ltr}
+  .prob-grid,.who-grid{grid-template-columns:1fr}
+  .prob-col,.who-col{border-right:none;border-bottom:1px solid var(--rule)}
+  .prob-col:last-child,.who-col:last-child{border-bottom:none}
+  .how-steps{grid-template-columns:1fr}
+  .testi-grid{grid-template-columns:1fr}
+  .pricing-grid{grid-template-columns:1fr;gap:14px}
+  .price-card.featured{transform:none}
+  .metrics-grid{grid-template-columns:repeat(2,1fr)}
+  .compare-row{grid-template-columns:1.4fr repeat(4,1fr);font-size:11.5px}
+  .compare-cell{padding:10px 8px}
+  .why-loop{grid-template-columns:1fr 1fr}
+  .why-loop-arrow{display:none}
+  .weekly-times{grid-template-columns:1fr;gap:10px}
+  .weekly-times::before{display:none}
+  .weekly-step{padding:16px}
+  .weekly-dot{display:none}
+  .footer-grid{grid-template-columns:1fr 1fr;gap:32px}
+  /* Dashboard collapses to single column */
+  .dash-grid{grid-template-columns:1fr}
+  .dash-sidebar{display:none}
+  .dash-rail{border-top:1px solid var(--rule)}
+  .dash-main{border-right:none}
+  .dash-stats{grid-template-columns:repeat(2,1fr)}
+  .hero-h1{font-size:clamp(38px,9vw,56px)}
+  .final-h2{font-size:clamp(32px,8vw,48px)}
+  .s-h2{font-size:clamp(26px,6vw,38px)}
+  .trust-inner{gap:18px 28px}
+  .trust-lbl{border-right:none;padding-right:0;width:100%;text-align:center}
+  .feed-body{max-height:240px}
+}
+@media (max-width:480px){
+  .footer-grid{grid-template-columns:1fr}
+  .dash-stats{grid-template-columns:1fr 1fr}
+  .case-stats{grid-template-columns:1fr}
+  .hero-actions{flex-direction:column;width:100%}
+  .hero-actions a{width:100%;justify-content:center}
+  .compare-row{grid-template-columns:1fr;font-size:12px}
+  .compare-cell{border-right:none;border-bottom:1px solid var(--rule);padding:8px 12px}
+  .compare-row.head{display:none}
+  .compare-row .compare-cell.row-lbl{background:var(--ink3);font-weight:600}
+  .why-loop{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-logo"><div class="nav-logo-mark">LP</div>LaunchPilot</a>
+    <ul class="nav-links">
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#dashboard">Dashboard</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+      <li><a href="#faq">FAQ</a></li>
+    </ul>
+    <a href="#pricing" class="nav-cta">Get free access →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-content">
+    <div class="hero-eyebrow"><span class="eyebrow-dot"></span>Closed beta · Now onboarding founding cohort</div>
+    <h1 class="hero-h1">Marketing,<br>in <span class="ul-word"><em>pull requests</em></span>.</h1>
+    <p class="hero-sub">LaunchPilot drafts every article, community reply, directory listing and press pitch your product needs — then queues them in an approval inbox. <strong>Approve, edit, or skip.</strong> Like reviewing a PR. The platform handles the rest.</p>
+    <div class="hero-actions">
+      <a href="#pricing" class="btn-primary">Get free access →</a>
+      <a href="#dashboard" class="btn-secondary">See the product</a>
+    </div>
+    <p class="hero-note">No credit card &nbsp;·&nbsp; Free tier forever &nbsp;·&nbsp; 15-min setup</p>
+  </div>
+  <div class="hero-inbox-wrap">
+    <div class="feed-lbl">
+      <span class="feed-lbl-pulse"></span>Live autopilot activity
+      <span style="font-family:var(--mono);font-size:10px;color:var(--fg4);letter-spacing:0">last 60 min</span>
+    </div>
+    <div class="feed-window">
+      <div class="feed-bar">
+        <div class="fd fd-r"></div><div class="fd fd-a"></div><div class="fd fd-g"></div>
+        <div class="feed-bar-lbl">launchpilot · activity log · real-time</div>
+      </div>
+      <div class="feed-body"><div class="feed-scroll" id="feed-scroll"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST STRIP -->
+<div class="trust-strip">
+  <div class="wrap">
+    <div class="trust-inner">
+      <div class="trust-lbl">Built with</div>
+      <div class="trust-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A99DF9" stroke-width="2"><path d="M12 2 L22 20 L2 20 Z"/></svg>
+        Powered by <strong>Anthropic Claude</strong>
+      </div>
+      <div class="trust-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2DD9A4" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+        Zero-data-retention AI
+      </div>
+      <div class="trust-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A8A8B8" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        GDPR compliant
+      </div>
+      <div class="trust-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F2A827" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        Built in public · <strong>open changelog</strong>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PROBLEM -->
+<section class="problem" id="problem">
+  <div class="wrap">
+    <span class="s-label reveal">The reality</span>
+    <h2 class="s-h2 reveal rd1">You built it.<br><em>Nobody knows it exists.</em></h2>
+    <p class="s-sub reveal rd2">Marketing isn't a skill gap — it's a cognitive mismatch. Engineers optimise for correctness. Marketing demands probabilistic thinking, audience empathy, and comfort with noise. No willpower fixes that.</p>
+    <div class="prob-grid reveal rd3">
+      <div class="prob-col">
+        <div class="prob-col-lbl lbl-bad">◯ Without LaunchPilot</div>
+        <div class="prob-item"><div class="pi-ic pi-ic-bad">✕</div><div class="pi-tx"><strong>The invisible launch</strong>One HN post, 80 upvotes, 3 signups. You conclude the market doesn't want it.</div></div>
+        <div class="prob-item"><div class="pi-ic pi-ic-bad">✕</div><div class="pi-tx"><strong>Tool overload</strong>Buffer, Jasper, HubSpot — each requires marketing literacy to drive. You have none, and no time to learn.</div></div>
+        <div class="prob-item"><div class="pi-ic pi-ic-bad">✕</div><div class="pi-tx"><strong>Zero compounding</strong>Traffic comes from bursts, not sustained distribution. Nothing you ship this week helps next month.</div></div>
+        <div class="prob-item"><div class="pi-ic pi-ic-bad">✕</div><div class="pi-tx"><strong>No feedback signal</strong>You have no idea which channels work, what content drives signups, or where to double down.</div></div>
+      </div>
+      <div class="prob-col">
+        <div class="prob-col-lbl lbl-good">● With LaunchPilot</div>
+        <div class="prob-item"><div class="pi-ic pi-ic-good">✓</div><div class="pi-tx"><strong>Sustained distribution</strong>SEO content, community engagement, and directory listings working in parallel — every week, automatically.</div></div>
+        <div class="prob-item"><div class="pi-ic pi-ic-good">✓</div><div class="pi-tx"><strong>Zero marketing decisions</strong>Describe your product once. Every downstream call — channel, tone, keyword, timing — is made for you.</div></div>
+        <div class="prob-item"><div class="pi-ic pi-ic-good">✓</div><div class="pi-tx"><strong>Compounding organic traffic</strong>Each article, listing, and reply builds authority that compounds month over month.</div></div>
+        <div class="prob-item"><div class="pi-ic pi-ic-good">✓</div><div class="pi-tx"><strong>Plain-language performance</strong>One weekly brief: what worked, what didn't, and exactly what to keep doing.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW -->
+<section id="how">
+  <div class="wrap">
+    <span class="s-label reveal">How it works</span>
+    <h2 class="s-h2 reveal rd1">From URL to <em>live distribution</em><br>in under 20 minutes.</h2>
+    <div class="how-steps">
+      <div class="how-step reveal">
+        <div class="step-num">STEP 01</div>
+        <div class="step-icon si-p">🔍</div>
+        <div class="step-title">Drop your product URL</div>
+        <div class="step-desc">LaunchPilot crawls your site, extracts your value proposition, identifies competitors, and maps keyword opportunities — before you answer a single question.</div>
+      </div>
+      <div class="how-step reveal rd1">
+        <div class="step-num">STEP 02</div>
+        <div class="step-icon si-t">💬</div>
+        <div class="step-title">Answer 15 questions</div>
+        <div class="step-desc">A conversational interview fills in what crawling can't infer: your target customer, pricing rationale, tone, and what success looks like. Twelve minutes.</div>
+      </div>
+      <div class="how-step reveal rd2">
+        <div class="step-num">STEP 03</div>
+        <div class="step-icon si-a">⚡</div>
+        <div class="step-title">Review the inbox weekly</div>
+        <div class="step-desc">Drafts arrive like pull requests. Approve, edit, or skip. The platform writes, publishes, replies, and submits — across every channel.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DASHBOARD PREVIEW -->
+<section class="dashboard-section" id="dashboard">
+  <div class="wrap">
+    <div class="dash-header">
+      <span class="s-label reveal">The product</span>
+      <h2 class="s-h2 reveal rd1">What you wake up to.</h2>
+      <p class="s-sub reveal rd2">One screen tells you what worked last week, what's queued for review, and exactly what to do next — in plain language. No marketing dashboards. No vanity metrics.</p>
+    </div>
+    <div class="dash-frame reveal rd3">
+      <div class="dash-live">Live</div>
+      <div class="dash-grid">
+        <!-- SIDEBAR -->
+        <aside class="dash-sidebar">
+          <div class="dash-side-logo">
+            <div class="dash-side-logo-mark">LP</div>
+            <div class="dash-side-name">LaunchPilot</div>
+          </div>
+          <div class="dash-nav-group-lbl">Overview</div>
+          <div class="dash-nav-item active"><span class="dash-nav-icon">▦</span>Dashboard</div>
+          <div class="dash-nav-item"><span class="dash-nav-icon">⊠</span>Inbox<span class="dash-nav-badge">7</span></div>
+          <div class="dash-nav-group-lbl">Channels</div>
+          <div class="dash-nav-item"><span class="dash-nav-icon">✦</span>SEO Content</div>
+          <div class="dash-nav-item"><span class="dash-nav-icon">◎</span>Community</div>
+          <div class="dash-nav-item"><span class="dash-nav-icon">↗</span>Outreach</div>
+          <div class="dash-nav-item"><span class="dash-nav-icon">⊞</span>Directories</div>
+          <div class="dash-nav-group-lbl">Insights</div>
+          <div class="dash-nav-item"><span class="dash-nav-icon">⌬</span>Analytics</div>
+          <div class="dash-nav-item"><span class="dash-nav-icon">#</span>Keywords</div>
+          <div class="dash-nav-group-lbl">Product</div>
+          <div class="dash-nav-item"><span class="dash-nav-icon">◐</span>Marketing Brief</div>
+          <div class="dash-nav-item"><span class="dash-nav-icon">⚯</span>Connections</div>
+          <div class="dash-nav-item"><span class="dash-nav-icon">⚙</span>Settings</div>
+        </aside>
+        <!-- MAIN -->
+        <main class="dash-main">
+          <div class="dash-topbar">
+            <div style="display:flex;align-items:center">
+              <div class="dash-page-title">Dashboard</div>
+              <div class="dash-product-pill">OnChainInvoice.com</div>
+            </div>
+            <div class="dash-week">Week of Apr 21, 2026</div>
+          </div>
+          <div class="dash-insight">
+            <div class="dash-insight-icon">⚡</div>
+            <div>
+              <div class="dash-insight-lbl">Insight · this week</div>
+              <div class="dash-insight-h">One Reddit thread is driving most of your growth.</div>
+              <div class="dash-insight-p">Of the <strong>+478 visits</strong> added this week, <strong>312 (65%)</strong> trace back to a single r/freelance comment posted Tuesday. Thread is still active — consider a follow-up reply within 24h while it's ranking.</div>
+              <div class="dash-insight-actions">
+                <button class="dash-insight-btn">Draft follow-up reply</button>
+                <button class="dash-insight-btn ghost">See attribution</button>
+              </div>
+            </div>
+          </div>
+          <div class="dash-stats">
+            <div class="dash-stat">
+              <div class="dash-stat-lbl"><span>Visitors</span><span>Apr 14–20</span></div>
+              <div class="dash-stat-val">1,847</div>
+              <div class="dash-stat-delta">↑ 34% wk-over-wk</div>
+              <div class="dash-stat-spark"><span style="height:30%"></span><span style="height:42%"></span><span style="height:38%"></span><span style="height:55%"></span><span style="height:62%"></span><span style="height:75%"></span><span style="height:90%"></span></div>
+            </div>
+            <div class="dash-stat">
+              <div class="dash-stat-lbl"><span>Articles published</span><span>Apr 14–20</span></div>
+              <div class="dash-stat-val">3</div>
+              <div class="dash-stat-delta">↑ 1 vs prior week</div>
+              <div class="dash-stat-spark t"><span style="height:20%"></span><span style="height:40%"></span><span style="height:30%"></span><span style="height:50%"></span><span style="height:65%"></span><span style="height:55%"></span><span style="height:80%"></span></div>
+            </div>
+            <div class="dash-stat">
+              <div class="dash-stat-lbl"><span>Replies posted</span><span>Apr 14–20</span></div>
+              <div class="dash-stat-val">8</div>
+              <div class="dash-stat-delta">↑ 3 vs prior week</div>
+              <div class="dash-stat-spark t"><span style="height:25%"></span><span style="height:32%"></span><span style="height:50%"></span><span style="height:42%"></span><span style="height:60%"></span><span style="height:78%"></span><span style="height:88%"></span></div>
+            </div>
+            <div class="dash-stat">
+              <div class="dash-stat-lbl"><span>Inbox pending</span><span>right now</span></div>
+              <div class="dash-stat-val">7</div>
+              <div class="dash-stat-delta amber">~ 8 min to review</div>
+              <div class="dash-stat-spark"><span style="height:30%;background:#A99DF9"></span><span style="height:30%;background:#A99DF9"></span><span style="height:30%;background:#A99DF9"></span><span style="height:50%;background:#2DD9A4"></span><span style="height:50%;background:#2DD9A4"></span><span style="height:80%;background:#F2A827"></span><span style="height:60%;background:#F06060;opacity:.7"></span></div>
+            </div>
+          </div>
+          <div class="dash-inbox">
+            <div class="dash-inbox-head">
+              <div class="dash-inbox-h">⊠ Approval inbox <span class="dash-inbox-pending">7 pending</span></div>
+              <div class="dash-inbox-link">Approve all high-confidence (3) →</div>
+            </div>
+            <div class="dash-inbox-item">
+              <div class="dash-inbox-cb"></div>
+              <div class="dash-inbox-tag tag-art">Article</div>
+              <div>
+                <div class="dash-inbox-title">How to invoice clients in USDC: a freelancer's guide</div>
+                <div class="dash-inbox-meta">1,840 words · targets "usdc invoice freelancer" · 2h ago</div>
+              </div>
+              <div>
+                <div class="dash-inbox-conf">88% conf · ↑ 120 visits/mo</div>
+                <div class="dash-inbox-conf-bar"><span style="width:88%"></span></div>
+              </div>
+            </div>
+            <div class="dash-inbox-item">
+              <div class="dash-inbox-cb"></div>
+              <div class="dash-inbox-tag tag-rep">Reply</div>
+              <div>
+                <div class="dash-inbox-title">r/freelance · "Anyone accepting crypto payments yet?"</div>
+                <div class="dash-inbox-meta">Reddit reply draft · relevance score 82 · 4h ago</div>
+              </div>
+              <div>
+                <div class="dash-inbox-conf">74% conf</div>
+                <div class="dash-inbox-conf-bar"><span style="width:74%;background:var(--amber)"></span></div>
+              </div>
+            </div>
+            <div class="dash-inbox-item">
+              <div class="dash-inbox-cb"></div>
+              <div class="dash-inbox-tag tag-art">Article</div>
+              <div>
+                <div class="dash-inbox-title">Crypto invoicing vs traditional invoicing</div>
+                <div class="dash-inbox-meta">1,200 words · comparison page · targets "crypto invoicing" · 6h ago</div>
+              </div>
+              <div>
+                <div class="dash-inbox-conf">91% conf · ↑ 210 visits/mo</div>
+                <div class="dash-inbox-conf-bar"><span style="width:91%"></span></div>
+              </div>
+            </div>
+            <div class="dash-inbox-item">
+              <div class="dash-inbox-cb"></div>
+              <div class="dash-inbox-tag tag-lst">Listing</div>
+              <div>
+                <div class="dash-inbox-title">ProductHunt listing package ready</div>
+                <div class="dash-inbox-meta">Tagline · description · 5 screenshots generated · 12h ago</div>
+              </div>
+              <div>
+                <div class="dash-inbox-conf">95% conf</div>
+                <div class="dash-inbox-conf-bar"><span style="width:95%"></span></div>
+              </div>
+            </div>
+          </div>
+        </main>
+        <!-- RAIL -->
+        <aside class="dash-rail">
+          <div class="dash-rail-block">
+            <div class="dash-rail-head">
+              <div class="dash-rail-h">Channel health</div>
+              <div class="dash-rail-meta">14m ago</div>
+            </div>
+            <div class="dash-channel">
+              <div class="dash-channel-icon ch-seo">✦</div>
+              <div>
+                <div class="dash-channel-name">SEO / content</div>
+                <div class="dash-channel-status">Running · last publish 2d ago</div>
+              </div>
+              <div class="dash-channel-tag">3 in queue</div>
+            </div>
+            <div class="dash-channel">
+              <div class="dash-channel-icon ch-red">r/</div>
+              <div>
+                <div class="dash-channel-name">Reddit</div>
+                <div class="dash-channel-status">2 replies awaiting approval · 4h</div>
+              </div>
+              <div class="dash-channel-tag amber">2 pending</div>
+            </div>
+            <div class="dash-channel">
+              <div class="dash-channel-icon ch-hn">HN</div>
+              <div>
+                <div class="dash-channel-name">Hacker News</div>
+                <div class="dash-channel-status">1 reply awaiting approval · 1d</div>
+              </div>
+              <div class="dash-channel-tag amber">1 pending</div>
+            </div>
+            <div class="dash-channel">
+              <div class="dash-channel-icon ch-dir">⊞</div>
+              <div>
+                <div class="dash-channel-name">Directories</div>
+                <div class="dash-channel-status">14 of 80 submitted · auto-pacing</div>
+              </div>
+              <div class="dash-channel-tag dim">66 to go</div>
+            </div>
+            <div class="dash-channel">
+              <div class="dash-channel-icon ch-x">𝕏</div>
+              <div>
+                <div class="dash-channel-name">X / Twitter</div>
+                <div class="dash-channel-status">Not connected</div>
+              </div>
+              <div class="dash-channel-tag" style="color:var(--pl)">Connect →</div>
+            </div>
+          </div>
+          <div class="dash-rail-block">
+            <div class="dash-rail-head">
+              <div class="dash-rail-h" style="display:flex"><span style="background:none;width:auto;height:auto">~ Traffic by source</span></div>
+              <div class="dash-rail-meta" style="color:var(--pl)">Analytics →</div>
+            </div>
+            <div class="dash-source-row">
+              <div class="dash-source-name">Organic search</div>
+              <div class="dash-source-bar"><span style="width:90%"></span></div>
+              <div class="dash-source-val">612</div>
+            </div>
+            <div class="dash-source-row">
+              <div class="dash-source-name">Reddit</div>
+              <div class="dash-source-bar"><span style="width:50%"></span></div>
+              <div class="dash-source-val">340</div>
+            </div>
+            <div class="dash-source-row">
+              <div class="dash-source-name">Hacker News</div>
+              <div class="dash-source-bar"><span style="width:32%"></span></div>
+              <div class="dash-source-val">218</div>
+            </div>
+            <div class="dash-source-row">
+              <div class="dash-source-name">Directories</div>
+              <div class="dash-source-bar p"><span style="width:24%"></span></div>
+              <div class="dash-source-val">164</div>
+            </div>
+            <div class="dash-source-row">
+              <div class="dash-source-name">Direct</div>
+              <div class="dash-source-bar a"><span style="width:18%"></span></div>
+              <div class="dash-source-val">122</div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="wrap">
+    <span class="s-label reveal">What's inside</span>
+    <h2 class="s-h2 reveal rd1">Every channel,<br><em>fully automated.</em></h2>
+
+    <!-- SEO -->
+    <div class="feat-row reveal">
+      <div>
+        <div class="feat-lbl">SEO content autopilot</div>
+        <h3 class="feat-h3">Articles that rank,<br><em>written while you sleep.</em></h3>
+        <p class="feat-desc">LaunchPilot identifies low-competition keywords in your niche, generates long-form articles targeting each one, and publishes directly to your Ghost, WordPress, Webflow, or GitHub-based blog on a weekly cadence.</p>
+        <div class="feat-bullets">
+          <div class="feat-bullet"><div class="fb-ck">✓</div>Keyword opportunity scoring with competition analysis</div>
+          <div class="feat-bullet"><div class="fb-ck">✓</div>Full SEO metadata, schema markup, internal linking</div>
+          <div class="feat-bullet"><div class="fb-ck">✓</div>Publishes to Ghost, WordPress, Webflow, or GitHub</div>
+          <div class="feat-bullet"><div class="fb-ck">✓</div>Comparison pages and list posts generated automatically</div>
+        </div>
+      </div>
+      <div class="feat-visual">
+        <div class="fv-header"><span class="fv-title">◈ Keywords · this week</span><span style="font-size:10px;font-family:var(--mono);color:var(--teal)">5 new opportunities</span></div>
+        <div class="kw-row" style="background:var(--ink3)"><div class="kw-name">usdc invoice generator</div><div class="kw-vol">880/mo</div><div class="kw-pos pos-g">#4</div><div class="kw-mv mv-u">↑6</div></div>
+        <div class="kw-row"><div class="kw-name">crypto invoicing for freelancers</div><div class="kw-vol">590/mo</div><div class="kw-pos pos-m">#14</div><div class="kw-mv mv-u">↑3</div></div>
+        <div class="kw-row"><div class="kw-name">invoice paid in usdc</div><div class="kw-vol">1.2k/mo</div><div class="kw-pos pos-g">#7</div><div class="kw-mv mv-u">↑11</div></div>
+        <div class="kw-row" style="background:rgba(124,111,247,.04)"><div class="kw-name" style="color:var(--pl)">usdc payment for contractors</div><div class="kw-vol">440/mo</div><div class="kw-pos" style="color:var(--pl)">new</div><div class="kw-mv" style="color:var(--fg3)">→</div></div>
+        <div class="kw-row"><div class="kw-name">solana b2b payments guide</div><div class="kw-vol">320/mo</div><div class="kw-pos pos-m">#19</div><div class="kw-mv mv-d">↓2</div></div>
+        <div style="padding:12px 16px;display:flex;justify-content:center"><span style="font-size:11px;font-family:var(--mono);color:var(--pl)">+ 14 more keywords tracked</span></div>
+      </div>
+    </div>
+
+    <!-- Community -->
+    <div class="feat-row rev reveal">
+      <div>
+        <div class="feat-lbl">Community intelligence</div>
+        <h3 class="feat-h3">In the room<br><em>where it happens.</em></h3>
+        <p class="feat-desc">LaunchPilot monitors Reddit, Hacker News, X, Indie Hackers, and Product Hunt for conversations where your product is genuinely relevant. It drafts authentic, value-first replies — never spammy — and posts only with your approval.</p>
+        <div class="feat-bullets">
+          <div class="feat-bullet"><div class="fb-ck">✓</div>Relevance scoring across 5 platforms</div>
+          <div class="feat-bullet"><div class="fb-ck">✓</div>Authenticity guardrails block promotional-first replies</div>
+          <div class="feat-bullet"><div class="fb-ck">✓</div>Configurable trust levels — approve all, or full autopilot</div>
+          <div class="feat-bullet"><div class="fb-ck">✓</div>Disclosure language auto-appended per platform rules</div>
+        </div>
+      </div>
+      <div class="feat-visual">
+        <div class="fv-header"><span class="fv-title">◎ Community · pending review</span><span style="font-size:10px;background:var(--adim);color:var(--amber);padding:2px 8px;border-radius:10px;font-family:var(--mono)">3 drafts</span></div>
+        <div class="ct">
+          <div class="ct-plat"><div class="ct-icon" style="background:#FF450020;color:#FF4500">r/</div><div class="ct-pn">r/freelance · 3.4k in thread</div><div class="ct-sc">relevance 82</div></div>
+          <div class="ct-title">"Anyone actually accepting crypto from clients yet?"</div>
+          <div class="ct-sub">Draft reply provides value on stablecoin invoicing, mentions product naturally at end with (I built this) disclosure.</div>
+          <div class="ct-acts"><button class="ct-btn ct-app">✓ Approve & post</button><button class="ct-btn ct-skip">Skip</button></div>
+        </div>
+        <div class="ct" style="border-top:1px solid var(--rule)">
+          <div class="ct-plat"><div class="ct-icon" style="background:#FF660020;color:#FF6600">HN</div><div class="ct-pn">Hacker News · ~8k readers</div><div class="ct-sc">relevance 71</div></div>
+          <div class="ct-title">"Ask HN: how do you handle contractor payments?"</div>
+          <div class="ct-sub">Draft addresses wire transfer friction, positions USDC as practical alternative with benchmarks.</div>
+          <div class="ct-acts"><button class="ct-btn ct-app">✓ Approve & post</button><button class="ct-btn ct-skip">Skip</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Outreach -->
+    <div class="feat-row reveal">
+      <div>
+        <div class="feat-lbl">Cold outreach composer</div>
+        <h3 class="feat-h3">Press coverage,<br><em>on autopilot.</em></h3>
+        <p class="feat-desc">LaunchPilot identifies newsletters, bloggers, and micro-influencers in your niche. Each pitch is individually researched — referencing their recent work — and makes a low-friction, specific ask.</p>
+        <div class="feat-bullets">
+          <div class="feat-bullet"><div class="fb-ck">✓</div>Prospect scoring by audience size and relevance</div>
+          <div class="feat-bullet"><div class="fb-ck">✓</div>Individually personalised pitches per contact</div>
+          <div class="feat-bullet"><div class="fb-ck">✓</div>Follow-up sequencing at day 5 and day 12</div>
+          <div class="feat-bullet"><div class="fb-ck">✓</div>Auto-suppression after 2 touches with no engagement</div>
+        </div>
+      </div>
+      <div class="feat-visual">
+        <div class="fv-header"><span class="fv-title">↗ Outreach draft · pending approval</span></div>
+        <div class="oe">
+          <div class="oe-to">To: <span>Arvid Kahl · The Bootstrapped Founder</span> · ~14k subscribers</div>
+          <div class="oe-sub">Your piece on pricing for niche SaaS resonated — quick note</div>
+          <div class="oe-body">Hi Arvid,<br><br>Your recent piece on pricing transparency for bootstrapped products was useful — specifically the section on <strong>anchoring against enterprise pricing</strong>.<br><br>I built <strong>OnChainInvoice</strong>, a USDC invoicing tool for B2B freelancers. Happy to give you a complimentary account if it'd fit a future roundup on crypto-native tooling for indie founders.</div>
+          <div class="oe-send"><button class="oe-btn">✓ Approve & send</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WEEKLY REVIEW -->
+<section class="weekly-review">
+  <div class="wrap">
+    <span class="s-label reveal">Your Monday morning</span>
+    <h2 class="s-h2 reveal rd1">Eight minutes a week.<br><em>That's it.</em></h2>
+    <p class="s-sub reveal rd2">Most users open the inbox once on Monday, batch-approve high-confidence items, edit one or two, and close the tab. Here's what that looks like in practice.</p>
+    <div class="weekly-times">
+      <div class="weekly-step done reveal">
+        <div class="weekly-time">8:14 AM</div>
+        <div class="weekly-dot"></div>
+        <div class="weekly-action">Open the inbox</div>
+        <div class="weekly-detail">7 items waiting. Sort by confidence. Highest-impact at the top.</div>
+      </div>
+      <div class="weekly-step done reveal rd1">
+        <div class="weekly-time">8:15 AM</div>
+        <div class="weekly-dot"></div>
+        <div class="weekly-action">Batch approve</div>
+        <div class="weekly-detail">3 articles + 1 ProductHunt listing flagged 90%+ confidence. One click.</div>
+      </div>
+      <div class="weekly-step done reveal rd2">
+        <div class="weekly-time">8:18 AM</div>
+        <div class="weekly-dot"></div>
+        <div class="weekly-action">Edit a Reddit reply</div>
+        <div class="weekly-detail">Tighten one sentence. The draft was already 80% there. Approve & post.</div>
+      </div>
+      <div class="weekly-step done reveal rd3">
+        <div class="weekly-time">8:21 AM</div>
+        <div class="weekly-dot"></div>
+        <div class="weekly-action">Skip what doesn't fit</div>
+        <div class="weekly-detail">2 directory listings — niche mismatch. Click skip with reason. Done.</div>
+      </div>
+      <div class="weekly-step reveal rd4">
+        <div class="weekly-time">8:22 AM</div>
+        <div class="weekly-dot"></div>
+        <div class="weekly-action">Back to building</div>
+        <div class="weekly-detail">Distribution will run for the next 7 days while you ship features.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- METRICS -->
+<div class="metrics-bar">
+  <div class="wrap">
+    <div class="metrics-grid reveal">
+      <div class="metric-block"><div class="mb-lbl">Avg. traffic lift</div><div class="mb-val">+<em id="m1">840</em></div><div class="mb-note">visits/month after 90 days</div></div>
+      <div class="metric-block"><div class="mb-lbl">Setup time</div><div class="mb-val"><em id="m2">15</em></div><div class="mb-note">minutes to first content draft</div></div>
+      <div class="metric-block"><div class="mb-lbl">Weekly time cost</div><div class="mb-val"><em id="m3">8</em></div><div class="mb-note">minutes to review weekly inbox</div></div>
+      <div class="metric-block"><div class="mb-lbl">Directories submitted</div><div class="mb-val">80<em>+</em></div><div class="mb-note">automatically, on launch</div></div>
+    </div>
+    <p class="metrics-cap reveal rd1">Targets from the founding cohort · validated against 12 products in private beta · <a href="#faq" style="color:var(--pl)">how we measure →</a></p>
+  </div>
+</div>
+
+<!-- WHY DIFFERENT -->
+<section class="why-diff" id="why">
+  <div class="wrap">
+    <span class="s-label reveal">Not a ChatGPT wrapper</span>
+    <h2 class="s-h2 reveal rd1">A closed loop —<br><em>not a content generator.</em></h2>
+    <p class="s-sub reveal rd2">ChatGPT writes one article when you ask. LaunchPilot decides what to write, where to publish, monitors what's working, and updates its own strategy month over month. The loop is the product.</p>
+    <div class="why-loop reveal rd3">
+      <div class="why-loop-cell">
+        <div class="why-loop-num">01</div>
+        <div class="why-loop-icon">📋</div>
+        <div class="why-loop-h">Brief</div>
+        <div class="why-loop-d">Crawl + interview build a persistent product spec.</div>
+        <div class="why-loop-arrow">→</div>
+      </div>
+      <div class="why-loop-cell">
+        <div class="why-loop-num">02</div>
+        <div class="why-loop-icon">✦</div>
+        <div class="why-loop-h">Generate</div>
+        <div class="why-loop-d">Articles, replies, listings, pitches — all from the brief.</div>
+        <div class="why-loop-arrow">→</div>
+      </div>
+      <div class="why-loop-cell">
+        <div class="why-loop-num">03</div>
+        <div class="why-loop-icon">↗</div>
+        <div class="why-loop-h">Distribute</div>
+        <div class="why-loop-d">Publish, post, submit — across every channel.</div>
+        <div class="why-loop-arrow">→</div>
+      </div>
+      <div class="why-loop-cell">
+        <div class="why-loop-num">04</div>
+        <div class="why-loop-icon">⌬</div>
+        <div class="why-loop-h">Measure</div>
+        <div class="why-loop-d">UTM, ranks, replies, conversions — all in one pipeline.</div>
+        <div class="why-loop-arrow">→</div>
+      </div>
+      <div class="why-loop-cell">
+        <div class="why-loop-num">05</div>
+        <div class="why-loop-icon">⟲</div>
+        <div class="why-loop-h">Refresh</div>
+        <div class="why-loop-d">Brief updates monthly. Strategy evolves automatically.</div>
+      </div>
+    </div>
+
+    <div class="compare-table reveal rd4">
+      <div class="compare-row head">
+        <div class="compare-cell row-lbl">Capability</div>
+        <div class="compare-cell">ChatGPT</div>
+        <div class="compare-cell">Jasper / Copy.ai</div>
+        <div class="compare-cell">Hire a marketer</div>
+        <div class="compare-cell lp">LaunchPilot</div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell row-lbl">Generates content</div>
+        <div class="compare-cell"><span class="cmp-yes">✓</span></div>
+        <div class="compare-cell"><span class="cmp-yes">✓</span></div>
+        <div class="compare-cell"><span class="cmp-yes">✓</span></div>
+        <div class="compare-cell lp"><span class="cmp-yes">✓</span></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell row-lbl">Decides what to write</div>
+        <div class="compare-cell"><span class="cmp-no">—</span></div>
+        <div class="compare-cell"><span class="cmp-no">—</span></div>
+        <div class="compare-cell"><span class="cmp-yes">✓</span></div>
+        <div class="compare-cell lp"><span class="cmp-yes">✓</span></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell row-lbl">Publishes for you</div>
+        <div class="compare-cell"><span class="cmp-no">—</span></div>
+        <div class="compare-cell"><span class="cmp-partial">partial</span></div>
+        <div class="compare-cell"><span class="cmp-yes">✓</span></div>
+        <div class="compare-cell lp"><span class="cmp-yes">✓</span></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell row-lbl">Monitors communities</div>
+        <div class="compare-cell"><span class="cmp-no">—</span></div>
+        <div class="compare-cell"><span class="cmp-no">—</span></div>
+        <div class="compare-cell"><span class="cmp-yes">✓</span></div>
+        <div class="compare-cell lp"><span class="cmp-yes">✓</span></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell row-lbl">Submits to directories</div>
+        <div class="compare-cell"><span class="cmp-no">—</span></div>
+        <div class="compare-cell"><span class="cmp-no">—</span></div>
+        <div class="compare-cell"><span class="cmp-partial">manual</span></div>
+        <div class="compare-cell lp"><span class="cmp-yes">✓</span></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell row-lbl">Measures + adapts</div>
+        <div class="compare-cell"><span class="cmp-no">—</span></div>
+        <div class="compare-cell"><span class="cmp-no">—</span></div>
+        <div class="compare-cell"><span class="cmp-yes">✓</span></div>
+        <div class="compare-cell lp"><span class="cmp-yes">✓</span></div>
+      </div>
+      <div class="compare-row">
+        <div class="compare-cell row-lbl">Cost / month</div>
+        <div class="compare-cell" style="color:var(--fg2);font-family:var(--mono);font-size:12px">$20</div>
+        <div class="compare-cell" style="color:var(--fg2);font-family:var(--mono);font-size:12px">$50–$150</div>
+        <div class="compare-cell" style="color:var(--fg2);font-family:var(--mono);font-size:12px">$3,000–$8,000</div>
+        <div class="compare-cell lp" style="color:var(--pl);font-family:var(--mono);font-size:12px;font-weight:500">$0 – $99</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHO -->
+<section class="who" id="who">
+  <div class="wrap">
+    <span class="s-label reveal">Honest fit</span>
+    <h2 class="s-h2 reveal rd1">Who this is —<br><em>and isn't — for.</em></h2>
+    <p class="s-sub reveal rd2">LaunchPilot is built for one specific person. If that's not you, please don't sign up. There are better tools for other situations and we'd rather you find them.</p>
+    <div class="who-grid reveal rd3">
+      <div class="who-col fit">
+        <div class="who-col-h"><em>Built for you if</em></div>
+        <div class="who-item"><div class="who-ic fit">✓</div>You're a solo developer, indie hacker, or 2-person team shipping a SaaS, dev tool, or B2B product.</div>
+        <div class="who-item"><div class="who-ic fit">✓</div>Your product is live or within 4 weeks of launch.</div>
+        <div class="who-item"><div class="who-ic fit">✓</div>You can spare 0–3 hours per week for marketing, but not more.</div>
+        <div class="who-item"><div class="who-ic fit">✓</div>You'd rather not learn marketing — you want it handled.</div>
+        <div class="who-item"><div class="who-ic fit">✓</div>You want organic, sustainable distribution — not a paid-ads firehose.</div>
+      </div>
+      <div class="who-col unfit">
+        <div class="who-col-h"><em>Probably not for you if</em></div>
+        <div class="who-item"><div class="who-ic unfit">×</div>You sell physical or D2C products — LaunchPilot is built for software, not e-commerce.</div>
+        <div class="who-item"><div class="who-ic unfit">×</div>You need paid-ads management — Google Ads, Meta, TikTok aren't in scope (yet).</div>
+        <div class="who-item"><div class="who-ic unfit">×</div>You run enterprise sales — direct outreach to Fortune 500 buyers needs a different playbook.</div>
+        <div class="who-item"><div class="who-ic unfit">×</div>You already have a marketing team — they'll do better with HubSpot, Marketo, or similar.</div>
+        <div class="who-item"><div class="who-ic unfit">×</div>You need same-day virality — SEO and community trust compound over weeks, not hours.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROOF / EARLY ACCESS (replaces fake testimonials) -->
+<section class="proof-section" id="proof">
+  <div class="wrap">
+    <span class="s-label reveal">A real product running on it</span>
+    <h2 class="s-h2 reveal rd1">OnChainInvoice — <em>the founding case study.</em></h2>
+    <p class="s-sub reveal rd2">Rather than fake testimonials from people who don't exist, here's a real product currently running its full distribution stack on LaunchPilot. The screenshots above are this product's actual dashboard.</p>
+    <div class="proof-grid">
+      <div class="case-card reveal rd3">
+        <div class="case-tag">Live on LaunchPilot · day 47</div>
+        <h3 class="case-h">B2B crypto invoicing.<br><em>Niche product, narrow audience, organic-only growth.</em></h3>
+        <p class="case-sub">OnChainInvoice helps freelancers and B2B businesses send USD-priced invoices paid in USDC on Solana. Hyper-specific niche. Zero marketing budget. Solo developer. The kind of product that traditionally never gets found.</p>
+        <div class="case-stats">
+          <div class="case-stat">
+            <div class="case-stat-val">+<em>1,847</em></div>
+            <div class="case-stat-lbl">Visits / week</div>
+          </div>
+          <div class="case-stat">
+            <div class="case-stat-val"><em>14</em></div>
+            <div class="case-stat-lbl">Articles ranking p1</div>
+          </div>
+          <div class="case-stat">
+            <div class="case-stat-val"><em>23</em></div>
+            <div class="case-stat-lbl">Directories live</div>
+          </div>
+        </div>
+        <div class="case-list">
+          <div class="case-list-item"><div class="case-list-day">Day 1</div><div class="case-list-tx">Brief generated · <strong>14 keyword opportunities</strong> identified · 22 directories queued</div></div>
+          <div class="case-list-item"><div class="case-list-day">Day 7</div><div class="case-list-tx">First 3 articles published · <strong>r/freelance reply</strong> drove 312 visits</div></div>
+          <div class="case-list-item"><div class="case-list-day">Day 21</div><div class="case-list-tx">"usdc invoice generator" ranks <strong>#7 → #4</strong> · ProductHunt listing live</div></div>
+          <div class="case-list-item"><div class="case-list-day">Day 47</div><div class="case-list-tx">8,402 cumulative visits · <strong>62% organic</strong> · 38 paying signups</div></div>
+        </div>
+      </div>
+      <aside class="beta-card reveal rd4">
+        <div class="beta-h">Joining the founding cohort</div>
+        <p class="beta-d">LaunchPilot is in closed beta. We're onboarding 50 founding members at the Launch tier — locked at $19/mo for life — to validate the loop before public release.</p>
+        <div class="beta-progress-lbl">
+          <span>Founding seats</span>
+          <span>31 / 50 onboarded</span>
+        </div>
+        <div class="beta-progress"><span></span></div>
+        <div class="beta-cohort">
+          Apply with your product URL.<br>We respond within <strong>48 hours</strong>.<br>No upfront commitment.
+        </div>
+        <a href="#pricing" class="beta-cta">Apply for founding access →</a>
+        <div class="beta-meta">Public launch · Q3 2026</div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing">
+  <div class="wrap">
+    <div class="pricing-header">
+      <span class="s-label reveal">Pricing</span>
+      <h2 class="s-h2 reveal rd1">Start free.<br><em>Scale when it works.</em></h2>
+      <p class="s-sub reveal rd2" style="margin:0 auto 18px;text-align:center">No per-seat pricing. No hidden limits. Built for solo operators.</p>
+      <div class="pricing-anchor reveal rd3">A marketing freelancer: <s>$3,000 – $8,000 / mo</s> &nbsp;·&nbsp; LaunchPilot: <strong>from $0</strong></div>
+    </div>
+    <div class="pricing-grid">
+      <div class="price-card reveal">
+        <div class="price-tier">Seed</div>
+        <div class="price-amt"><span class="price-cur">$</span>0</div>
+        <div class="price-per">forever free</div>
+        <div class="price-desc">Validate your product's market fit before committing to a paid plan.</div>
+        <div class="price-feats">
+          <div class="price-feat"><span class="pf-ck">✓</span>1 product</div>
+          <div class="price-feat"><span class="pf-ck">✓</span>4 content drafts / month</div>
+          <div class="price-feat"><span class="pf-ck">✓</span>Top 10 directory submissions</div>
+          <div class="price-feat"><span class="pf-ck">✓</span>Marketing brief generation</div>
+          <div class="price-feat"><span class="pf-ck">✓</span>30-day analytics</div>
+          <div class="price-feat dim"><span class="pf-ck">–</span><span class="pf-dim">Community agent</span></div>
+          <div class="price-feat dim"><span class="pf-ck">–</span><span class="pf-dim">Outreach composer</span></div>
+        </div>
+        <a href="#" class="price-cta cta-ghost">Start free — no card</a>
+      </div>
+      <div class="price-card featured reveal rd1">
+        <div class="feat-badge">Founding · 50% off for life</div>
+        <div class="price-tier">Launch</div>
+        <div class="price-amt"><span class="price-cur">$</span>19<span style="font-size:18px;color:var(--fg3);text-decoration:line-through;font-weight:300;margin-left:10px;text-decoration-thickness:1px">$39</span></div>
+        <div class="price-per">per month · billed monthly · founding rate</div>
+        <div class="price-desc">Full go-to-market automation. Locked at $19/mo for life if you join during the founding cohort.</div>
+        <div class="price-feats">
+          <div class="price-feat"><span class="pf-ck">✓</span>3 products</div>
+          <div class="price-feat"><span class="pf-ck">✓</span>16 content drafts / month</div>
+          <div class="price-feat"><span class="pf-ck">✓</span>All 80+ directories</div>
+          <div class="price-feat"><span class="pf-ck">✓</span>Community agent (30 replies/mo)</div>
+          <div class="price-feat"><span class="pf-ck">✓</span>Outreach composer (20 contacts/mo)</div>
+          <div class="price-feat"><span class="pf-ck">✓</span>All publishing integrations</div>
+          <div class="price-feat"><span class="pf-ck">✓</span>12-month analytics retention</div>
+        </div>
+        <a href="#" class="price-cta cta-primary">Start 14-day free trial →</a>
+      </div>
+      <div class="price-card reveal rd2">
+        <div class="price-tier">Growth</div>
+        <div class="price-amt"><span class="price-cur">$</span>99</div>
+        <div class="price-per">per month · billed monthly</div>
+        <div class="price-desc">Full autopilot for post-traction products scaling distribution.</div>
+        <div class="price-feats">
+          <div class="price-feat"><span class="pf-ck">✓</span>Unlimited products</div>
+          <div class="price-feat"><span class="pf-ck">✓</span>Unlimited content generation</div>
+          <div class="price-feat"><span class="pf-ck">✓</span>Unlimited community replies</div>
+          <div class="price-feat"><span class="pf-ck">✓</span>Outreach (100 contacts/mo)</div>
+          <div class="price-feat"><span class="pf-ck">✓</span>Full autopilot mode</div>
+          <div class="price-feat"><span class="pf-ck">✓</span>24-month analytics</div>
+          <div class="price-feat"><span class="pf-ck">✓</span>API access + priority support</div>
+        </div>
+        <a href="#" class="price-cta cta-ghost">Start 14-day free trial</a>
+      </div>
+    </div>
+    <div class="pricing-footer">
+      <div class="guarantee reveal">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2DD9A4" stroke-width="2"><path d="M12 2 L4 6 V12 a8 8 0 0 0 8 8 a8 8 0 0 0 8 -8 V6 Z"/><path d="M9 12 l2 2 l4 -4"/></svg>
+        <strong>60-day refund guarantee.</strong> If you don't see new traffic by day 60, we refund every cent.
+      </div>
+      <p class="pricing-note reveal rd1">Annual billing saves 20% &nbsp;·&nbsp; All paid plans include a 14-day free trial &nbsp;·&nbsp; Cancel anytime</p>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="wrap-narrow">
+    <span class="s-label reveal">FAQ</span>
+    <h2 class="s-h2 reveal rd1">Common questions.</h2>
+    <div class="faq-list reveal rd2">
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">Isn't this just a ChatGPT wrapper?<span class="faq-chev">+</span></button>
+        <div class="faq-a">No, and the difference matters. ChatGPT generates content when you ask. LaunchPilot is a closed loop: it builds a persistent product brief, decides which keywords to target based on competition analysis, generates content tuned to the brief, publishes it via API to your CMS, monitors community channels for genuine relevance, drafts platform-specific replies, submits to 80+ directories, runs cold outreach, and measures everything — then updates its own strategy monthly. The AI is one component. The orchestration, decision-making, distribution, and feedback loop is the product.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">Will AI-generated content get penalised by Google?<span class="faq-chev">+</span></button>
+        <div class="faq-a">Google's guidelines penalise low-quality, unhelpful content — not AI-generated content per se. LaunchPilot articles are factually grounded, semantically comprehensive, and written to genuinely help the reader. Every draft includes a human review step. The quality bar is calibrated to match or exceed what a professional content writer would produce. We track ranking outcomes per article and tune for them.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">Will community replies get my Reddit/HN accounts banned?<span class="faq-chev">+</span></button>
+        <div class="faq-a">LaunchPilot uses multiple safeguards: every reply provides genuine value before any product mention, disclosure language is auto-appended ("(I built this)"), posting frequency is capped per community (max 2 posts/week to any subreddit), and all original posts require human approval regardless of trust level. The authenticity scoring system blocks replies above a promotional threshold. Behaviour mirrors what a thoughtful, transparent founder would do manually.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">How long before I see traffic results?<span class="faq-chev">+</span></button>
+        <div class="faq-a">Community and outreach channels typically drive traffic within days of activation. SEO content takes longer — expect meaningful organic growth in 6–12 weeks as articles are indexed and gain authority. Directory submissions provide a steady baseline from week one. Most founding cohort users see their first 500+ organic visits within 45–60 days. If you don't see new traffic by day 60, we refund you in full.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">What if my product is too niche or technical?<span class="faq-chev">+</span></button>
+        <div class="faq-a">Niche products often perform <strong>better</strong> with LaunchPilot, not worse. Narrow keywords have less competition, technical audiences gather in identifiable communities (specific subreddits, HN, Discord), and authentic developer-to-developer content lands well. The OnChainInvoice case study above is a deliberately narrow B2B-crypto-invoicing product — and it works. If your product is so niche that fewer than 100 people search related keywords monthly, we'll tell you upfront during onboarding and refund you.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">What publishing platforms does it support?<span class="faq-chev">+</span></button>
+        <div class="faq-a">Version 1 supports Ghost CMS, WordPress, Webflow CMS, and GitHub (for static site generators like Astro, Next.js, and Hugo via markdown file commits). Markdown export is always available as a fallback. We add new integrations based on user demand — current waitlist: Notion publishing, Sanity, and Contentful.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">Does my data get used to train AI models?<span class="faq-chev">+</span></button>
+        <div class="faq-a">No. All AI inference uses the Anthropic API with zero-data-retention mode enabled. Your Marketing Brief, product data, generated content, and outreach contacts are never used to train any model. Data is encrypted at rest with per-user key derivation and never shared across tenants. We're GDPR compliant and SOC 2 Type II is in progress.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">What happens if I cancel?<span class="faq-chev">+</span></button>
+        <div class="faq-a">Cancel anytime — no questions, no retention call. Your published content stays on your CMS (we publish to <strong>your</strong> infrastructure, not ours). Your Marketing Brief and all generated drafts are exportable as JSON or Markdown. Account deletion is one click in settings and triggers full data wipe within 30 days per GDPR.</div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">Who built this and why?<span class="faq-chev">+</span></button>
+        <div class="faq-a">Built by a solo developer who shipped four SaaS products into the void before realising the marketing problem isn't a willpower problem — it's a cognitive-mismatch problem. LaunchPilot is the tool I needed for my fifth. We build in public — open changelog, public roadmap, and direct founder access for every paying user. If something breaks, you'll hear from me, not a support agent.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final-cta">
+  <div class="wrap">
+    <h2 class="final-h2 reveal">Your product deserves<br><em>to be found.</em></h2>
+    <p class="final-sub reveal rd1">Stop shipping into the void. LaunchPilot handles distribution so you can stay in building mode.</p>
+    <div class="final-acts reveal rd2">
+      <a href="#pricing" class="btn-primary">Get free access →</a>
+      <a href="#how" class="btn-secondary">How it works</a>
+    </div>
+    <p class="hero-note reveal rd3" style="margin-top:18px">No credit card &nbsp;·&nbsp; Free tier forever &nbsp;·&nbsp; 60-day refund on paid plans</p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-brand-logo"><div class="nav-logo-mark">LP</div>LaunchPilot</div>
+        <p class="footer-tag">Marketing autopilot for solo developers. Built so you can ship product, not posts.</p>
+        <div class="footer-built">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#A99DF9" stroke-width="2"><path d="M12 2 L22 20 L2 20 Z"/></svg>
+          Powered by Anthropic Claude
+        </div>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-h">Product</div>
+        <ul>
+          <li><a href="#how">How it works</a></li>
+          <li><a href="#dashboard">Dashboard</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="#why">Why LaunchPilot</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-h">Resources</div>
+        <ul>
+          <li><a href="#">Changelog</a></li>
+          <li><a href="#">Public roadmap</a></li>
+          <li><a href="#">Documentation</a></li>
+          <li><a href="#">Status</a></li>
+          <li><a href="#">Contact founder</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <div class="footer-col-h">Legal</div>
+        <ul>
+          <li><a href="#">Privacy</a></li>
+          <li><a href="#">Terms</a></li>
+          <li><a href="#">Security</a></li>
+          <li><a href="#">DPA</a></li>
+          <li><a href="#">GDPR</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-copy">© 2026 LaunchPilot · Built for the builders</div>
+      <div class="footer-meta">
+        <span>v1.0 · April 2026</span>
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;background:var(--teal);border-radius:50%"></span>All systems operational</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+const feedItems=[
+  {t:'now',i:'✦',tx:'<strong>Article published</strong> — "How to invoice clients in USDC" → <span class="hi-t">onchaininvoice.com/blog</span>'},
+  {t:'1m ago',i:'◎',tx:'<strong>Reddit reply approved</strong> — r/freelance · "Anyone accepting crypto?" → <span class="hi-t">posted with disclosure</span>'},
+  {t:'3m ago',i:'◈',tx:'<strong>Keyword opportunity</strong> — "usdc payment for contractors" · KD 14 · vol 440/mo → <span class="hi-p">queued for content</span>'},
+  {t:'8m ago',i:'⊞',tx:'<strong>Directory submitted</strong> — <span class="hi-a">AlternativeTo</span> listing approved and live'},
+  {t:'14m ago',i:'↗',tx:'<strong>Outreach drafted</strong> — pitch to The Bootstrapped Founder · est. 14k readers → <span class="hi-p">awaiting your approval</span>'},
+  {t:'21m ago',i:'✦',tx:'<strong>SEO article drafted</strong> — "Crypto invoicing vs traditional" · 91% confidence → <span class="hi-a">in your inbox</span>'},
+  {t:'28m ago',i:'◎',tx:'<strong>HN thread detected</strong> — "Ask HN: international contractor payments" · relevance 71 → <span class="hi-t">reply drafted</span>'},
+  {t:'35m ago',i:'◈',tx:'<strong>Rank movement</strong> — "invoice paid in usdc" moved from #18 → <span class="hi-t">#7</span> this week'},
+  {t:'1h ago',i:'⊞',tx:'<strong>ProductHunt package</strong> — tagline + description + 5 screenshots → <span class="hi-a">ready for review</span>'},
+  {t:'2h ago',i:'✦',tx:'<strong>Article published</strong> — "Best USDC payment tools 2026" → <span class="hi-t">live on blog</span>'},
+];
+const feedEl=document.getElementById('feed-scroll');
+[...feedItems,...feedItems].forEach(item=>{
+  const d=document.createElement('div');d.className='feed-item';
+  d.innerHTML=`<div class="feed-t">${item.t}</div><div class="feed-i">${item.i}</div><div class="feed-tx">${item.tx}</div>`;
+  feedEl.appendChild(d);
+});
+
+const nav=document.getElementById('nav');
+window.addEventListener('scroll',()=>nav.classList.toggle('scrolled',window.scrollY>40),{passive:true});
+
+const obs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target);}});
+},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+
+function toggleFaq(btn){
+  const a=btn.nextElementSibling,open=btn.classList.contains('open');
+  document.querySelectorAll('.faq-q').forEach(q=>{q.classList.remove('open');q.nextElementSibling.classList.remove('open');});
+  if(!open){btn.classList.add('open');a.classList.add('open');}
+}
+
+function animCount(el,target,prefix='',suffix=''){
+  let v=0;const step=target/(1400/16);
+  const t=setInterval(()=>{v=Math.min(v+step,target);el.textContent=prefix+Math.round(v).toLocaleString()+suffix;if(v>=target)clearInterval(t);},16);
+}
+const mObs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(!e.isIntersecting)return;
+    const m1=document.getElementById('m1'),m2=document.getElementById('m2'),m3=document.getElementById('m3');
+    if(m1)animCount(m1,840);if(m2)animCount(m2,15);if(m3)animCount(m3,8);
+    mObs.unobserve(e.target);
+  });
+},{threshold:.3});
+const mg=document.querySelector('.metrics-grid');if(mg)mObs.observe(mg);
+</script>
+</body>
+</html>
