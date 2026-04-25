@@ -60,3 +60,17 @@ Format:
 - Current implication: The adapter can create staged CMS items for one configured collection, but it is not yet the final multi-tenant connection and collection-mapping model.
 - Follow-up trigger: When the connections settings area and encrypted `external_connections` storage are implemented.
 - Safe current behavior: Keep the API token server-only, create draft/staged CMS items, and require explicit collection field mapping through environment variables.
+
+- Date: 2026-04-25
+- Area: Analytics baseline
+- Item: Phase 4 dashboard and analytics views now read from durable `traffic_snapshots` and `keyword_rank_snapshots`, but content-level traffic attribution is not yet ingested.
+- Current implication: The UI can show real traffic by source, keyword movement, content lifecycle status, and tracked keyword rank per asset. Per-asset visits and conversions remain zero until analytics ingestion can map URLs or provider events back to `content_assets`.
+- Follow-up trigger: When website analytics, Search Console, Plausible, PostHog, or equivalent ingestion is implemented.
+- Safe current behavior: Keep the content performance surface server-backed, show explicit empty/zero metric states, and avoid presenting per-asset visit counts as measured until attribution exists.
+
+- Date: 2026-04-25
+- Area: Supabase Auth security
+- Item: `supabase db advisors --linked` reports leaked password protection is disabled.
+- Current implication: Supabase Auth will not reject passwords found in known breach datasets until the project-level setting is enabled.
+- Follow-up trigger: Before inviting real users or deploying the app publicly.
+- Safe current behavior: Keep this as a deployment-readiness item because it is controlled in Supabase Auth settings, not by repository code.

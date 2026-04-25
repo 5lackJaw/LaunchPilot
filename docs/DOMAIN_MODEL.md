@@ -292,6 +292,7 @@ Fields:
 - keyword
 - rank_position
 - source
+- provenance
 - recorded_at
 
 ### traffic_snapshots
@@ -302,6 +303,7 @@ Fields:
 - source_type
 - visits
 - conversions
+- provenance
 - recorded_at
 
 ### weekly_briefs

@@ -45,10 +45,10 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Webflow publishing adapter
 
 ## Phase 4 — analytics baseline
-- [ ] Dashboard summary surface
-- [ ] Source/channel breakdown
-- [ ] Content performance view
-- [ ] Keyword movement view
+- [x] Dashboard summary surface
+- [x] Source/channel breakdown
+- [x] Content performance view
+- [x] Keyword movement view
 - [ ] Weekly recommendation generation
 - [ ] Weekly digest email
 

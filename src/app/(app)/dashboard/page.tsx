@@ -1,377 +1,535 @@
-"use client";
-
-import { useState } from "react";
+import Link from "next/link";
 import { AppTopbar } from "@/components/layout/app-topbar";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { DashboardSummary, KeywordMovement, TrafficSourceBreakdown } from "@/server/schemas/analytics";
+import type { InboxItem } from "@/server/schemas/inbox";
+import type { Product } from "@/server/schemas/product";
+import { AnalyticsReadError, AnalyticsService, formatSourceLabel } from "@/server/services/analytics-service";
+import { AuthRequiredError } from "@/server/services/auth-service";
+import { InboxItemReadError, InboxService } from "@/server/services/inbox-service";
+import { ProductReadError, ProductService } from "@/server/services/product-service";
 
-// ─── Data ────────────────────────────────────────────────────────────────────
+export default async function DashboardPage() {
+  const data = await loadDashboardData();
 
-const inboxItems = [
-  { type: "article" as const, title: "How to invoice clients in USDC: a freelancer's guide", sub: '1,840 words · targets "usdc invoice freelancer"', confidence: 88, estTraffic: "↑ est. 120 visits/mo", time: "2h ago" },
-  { type: "reply"   as const, title: 'r/freelance · "Anyone accepting crypto payments yet?"', sub: "Reddit reply draft · relevance score 82", confidence: 74, estTraffic: null, time: "4h ago" },
-  { type: "article" as const, title: "Crypto invoicing vs traditional invoicing: a comparison", sub: '1,200 words · comparison page · targets "crypto invoicing"', confidence: 91, estTraffic: "↑ est. 210 visits/mo", time: "6h ago" },
-  { type: "listing" as const, title: "ProductHunt listing package ready", sub: "Tagline · description · 5 screenshots generated", confidence: 95, estTraffic: null, time: "12h ago" },
-  { type: "reply"   as const, title: 'HN · "Ask HN: how do you handle international payments?"', sub: "Hacker News reply draft · relevance score 71", confidence: 71, estTraffic: null, time: "1d ago" },
-];
+  if (data.authRequired) {
+    return <DashboardShell errorTitle="Sign in required" error="Sign in before viewing the dashboard." />;
+  }
 
-const keywords = [
-  { keyword: "usdc invoice generator",        position: "#4",  tier: "good", change: "↑ 6",        changeTier: "up",    volume: "880/mo"  },
-  { keyword: "crypto invoicing for freelancers", position: "#14", tier: "mid",  change: "↑ 3",        changeTier: "up",    volume: "590/mo"  },
-  { keyword: "solana b2b payments",            position: "#19", tier: "mid",  change: "↓ 2",        changeTier: "down",  volume: "320/mo"  },
-  { keyword: "invoice paid in crypto",          position: "#7",  tier: "good", change: "↑ 11",       changeTier: "up",    volume: "1.2k/mo" },
-  { keyword: "usdc payment for contractors",    position: "new", tier: "new",  change: "→ tracking", changeTier: "track", volume: "440/mo"  },
-];
+  if (data.error) {
+    return <DashboardShell errorTitle="Dashboard could not be loaded" error={data.error} destructive />;
+  }
 
-const channels = [
-  { iconBg: "#1D9E75", iconChar: "✦", name: "SEO / content",  statusTier: "ok"   as const, statusText: "Running · last publish 2d ago",         queue: "3 in queue", queueTier: "normal" as const, meta: "SLA on track",    connect: false },
-  { iconBg: "#FF4500", iconChar: "◎", name: "Reddit",          statusTier: "warn" as const, statusText: "2 replies awaiting approval · 4h",       queue: "2 pending",  queueTier: "warn"   as const, meta: "action needed",  connect: false },
-  { iconBg: "#FF6600", iconChar: "⬡", name: "Hacker News",     statusTier: "warn" as const, statusText: "1 reply awaiting approval · 1d",         queue: "1 pending",  queueTier: "warn"   as const, meta: "action needed",  connect: false },
-  { iconBg: "#7B6EF6", iconChar: "⊞", name: "Directories",     statusTier: "ok"   as const, statusText: "14 of 80 submitted · auto-pacing",       queue: "66 to go",   queueTier: "muted"  as const, meta: "~3 wks remaining", connect: false },
-  { iconBg: "#1A8CD8", iconChar: "◈", name: "X / Twitter",     statusTier: "off"  as const, statusText: "Not connected",                          queue: null,         queueTier: "muted"  as const, meta: null,              connect: true  },
-];
+  if (!data.product || !data.summary) {
+    return (
+      <main className="flex min-h-screen flex-col">
+        <AppTopbar title="Dashboard" eyebrow="Weekly operating view" />
+        <div className="p-7">
+          <div className="rounded-[10px] border bg-card p-5">
+            <h2 className="text-sm font-medium">No product yet</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Create a product during onboarding before analytics can be shown.</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
-const sources = [
-  { label: "Organic search", count: 612, pct: 66 },
-  { label: "Reddit",         count: 340, pct: 37 },
-  { label: "Hacker News",    count: 218, pct: 24 },
-  { label: "Directories",    count: 164, pct: 18 },
-  { label: "Direct",         count: 112, pct: 12 },
-  { label: "Other",          count:  47, pct:  5 },
-];
+  const summary = data.summary;
 
-type AutoLevel = "off" | "L1" | "L2";
+  return (
+    <main className="flex min-h-screen flex-col">
+      <AppTopbar
+        title="Dashboard"
+        eyebrow="Weekly operating view"
+        actions={
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[11.5px] text-muted-foreground">{summary.currentPeriod.label}</span>
+            <Button size="sm" asChild>
+              <Link href="/inbox">Review inbox</Link>
+            </Button>
+          </div>
+        }
+      />
 
-// ─── Helper components ───────────────────────────────────────────────────────
+      <div className="flex flex-col gap-5 p-7">
+        <InsightBar summary={summary} />
 
-function MetricCard({ label, period, value, delta, deltaType, children }: {
-  label: string; period: string; value: string; delta: string;
-  deltaType: "up" | "down" | "neutral"; children?: React.ReactNode;
+        <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <MetricCard label="Visitors" period={summary.currentPeriod.label} value={summary.visitors.toLocaleString()} delta={formatDelta(summary.visitorDeltaPercent, "wk-over-wk")} tone="up">
+            <SparklineLine values={sparklineFromTotal(summary.visitors)} />
+          </MetricCard>
+          <MetricCard
+            label="Published assets"
+            period={summary.currentPeriod.label}
+            value={String(summary.publishedAssets)}
+            delta={`${summary.publishedAssetDelta >= 0 ? "+" : ""}${summary.publishedAssetDelta} vs prior week`}
+            tone={summary.publishedAssetDelta >= 0 ? "up" : "down"}
+          >
+            <SparklineBar values={sparklineFromTotal(Math.max(summary.publishedAssets, 1))} />
+          </MetricCard>
+          <MetricCard label="Conversions" period={summary.currentPeriod.label} value={summary.conversions.toLocaleString()} delta={formatDelta(summary.conversionDeltaPercent, "wk-over-wk")} tone="up">
+            <SparklineBar values={sparklineFromTotal(summary.conversions)} teal />
+          </MetricCard>
+          <MetricCard
+            label="Inbox pending"
+            period="right now"
+            value={String(summary.pendingInboxItems)}
+            delta={summary.pendingInboxItems ? `~ ${summary.estimatedReviewMinutes} min to review` : "clear"}
+            tone="neutral"
+          >
+            <InboxBreakdown items={data.pendingInboxItems} />
+          </MetricCard>
+        </section>
+
+        <section className="grid gap-4 xl:grid-cols-[1fr_340px]">
+          <div className="flex flex-col gap-4">
+            <InboxPreview items={data.pendingInboxItems} pendingCount={summary.pendingInboxItems} />
+            <KeywordPositions keywords={summary.keywordMovement} />
+            <ContentPerformanceTable summary={summary} />
+          </div>
+
+          <aside className="flex flex-col gap-4">
+            <ChannelHealth summary={summary} />
+            <TrafficSources sources={summary.sourceBreakdown} />
+            <AutopilotPanel />
+          </aside>
+        </section>
+      </div>
+    </main>
+  );
+}
+
+function DashboardShell({ errorTitle, error, destructive }: { errorTitle: string; error: string; destructive?: boolean }) {
+  return (
+    <main className="flex min-h-screen flex-col">
+      <AppTopbar title="Dashboard" eyebrow="Weekly operating view" />
+      <div className="p-7">
+        <Alert variant={destructive ? "destructive" : "default"}>
+          <AlertTitle>{errorTitle}</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    </main>
+  );
+}
+
+function InsightBar({ summary }: { summary: DashboardSummary }) {
+  return (
+    <section
+      className="flex items-start gap-4 rounded-[9px] border p-4"
+      style={{ borderLeftWidth: 3, borderLeftColor: "hsl(var(--primary))", background: "linear-gradient(180deg, hsl(240 7% 11%) 0%, hsl(240 7% 8%) 100%)" }}
+    >
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border text-base" style={{ background: "hsl(var(--primary) / 0.08)", borderColor: "hsl(var(--primary) / 0.15)", color: "hsl(246 88% 80%)" }}>
+        *
+      </div>
+      <div className="flex-1">
+        <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.08em]" style={{ color: "hsl(246 88% 80%)" }}>
+          Insight / this week
+        </p>
+        <p className="mb-1.5 font-serif text-[18px] leading-snug text-foreground">{summary.weeklyInsight.title}</p>
+        <p className="text-[12.5px] leading-relaxed text-muted-foreground">{summary.weeklyInsight.body}</p>
+        {summary.weeklyInsight.actionLabel ? (
+          <div className="mt-3">
+            <Button size="sm" asChild>
+              <Link href="/inbox">{summary.weeklyInsight.actionLabel}</Link>
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function MetricCard({
+  label,
+  period,
+  value,
+  delta,
+  tone,
+  children,
+}: {
+  label: string;
+  period: string;
+  value: string;
+  delta: string;
+  tone: "up" | "down" | "neutral";
+  children?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col rounded-[10px] border bg-card p-4 transition-colors hover:border-border/60">
       <div className="mb-2 flex items-baseline justify-between">
         <span className="font-mono text-[11px] uppercase tracking-[0.05em] text-muted-foreground">{label}</span>
-        <span className="font-mono text-[9.5px] tracking-[0.03em]" style={{ color: "hsl(240 7% 30%)" }}>{period}</span>
+        <span className="font-mono text-[9.5px] tracking-[0.03em] text-muted-foreground">{period}</span>
       </div>
       <div className="font-serif text-[28px] leading-none text-foreground">{value}</div>
-      <div className={`mt-1.5 font-mono text-[11.5px] ${
-        deltaType === "up" ? "text-teal-400" : deltaType === "down" ? "text-red-400" : "text-muted-foreground"
-      }`}>{delta}</div>
+      <div className={tone === "up" ? "mt-1.5 font-mono text-[11.5px] text-teal-400" : tone === "down" ? "mt-1.5 font-mono text-[11.5px] text-red-400" : "mt-1.5 font-mono text-[11.5px] text-muted-foreground"}>{delta}</div>
       {children}
     </div>
   );
 }
 
 function SparklineLine({ values }: { values: number[] }) {
-  const pts = values.map((v, i) => `${(i / (values.length - 1)) * 120},${v}`).join(" ");
+  const points = values.map((value, index) => `${(index / (values.length - 1)) * 120},${28 - value}`).join(" ");
+
   return (
     <svg viewBox="0 0 120 28" fill="none" aria-hidden className="mt-3 h-7 w-full">
-      <polyline points={pts} stroke="hsl(var(--accent) / 0.25)" strokeWidth="1.5" fill="none" />
-      <polyline points={pts} stroke="hsl(var(--accent))" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={points} stroke="hsl(var(--accent))" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-function SparklineBar({ values, color }: { values: number[]; color: "purple" | "teal" }) {
-  const max = Math.max(...values);
-  const barW = 14;
-  const gap = (120 - barW * values.length) / (values.length - 1);
-  const fill = color === "purple" ? "hsl(var(--primary))" : "hsl(var(--accent))";
+function SparklineBar({ values, teal }: { values: number[]; teal?: boolean }) {
+  const max = Math.max(...values, 1);
+  const barWidth = 14;
+  const gap = (120 - barWidth * values.length) / (values.length - 1);
+
   return (
     <svg viewBox="0 0 120 28" fill="none" aria-hidden className="mt-3 h-7 w-full">
-      {values.map((v, i) => {
-        const h = (v / max) * 26;
-        return <rect key={i} x={i * (barW + gap)} y={28 - h} width={barW} height={h} fill={fill} rx="2" opacity={0.3 + (i / values.length) * 0.7} />;
+      {values.map((value, index) => {
+        const height = Math.max(2, (value / max) * 26);
+        return (
+          <rect
+            key={`${value}-${index}`}
+            x={index * (barWidth + gap)}
+            y={28 - height}
+            width={barWidth}
+            height={height}
+            fill={teal ? "hsl(var(--accent))" : "hsl(var(--primary))"}
+            rx="2"
+            opacity={0.3 + (index / values.length) * 0.7}
+          />
+        );
       })}
     </svg>
   );
 }
 
-const typeStyle = {
-  article: { bg: "hsl(var(--primary) / 0.08)", color: "hsl(246 88% 80%)", border: "hsl(var(--primary) / 0.2)" },
-  reply:   { bg: "hsl(var(--accent) / 0.06)",  color: "hsl(var(--accent))", border: "hsl(var(--accent) / 0.2)" },
-  listing: { bg: "hsl(38 86% 50% / 0.08)",     color: "hsl(38 86% 62%)",   border: "hsl(38 86% 50% / 0.2)" },
-  outreach:{ bg: "hsl(0 82% 66% / 0.08)",      color: "hsl(0 82% 66%)",    border: "hsl(0 82% 66% / 0.2)" },
-};
+function InboxBreakdown({ items }: { items: InboxItem[] }) {
+  const groups = {
+    content_draft: items.filter((item) => item.itemType === "content_draft").length,
+    community_reply: items.filter((item) => item.itemType === "community_reply").length,
+    directory_package: items.filter((item) => item.itemType === "directory_package").length,
+    outreach_email: items.filter((item) => item.itemType === "outreach_email").length,
+  };
 
-function InboxItem({ item }: { item: (typeof inboxItems)[number] }) {
-  const ts = typeStyle[item.type];
-  const confColor = item.type === "listing" ? "hsl(38 86% 62%)" : "hsl(var(--accent))";
+  if (!items.length) {
+    return <p className="mt-3 font-mono text-[10.5px] text-muted-foreground">No pending review work.</p>;
+  }
+
   return (
-    <div className="group relative flex cursor-pointer items-start gap-3 border-b px-[18px] py-3 last:border-b-0 hover:bg-secondary">
-      <div className="mt-[3px] shrink-0">
-        <input type="checkbox" className="size-[13px] cursor-pointer accent-primary" aria-label={`Select "${item.title}"`} onClick={e => e.stopPropagation()} />
+    <>
+      <div className="mt-3 flex items-center gap-1" aria-label="Breakdown by type">
+        <div className="h-[5px] rounded bg-primary opacity-90" style={{ flex: Math.max(groups.content_draft, 1) }} />
+        <div className="h-[5px] rounded opacity-85" style={{ flex: Math.max(groups.community_reply, 1), background: "hsl(var(--accent))" }} />
+        <div className="h-[5px] rounded bg-amber-400 opacity-85" style={{ flex: Math.max(groups.directory_package, 1) }} />
+        <div className="h-[5px] rounded bg-red-400 opacity-75" style={{ flex: Math.max(groups.outreach_email, 1) }} />
       </div>
-      <span className="mt-[2px] shrink-0 rounded px-[7px] py-[2px] font-mono text-[9.5px] font-medium tracking-[0.03em] border" style={{ background: ts.bg, color: ts.color, borderColor: ts.border }}>
-        {item.type}
-      </span>
-      <div className="min-w-0 flex-1 pr-2">
-        <div className="truncate text-[13px] font-medium text-foreground">{item.title}</div>
-        <div className="mt-[3px] text-[11.5px] text-muted-foreground">{item.sub}</div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
-          <div className="h-[3px] w-[60px] overflow-hidden rounded-full bg-border">
-            <div className="h-full rounded-full" style={{ width: `${item.confidence}%`, background: confColor }} />
-          </div>
-          <span className="font-mono text-[10px] text-muted-foreground">{item.confidence}% confidence</span>
-          {item.estTraffic && <span className="font-mono text-[10px]" style={{ color: "hsl(var(--accent))" }}>{item.estTraffic}</span>}
-          <span className="ml-auto font-mono text-[10.5px]" style={{ color: "hsl(240 7% 32%)" }}>{item.time}</span>
-        </div>
+      <div className="mt-1.5 flex flex-wrap gap-2 font-mono text-[10px]">
+        <span style={{ color: "hsl(246 88% 80%)" }}>{groups.content_draft} content</span>
+        <span style={{ color: "hsl(var(--accent))" }}>{groups.community_reply} replies</span>
+        <span className="text-amber-400">{groups.directory_package} listings</span>
+        <span className="text-red-400">{groups.outreach_email} emails</span>
       </div>
-      {/* Inline actions: reveal on hover */}
-      <div
-        className="pointer-events-none absolute right-[18px] top-1/2 flex -translate-y-1/2 translate-x-2 items-center gap-1.5 opacity-0 transition-all duration-150 group-hover:pointer-events-auto group-hover:translate-x-0 group-hover:opacity-100"
-        style={{ background: "linear-gradient(90deg, transparent 0%, hsl(240 7% 11%) 25%)", paddingLeft: 40 }}
-      >
-        <button type="button" onClick={e => e.stopPropagation()} className="rounded-[5px] border border-border bg-transparent px-2.5 py-[5px] font-sans text-[11px] font-medium text-muted-foreground transition-colors hover:border-muted-foreground hover:text-foreground">Edit</button>
-        <button type="button" onClick={e => e.stopPropagation()} aria-label="Reject" className="w-[26px] rounded-[5px] border border-border bg-transparent py-[5px] text-center font-sans text-[11px] text-muted-foreground transition-colors hover:border-red-400 hover:text-red-400">✕</button>
-        <button type="button" onClick={e => e.stopPropagation()} className="rounded-[5px] border px-2.5 py-[5px] font-sans text-[11px] font-medium text-white transition-colors hover:brightness-110" style={{ background: "hsl(163 50% 36%)", borderColor: "hsl(163 50% 36%)" }}>Approve ✓</button>
-      </div>
-    </div>
+    </>
   );
 }
 
-const statusDotColor = { ok: "hsl(var(--accent))", warn: "hsl(38 86% 62%)", idle: "hsl(240 7% 30%)", off: "hsl(var(--muted-foreground))" };
-
-function ChannelRow({ ch }: { ch: (typeof channels)[number] }) {
+function InboxPreview({ items, pendingCount }: { items: InboxItem[]; pendingCount: number }) {
   return (
-    <div className="grid cursor-pointer items-center border-b px-[18px] py-3 last:border-b-0 hover:bg-secondary" style={{ gridTemplateColumns: "28px 1fr auto", gap: 12 }}>
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] text-[14px] text-white" style={{ background: ch.iconBg }}>{ch.iconChar}</div>
-      <div>
-        <div className="text-[12.5px] font-medium text-foreground">{ch.name}</div>
-        <div className="mt-[3px] flex items-center gap-[5px] font-mono text-[10.5px] text-muted-foreground">
-          <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: statusDotColor[ch.statusTier], opacity: ch.statusTier === "off" ? 0.4 : 1 }} />
-          {ch.statusText}
+    <section className="overflow-hidden rounded-[10px] border bg-card">
+      <div className="flex items-center justify-between gap-2 border-b px-[18px] py-[14px]">
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-medium text-foreground">Approval inbox</span>
+          <span className="rounded border px-[7px] py-[2px] font-mono text-[9.5px] font-medium text-amber-400" style={{ background: "hsl(38 86% 50% / 0.08)", borderColor: "hsl(38 86% 50% / 0.2)" }}>
+            {pendingCount} pending
+          </span>
         </div>
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/inbox">View all</Link>
+        </Button>
       </div>
-      <div className="flex flex-col items-end gap-[3px]">
-        {ch.connect ? (
-          <button type="button" className="border-none bg-transparent font-mono text-[11px]" style={{ color: "hsl(246 88% 80%)" }}>Connect →</button>
+      {items.length ? (
+        items.slice(0, 5).map((item) => <InboxPreviewRow key={item.id} item={item} />)
+      ) : (
+        <p className="px-[18px] py-5 text-sm text-muted-foreground">No pending inbox items.</p>
+      )}
+    </section>
+  );
+}
+
+function InboxPreviewRow({ item }: { item: InboxItem }) {
+  const title = typeof item.payload.title === "string" ? item.payload.title : item.itemType.replace(/_/g, " ");
+
+  return (
+    <Link href={`/inbox/${item.id}`} className="grid items-start gap-3 border-b px-[18px] py-3 last:border-b-0 hover:bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" style={{ gridTemplateColumns: "auto 1fr auto" }}>
+      <span className="mt-[2px] rounded border px-[7px] py-[2px] font-mono text-[9.5px] font-medium text-primary">{item.itemType.replace("_", " ")}</span>
+      <span className="min-w-0">
+        <span className="block truncate text-[13px] font-medium text-foreground">{title}</span>
+        <span className="mt-[3px] block truncate text-[11.5px] text-muted-foreground">
+          {item.impactEstimate} impact / {item.aiConfidence === null ? "no confidence score" : `${Math.round(item.aiConfidence * 100)}% confidence`}
+        </span>
+      </span>
+      <span className="font-mono text-[10.5px] text-muted-foreground">{formatRelativeTime(item.createdAt)}</span>
+    </Link>
+  );
+}
+
+function KeywordPositions({ keywords }: { keywords: KeywordMovement[] }) {
+  return (
+    <section className="overflow-hidden rounded-[10px] border bg-card">
+      <div className="flex items-center justify-between border-b px-[18px] py-[14px]">
+        <span className="text-[13px] font-medium text-foreground">Keyword positions</span>
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/analytics">Full report</Link>
+        </Button>
+      </div>
+      {keywords.length ? (
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              {["Keyword", "Position", "Change", "Source"].map((heading) => (
+                <th key={heading} className="border-b px-[18px] py-[9px] text-left font-mono text-[10.5px] font-normal uppercase tracking-[0.05em] text-muted-foreground">
+                  {heading}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {keywords.slice(0, 5).map((keyword) => (
+              <tr key={keyword.keyword} className="hover:bg-secondary">
+                <td className="border-b px-[18px] py-2.5 text-[12.5px] text-foreground">{keyword.keyword}</td>
+                <td className="border-b px-[18px] py-2.5 font-mono text-[12px] text-teal-400">#{keyword.currentPosition}</td>
+                <td className={keyword.trend === "up" ? "border-b px-[18px] py-2.5 font-mono text-[10.5px] text-teal-400" : keyword.trend === "down" ? "border-b px-[18px] py-2.5 font-mono text-[10.5px] text-red-400" : "border-b px-[18px] py-2.5 font-mono text-[10.5px] text-muted-foreground"}>
+                  {formatRankChange(keyword)}
+                </td>
+                <td className="border-b px-[18px] py-2.5 font-mono text-[10.5px] text-muted-foreground">{keyword.source}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="px-[18px] py-5 text-sm text-muted-foreground">No keyword rank snapshots yet.</p>
+      )}
+    </section>
+  );
+}
+
+function ContentPerformanceTable({ summary }: { summary: DashboardSummary }) {
+  return (
+    <section className="overflow-hidden rounded-[10px] border bg-card">
+      <div className="flex items-center justify-between border-b px-[18px] py-[14px]">
+        <span className="text-[13px] font-medium text-foreground">Content performance</span>
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/content">Open library</Link>
+        </Button>
+      </div>
+      {summary.contentPerformance.length ? (
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              {["Asset", "Status", "Keyword rank", "Visits"].map((heading) => (
+                <th key={heading} className="border-b px-[18px] py-[9px] text-left font-mono text-[10.5px] font-normal uppercase tracking-[0.05em] text-muted-foreground">
+                  {heading}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {summary.contentPerformance.slice(0, 6).map((asset) => (
+              <tr key={asset.id} className="hover:bg-secondary">
+                <td className="border-b px-[18px] py-2.5 text-[12.5px] text-foreground">
+                  <Link href={`/content/${asset.id}`} className="block truncate hover:text-primary">
+                    {asset.title}
+                  </Link>
+                </td>
+                <td className="border-b px-[18px] py-2.5 font-mono text-[10.5px] text-muted-foreground">{asset.status}</td>
+                <td className="border-b px-[18px] py-2.5 font-mono text-[10.5px] text-muted-foreground">
+                  {asset.currentPosition ? `#${asset.currentPosition} (${formatSigned(asset.rankChange)})` : "not tracked"}
+                </td>
+                <td className="border-b px-[18px] py-2.5 font-mono text-[10.5px] text-muted-foreground">{asset.visits}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="px-[18px] py-5 text-sm text-muted-foreground">No content assets yet.</p>
+      )}
+    </section>
+  );
+}
+
+function ChannelHealth({ summary }: { summary: DashboardSummary }) {
+  const rows = [
+    { label: "SEO / content", status: `${summary.contentPerformance.length} assets tracked`, queue: `${summary.publishedAssets} published` },
+    { label: "Inbox", status: summary.pendingInboxItems ? "review needed" : "clear", queue: `${summary.pendingInboxItems} pending` },
+    { label: "Analytics", status: summary.sourceBreakdown.length ? "ingesting snapshots" : "waiting for data", queue: `${summary.sourceBreakdown.length} sources` },
+  ];
+
+  return (
+    <section className="overflow-hidden rounded-[10px] border bg-card">
+      <div className="flex items-center justify-between border-b px-[18px] py-[14px]">
+        <span className="text-[13px] font-medium text-foreground">Channel health</span>
+        <span className="font-mono text-[10.5px] text-muted-foreground">server-backed</span>
+      </div>
+      {rows.map((row) => (
+        <div key={row.label} className="grid items-center border-b px-[18px] py-3 last:border-b-0 hover:bg-secondary" style={{ gridTemplateColumns: "28px 1fr auto", gap: 12 }}>
+          <span className="flex h-7 w-7 items-center justify-center rounded-[7px] bg-accent text-[14px] text-black">*</span>
+          <span>
+            <span className="block text-[12.5px] font-medium text-foreground">{row.label}</span>
+            <span className="mt-[3px] block font-mono text-[10.5px] text-muted-foreground">{row.status}</span>
+          </span>
+          <span className="font-mono text-[11px] text-muted-foreground">{row.queue}</span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function TrafficSources({ sources }: { sources: TrafficSourceBreakdown[] }) {
+  return (
+    <section className="overflow-hidden rounded-[10px] border bg-card">
+      <div className="flex items-center justify-between border-b px-[18px] py-[14px]">
+        <span className="text-[13px] font-medium text-foreground">Traffic by source</span>
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/analytics">Analytics</Link>
+        </Button>
+      </div>
+      <div className="px-[18px] pb-3.5 pt-1">
+        {sources.length ? (
+          sources.slice(0, 6).map((source) => (
+            <div key={source.sourceType} className="grid items-center gap-2.5 border-b py-[7px] last:border-b-0" style={{ gridTemplateColumns: "90px 1fr 48px" }}>
+              <span className="truncate text-[12px] text-foreground">{formatSourceLabel(source.sourceType)}</span>
+              <div className="h-[5px] overflow-hidden rounded-full bg-secondary">
+                <div className="h-full rounded-full bg-accent" style={{ width: `${source.sharePercent}%`, opacity: 0.25 + source.sharePercent / 140 }} />
+              </div>
+              <span className="text-right font-mono text-[11px] text-muted-foreground">{source.visits}</span>
+            </div>
+          ))
         ) : (
-          <>
-            <span className={`font-mono text-[11px] ${ch.queueTier === "warn" ? "text-amber-400" : ch.queueTier === "muted" ? "text-muted-foreground" : "text-foreground"}`}>{ch.queue}</span>
-            <span className="font-mono text-[9.5px]" style={{ color: "hsl(240 7% 32%)" }}>{ch.meta}</span>
-          </>
+          <p className="py-4 text-sm text-muted-foreground">No traffic snapshots yet.</p>
         )}
       </div>
-    </div>
+    </section>
   );
 }
 
 function AutopilotPanel() {
-  const [levels, setLevels] = useState<AutoLevel[]>(["L2", "L1", "off"]);
   const rows = [
-    { label: "SEO content",        sub: "L2 = auto-publish high confidence" },
-    { label: "Community replies",  sub: "L1 = draft only, you approve" },
-    { label: "Outreach",           sub: "Off = no automated outreach" },
+    { label: "SEO content", level: "L1", sub: "review first" },
+    { label: "Community replies", level: "off", sub: "not implemented yet" },
+    { label: "Outreach", level: "off", sub: "not implemented yet" },
   ];
+
   return (
-    <div className="overflow-hidden rounded-[10px] border bg-card">
+    <section className="overflow-hidden rounded-[10px] border bg-card">
       <div className="border-b px-[18px] py-3.5">
-        <span className="text-[13px] font-medium text-foreground">⊙ Autopilot</span>
+        <span className="text-[13px] font-medium text-foreground">Autopilot</span>
       </div>
       <div className="flex flex-col gap-3.5 px-[18px] pb-4 pt-3.5">
-        {rows.map((row, i) => (
+        {rows.map((row) => (
           <div key={row.label} className="grid items-center gap-3" style={{ gridTemplateColumns: "1fr auto" }}>
-            <div>
-              <div className="text-[12.5px] text-foreground">{row.label}</div>
-              <div className="mt-[2px] font-mono text-[10px] text-muted-foreground">{row.sub}</div>
-            </div>
-            <div role="radiogroup" aria-label={`${row.label} autopilot level`} className="inline-flex rounded-[6px] border bg-secondary p-[2px]">
-              {(["off", "L1", "L2"] as AutoLevel[]).map((level) => {
-                const sel = levels[i] === level;
-                return (
-                  <button
-                    key={level}
-                    role="radio"
-                    aria-checked={sel}
-                    onClick={() => setLevels(prev => prev.map((v, idx) => (idx === i ? level : v)))}
-                    className={`rounded-[4px] px-[9px] py-1 font-mono text-[10.5px] tracking-[0.02em] transition-all duration-100 ${
-                      sel
-                        ? level === "L1" ? "bg-amber-400/10 text-amber-400"
-                        : level === "L2" ? "bg-teal-400/10 text-teal-400"
-                        : "bg-card text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {level}
-                  </button>
-                );
-              })}
-            </div>
+            <span>
+              <span className="block text-[12.5px] text-foreground">{row.label}</span>
+              <span className="mt-[2px] block font-mono text-[10px] text-muted-foreground">{row.sub}</span>
+            </span>
+            <span className="rounded-[6px] border bg-secondary px-2.5 py-1 font-mono text-[10.5px] text-muted-foreground">{row.level}</span>
           </div>
         ))}
-        <div className="flex items-center justify-between gap-2 border-t pt-3 text-[11.5px] text-muted-foreground">
-          <span>Next run</span>
-          <span className="font-mono text-[11px] text-foreground">Mon Apr 28 · 09:00 CET</span>
-        </div>
       </div>
-    </div>
+    </section>
   );
 }
 
-// ─── Page ────────────────────────────────────────────────────────────────────
+async function loadDashboardData(): Promise<{
+  product: Product | null;
+  summary: DashboardSummary | null;
+  pendingInboxItems: InboxItem[];
+  error: string | null;
+  authRequired: boolean;
+}> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const product = await new ProductService(supabase).getLatestProduct();
 
-export default function DashboardPage() {
-  return (
-    <main className="flex min-h-screen flex-col">
-      <AppTopbar
-        title="Dashboard"
-        actions={
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-[11.5px] text-muted-foreground">Week of Apr 21, 2026</span>
-            <Button variant="outline" size="sm">↻ Refresh</Button>
-            <Button size="sm">+ Add product</Button>
-          </div>
-        }
-      />
+    if (!product) {
+      return { product: null, summary: null, pendingInboxItems: [], error: null, authRequired: false };
+    }
 
-      <div className="flex flex-col gap-5 p-7">
+    const [summary, pendingInboxItems] = await Promise.all([
+      new AnalyticsService(supabase).getDashboardSummary({ productId: product.id }),
+      new InboxService(supabase).listItems({ productId: product.id, status: "pending" }),
+    ]);
 
-        {/* ── Insight / Brief bar ── */}
-        <div
-          className="flex items-start gap-4 rounded-[9px] border p-4"
-          style={{ borderLeftWidth: 3, borderLeftColor: "hsl(var(--primary))", background: "linear-gradient(180deg, hsl(240 7% 11%) 0%, hsl(240 7% 8%) 100%)" }}
-        >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border text-base" style={{ background: "hsl(var(--primary) / 0.08)", borderColor: "hsl(var(--primary) / 0.15)", color: "hsl(246 88% 80%)" }}>
-            ⚡
-          </div>
-          <div className="flex-1">
-            <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.08em]" style={{ color: "hsl(246 88% 80%)" }}>Insight · this week</p>
-            <p className="mb-1.5 font-serif text-[18px] leading-snug text-foreground">One Reddit thread is driving most of your growth.</p>
-            <p className="text-[12.5px] leading-relaxed text-muted-foreground">
-              Of the <strong className="font-medium text-foreground">+478 visits</strong> added this week,{" "}
-              <strong className="font-medium text-foreground">312 (65%)</strong> trace back to a single r/freelance comment posted Tuesday.
-              The thread is still active — consider a follow-up reply within 24h while it&apos;s ranking. SEO is steady but
-              contributing less than expected; the <em>&ldquo;usdc invoice generator&rdquo;</em> article needs internal links to push past position #4.
-            </p>
-            <div className="mt-3 flex gap-2">
-              <Button size="sm">Draft follow-up reply</Button>
-              <Button size="sm" variant="outline">See attribution detail</Button>
-            </div>
-          </div>
-        </div>
+    return { product, summary, pendingInboxItems, error: null, authRequired: false };
+  } catch (error) {
+    if (error instanceof AuthRequiredError) {
+      return { product: null, summary: null, pendingInboxItems: [], error: null, authRequired: true };
+    }
 
-        {/* ── Metrics row ── */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <MetricCard label="Visitors" period="Apr 14–20" value="1,847" delta="↑ 34% wk-over-wk" deltaType="up">
-            <SparklineLine values={[22, 18, 20, 14, 10, 6, 4]} />
-          </MetricCard>
-          <MetricCard label="Articles published" period="Apr 14–20" value="3" delta="↑ 1 vs prior week" deltaType="up">
-            <SparklineBar values={[6, 10, 8, 14, 10, 18]} color="purple" />
-          </MetricCard>
-          <MetricCard label="Replies posted" period="Apr 14–20" value="8" delta="↑ 3 vs prior week" deltaType="up">
-            <SparklineBar values={[6, 10, 8, 14, 12, 20]} color="teal" />
-          </MetricCard>
-          <MetricCard label="Inbox pending" period="right now" value="7" delta="~ 8 min to review" deltaType="neutral">
-            <div className="mt-3 flex items-center gap-1" aria-label="Breakdown by type">
-              <div className="h-[5px] flex-[3] rounded bg-primary opacity-90" />
-              <div className="h-[5px] flex-[2] rounded opacity-85" style={{ background: "hsl(var(--accent))" }} />
-              <div className="h-[5px] flex-[1] rounded bg-amber-400 opacity-85" />
-              <div className="h-[5px] flex-[1] rounded bg-red-400 opacity-75" />
-            </div>
-            <div className="mt-1.5 flex gap-2 font-mono text-[10px]">
-              <span style={{ color: "hsl(246 88% 80%)" }}>3 articles</span>
-              <span style={{ color: "hsl(var(--accent))" }}>2 replies</span>
-              <span className="text-amber-400">1 listing</span>
-              <span className="text-red-400">1 email</span>
-            </div>
-          </MetricCard>
-        </div>
+    if (error instanceof ProductReadError || error instanceof AnalyticsReadError || error instanceof InboxItemReadError) {
+      return { product: null, summary: null, pendingInboxItems: [], error: error.message, authRequired: false };
+    }
 
-        {/* ── Lower grid ── */}
-        <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
+    if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
+      return {
+        product: null,
+        summary: null,
+        pendingInboxItems: [],
+        error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
+        authRequired: false,
+      };
+    }
 
-          {/* Left column */}
-          <div className="flex flex-col gap-4">
+    throw error;
+  }
+}
 
-            {/* Approval inbox */}
-            <div className="overflow-hidden rounded-[10px] border bg-card">
-              <div className="flex items-center justify-between gap-2 border-b px-[18px] py-[14px]">
-                <div className="flex items-center gap-2">
-                  <span className="text-[13px] font-medium text-foreground">◫ Approval inbox</span>
-                  <span className="rounded border px-[7px] py-[2px] font-mono text-[9.5px] font-medium" style={{ background: "hsl(38 86% 50% / 0.08)", color: "hsl(38 86% 62%)", borderColor: "hsl(38 86% 50% / 0.2)" }}>
-                    7 pending
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button type="button" className="cursor-pointer border-none bg-transparent px-1 py-[2px] font-mono text-[11.5px]" style={{ color: "hsl(246 88% 80%)" }}>
-                    Approve all high-confidence (3)
-                  </button>
-                  <span className="text-muted" style={{ color: "hsl(240 7% 25%)" }}>·</span>
-                  <button type="button" className="cursor-pointer border-none bg-transparent px-1 py-[2px] font-mono text-[11.5px] text-muted-foreground transition-colors hover:text-foreground">
-                    View all →
-                  </button>
-                </div>
-              </div>
-              {inboxItems.map(item => <InboxItem key={item.title} item={item} />)}
-            </div>
+function formatDelta(value: number | null, suffix: string) {
+  if (value === null) {
+    return "no prior data";
+  }
 
-            {/* Keyword positions */}
-            <div className="overflow-hidden rounded-[10px] border bg-card">
-              <div className="flex items-center justify-between border-b px-[18px] py-[14px]">
-                <span className="text-[13px] font-medium text-foreground">◈ Keyword positions</span>
-                <button type="button" className="border-none bg-transparent font-mono text-[11.5px]" style={{ color: "hsl(246 88% 80%)" }}>Full report →</button>
-              </div>
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr>
-                    {["Keyword", "Position", "Change", "Volume"].map(h => (
-                      <th key={h} className="border-b px-[18px] py-[9px] text-left font-mono text-[10.5px] font-normal uppercase tracking-[0.05em] text-muted-foreground">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {keywords.map((kw, i) => (
-                    <tr key={kw.keyword} className="hover:bg-secondary">
-                      <td className={`px-[18px] py-2.5 text-[12.5px] text-foreground ${i < keywords.length - 1 ? "border-b" : ""}`}>{kw.keyword}</td>
-                      <td className={`px-[18px] py-2.5 font-mono text-[12px] ${i < keywords.length - 1 ? "border-b" : ""} ${kw.tier === "good" ? "font-medium text-teal-400" : kw.tier === "mid" ? "text-amber-400" : "text-purple-300"}`}>{kw.position}</td>
-                      <td className={`px-[18px] py-2.5 font-mono text-[10.5px] ${i < keywords.length - 1 ? "border-b" : ""} ${kw.changeTier === "up" ? "text-teal-400" : kw.changeTier === "down" ? "text-red-400" : "text-purple-300"}`}>{kw.change}</td>
-                      <td className={`px-[18px] py-2.5 font-mono text-[12px] text-muted-foreground ${i < keywords.length - 1 ? "border-b" : ""}`}>{kw.volume}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+  return `${value >= 0 ? "+" : ""}${value}% ${suffix}`;
+}
 
-          </div>
+function formatSigned(value: number | null) {
+  if (value === null) {
+    return "new";
+  }
 
-          {/* Right column */}
-          <div className="flex flex-col gap-4">
+  if (value === 0) {
+    return "flat";
+  }
 
-            {/* Channel health */}
-            <div className="overflow-hidden rounded-[10px] border bg-card">
-              <div className="flex items-center justify-between border-b px-[18px] py-[14px]">
-                <span className="text-[13px] font-medium text-foreground">◉ Channel health</span>
-                <span className="font-mono text-[10.5px] text-muted-foreground">last action 14m ago</span>
-              </div>
-              {channels.map(ch => <ChannelRow key={ch.name} ch={ch} />)}
-            </div>
+  return `${value > 0 ? "+" : ""}${value}`;
+}
 
-            {/* Traffic by source */}
-            <div className="overflow-hidden rounded-[10px] border bg-card">
-              <div className="flex items-center justify-between border-b px-[18px] py-[14px]">
-                <span className="text-[13px] font-medium text-foreground">∿ Traffic by source</span>
-                <button type="button" className="border-none bg-transparent font-mono text-[11.5px]" style={{ color: "hsl(246 88% 80%)" }}>Analytics →</button>
-              </div>
-              <div className="px-[18px] pt-1 pb-3.5">
-                {sources.map((src, i) => (
-                  <div key={src.label} className={`grid items-center gap-2.5 py-[7px] ${i < sources.length - 1 ? "border-b" : ""}`} style={{ gridTemplateColumns: "90px 1fr 48px" }}>
-                    <span className="text-[12px] text-foreground">{src.label}</span>
-                    <div className="h-[5px] overflow-hidden rounded-full bg-secondary">
-                      <div className="h-full rounded-full" style={{ width: `${src.pct}%`, background: "hsl(var(--accent))", opacity: 0.25 + (src.pct / 66) * 0.75 }} />
-                    </div>
-                    <span className="text-right font-mono text-[11px] text-muted-foreground">{src.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+function formatRankChange(keyword: KeywordMovement) {
+  if (keyword.trend === "new") {
+    return "new";
+  }
 
-            {/* Autopilot */}
-            <AutopilotPanel />
+  return formatSigned(keyword.change);
+}
 
-          </div>
-        </div>
-      </div>
-    </main>
-  );
+function formatRelativeTime(value: string) {
+  const diffMs = Date.now() - new Date(value).getTime();
+  const hours = Math.max(0, Math.floor(diffMs / (60 * 60 * 1000)));
+
+  if (hours < 1) {
+    return "now";
+  }
+
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
+
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+function sparklineFromTotal(total: number) {
+  const normalized = Math.max(total, 1);
+  return [0.5, 0.45, 0.55, 0.62, 0.58, 0.72].map((factor) => Math.max(2, Math.round((normalized * factor) % 26)));
 }
