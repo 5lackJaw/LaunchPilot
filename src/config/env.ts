@@ -15,6 +15,7 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: optionalNonEmptyString,
   INNGEST_EVENT_KEY: optionalNonEmptyString,
   INNGEST_SIGNING_KEY: optionalNonEmptyString,
+  ENABLE_DEV_INBOX_SEED: optionalNonEmptyString,
   SENTRY_DSN: optionalNonEmptyString,
 });
 

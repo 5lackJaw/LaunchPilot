@@ -2,6 +2,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { InboxAuthRequired } from "@/app/(app)/inbox/auth-required";
 import { InboxClient } from "@/app/(app)/inbox/inbox-client";
+import { isDevInboxSeedEnabled } from "@/server/dev-flags";
 import type { InboxItem } from "@/server/schemas/inbox";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
@@ -13,6 +14,9 @@ type PageProps = {
     productId?: string;
     batchApproved?: string;
     batchError?: string;
+    devSeeded?: string;
+    devSeedCleared?: string;
+    devSeedError?: string;
   }>;
 };
 
@@ -34,7 +38,16 @@ export default async function InboxPage({ searchParams }: PageProps) {
           </div>
         </main>
       ) : (
-        <InboxClient items={data.items} product={data.product} batchApproved={params.batchApproved} batchError={params.batchError} />
+        <InboxClient
+          items={data.items}
+          product={data.product}
+          batchApproved={params.batchApproved}
+          batchError={params.batchError}
+          devSeeded={params.devSeeded}
+          devSeedCleared={params.devSeedCleared}
+          devSeedError={params.devSeedError}
+          canUseDevSeed={isDevInboxSeedEnabled()}
+        />
       )}
     </>
   );

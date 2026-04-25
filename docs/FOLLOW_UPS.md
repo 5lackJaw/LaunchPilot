@@ -18,3 +18,10 @@ Format:
 - Current implication: Low practical risk for LaunchPilot because the app does not accept user-submitted CSS, run PostCSS on user input, or embed PostCSS-stringified user CSS into HTML `<style>` tags.
 - Follow-up trigger: Re-check when upgrading Next.js, when Next publishes a release that bumps bundled PostCSS to `8.5.10+`, or before adding any feature that accepts custom CSS from users.
 - Safe current behavior: Do not run `npm audit fix --force`, because npm currently suggests a breaking downgrade to `next@9.3.3`; keep Next.js 16 current and avoid user-controlled CSS processing.
+
+- Date: 2026-04-25
+- Area: Development test data
+- Item: Inbox visual/workflow testing can use locally seeded inbox items when `ENABLE_DEV_INBOX_SEED=1`.
+- Current implication: Seed rows are intentionally tagged with `source_entity_type = 'dev_seed'` and can be cleared from the inbox UI, so unfinished generator workflows do not block manual inbox inspection.
+- Follow-up trigger: Before production deployment, before demoing against production-like data, or when real content/community/directory generators begin creating inbox items.
+- Safe current behavior: The seed UI is disabled by default, hidden in `NODE_ENV=production`, and production inbox reads suppress `dev_seed` rows if any were accidentally present.

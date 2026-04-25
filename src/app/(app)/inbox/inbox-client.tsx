@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { batchApproveInboxItemsAction } from "@/app/(app)/inbox/actions";
+import { batchApproveInboxItemsAction, clearDevInboxItemsAction, seedDevInboxItemsAction } from "@/app/(app)/inbox/actions";
 import type { InboxItem } from "@/server/schemas/inbox";
 import type { Product } from "@/server/schemas/product";
 
@@ -30,11 +30,19 @@ export function InboxClient({
   product,
   batchApproved,
   batchError,
+  devSeeded,
+  devSeedCleared,
+  devSeedError,
+  canUseDevSeed,
 }: {
   items: InboxItem[];
   product: Product | null;
   batchApproved?: string;
   batchError?: string;
+  devSeeded?: string;
+  devSeedCleared?: string;
+  devSeedError?: string;
+  canUseDevSeed: boolean;
 }) {
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -101,6 +109,24 @@ export function InboxClient({
               <AlertDescription>{batchError}</AlertDescription>
             </Alert>
           ) : null}
+          {devSeeded ? (
+            <Alert>
+              <AlertTitle>Development inbox seeded</AlertTitle>
+              <AlertDescription>Seed items were created for visual and workflow testing.</AlertDescription>
+            </Alert>
+          ) : null}
+          {devSeedCleared ? (
+            <Alert>
+              <AlertTitle>Development seed items cleared</AlertTitle>
+              <AlertDescription>{devSeedCleared} seed item(s) were removed for this product.</AlertDescription>
+            </Alert>
+          ) : null}
+          {devSeedError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Development seed action failed</AlertTitle>
+              <AlertDescription>{devSeedError}</AlertDescription>
+            </Alert>
+          ) : null}
           {visibleItems.length ? visibleItems.map((item) => (
             <Card key={item.id} className={selected.has(item.id) ? "border-primary" : undefined}>
               <CardHeader className="pb-3">
@@ -154,27 +180,55 @@ export function InboxClient({
           )}
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Bulk selection</CardTitle>
-            <CardDescription>
-              The high-confidence action marks the three items currently flagged as safe for bulk approval.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
-            <p>{selected.size} selected</p>
-            <form action={batchApproveInboxItemsAction} className="flex flex-col gap-2">
-              {Array.from(selected).map((id) => (
-                <input key={id} type="hidden" name="inboxItemIds" value={id} />
-              ))}
-              <Button type="submit" size="sm" disabled={!selected.size}>
-                Approve selected supported items
-              </Button>
-            </form>
-            <p>Approval execution is server-authoritative. Unsupported or low-confidence selected items are ignored.</p>
-            <p>Low-confidence items stay review-gated.</p>
-          </CardContent>
-        </Card>
+        <aside className="flex flex-col gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Bulk selection</CardTitle>
+              <CardDescription>
+                The high-confidence action marks the three items currently flagged as safe for bulk approval.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
+              <p>{selected.size} selected</p>
+              <form action={batchApproveInboxItemsAction} className="flex flex-col gap-2">
+                {Array.from(selected).map((id) => (
+                  <input key={id} type="hidden" name="inboxItemIds" value={id} />
+                ))}
+                <Button type="submit" size="sm" disabled={!selected.size}>
+                  Approve selected supported items
+                </Button>
+              </form>
+              <p>Approval execution is server-authoritative. Unsupported or low-confidence selected items are ignored.</p>
+              <p>Low-confidence items stay review-gated.</p>
+            </CardContent>
+          </Card>
+
+          {canUseDevSeed && product ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Development test data</CardTitle>
+                <CardDescription>
+                  Creates tagged dev_seed inbox items for this product. Use cleanup before switching back to real workflow testing.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-2">
+                <form action={seedDevInboxItemsAction}>
+                  <input type="hidden" name="productId" value={product.id} />
+                  <Button type="submit" size="sm" className="w-full">
+                    Seed sample inbox items
+                  </Button>
+                </form>
+                <form action={clearDevInboxItemsAction}>
+                  <input type="hidden" name="productId" value={product.id} />
+                  <Button type="submit" size="sm" variant="outline" className="w-full">
+                    Clear dev seed items
+                  </Button>
+                </form>
+                <p className="text-xs text-muted-foreground">This panel requires ENABLE_DEV_INBOX_SEED=1 and never renders in production.</p>
+              </CardContent>
+            </Card>
+          ) : null}
+        </aside>
       </section>
     </main>
   );

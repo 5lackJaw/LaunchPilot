@@ -66,6 +66,10 @@ export class InboxService {
       query = query.eq("status", parsed.status);
     }
 
+    if (process.env.NODE_ENV === "production") {
+      query = query.or("source_entity_type.is.null,source_entity_type.neq.dev_seed");
+    }
+
     const { data, error } = await query;
 
     if (error) {
@@ -85,7 +89,13 @@ export class InboxService {
       throw new InboxItemReadError(error.message);
     }
 
-    return mapInboxItem(data);
+    const item = mapInboxItem(data);
+
+    if (process.env.NODE_ENV === "production" && item.sourceEntityType === "dev_seed") {
+      throw new InboxItemReadError("Inbox item is not available.");
+    }
+
+    return item;
   }
 
   async reviewItem(input: unknown): Promise<InboxItem> {
@@ -147,6 +157,24 @@ export class InboxService {
     }
 
     return approvedItems;
+  }
+
+  async deleteDevSeedItems(input: unknown): Promise<number> {
+    const parsed = listInboxItemsSchema.pick({ productId: true }).parse(input);
+    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+
+    const { data, error } = await this.supabase
+      .from("inbox_items")
+      .delete()
+      .eq("product_id", parsed.productId)
+      .eq("source_entity_type", "dev_seed")
+      .select("id");
+
+    if (error) {
+      throw new InboxItemReviewError(error.message);
+    }
+
+    return data.length;
   }
 
   async listEvents(input: unknown): Promise<InboxItemEvent[]> {
