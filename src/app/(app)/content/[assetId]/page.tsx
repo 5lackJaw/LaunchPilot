@@ -1,4 +1,4 @@
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, Download, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -163,10 +163,28 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
           <Card>
             <CardHeader>
               <CardTitle>Publishing</CardTitle>
-              <CardDescription>Publishing adapters are not wired yet. Markdown export comes before CMS publishing.</CardDescription>
+              <CardDescription>Export Markdown now. CMS adapters come later.</CardDescription>
             </CardHeader>
+            <CardContent className="flex flex-col gap-2">
+              {data.asset.bodyMd.trim() ? (
+                <Button size="sm" variant="outline" asChild>
+                  <a href={`/content/${data.asset.id}/export`}>
+                    <Download />
+                    Export Markdown
+                  </a>
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" disabled>
+                  <Download />
+                  Export Markdown
+                </Button>
+              )}
+              {!data.asset.bodyMd.trim() ? (
+                <p className="text-xs text-muted-foreground">Generate or write body markdown before export.</p>
+              ) : null}
+            </CardContent>
             {data.asset.publishedUrl ? (
-              <CardContent>
+              <CardContent className="pt-0">
                 <Button size="sm" variant="outline" asChild>
                   <a href={data.asset.publishedUrl} target="_blank" rel="noreferrer">
                     Open published URL

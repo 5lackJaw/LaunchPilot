@@ -39,7 +39,7 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Content asset storage model
 - [x] Content library page
 - [x] Content detail/editor page
-- [ ] Markdown export
+- [x] Markdown export
 - [ ] Ghost publishing adapter
 - [ ] WordPress publishing adapter
 - [ ] Webflow publishing adapter
