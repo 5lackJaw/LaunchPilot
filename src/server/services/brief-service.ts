@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { inngest } from "@/inngest/client";
-import { marketingBriefSchema } from "@/server/schemas/brief";
+import { editMarketingBriefSchema, marketingBriefSchema } from "@/server/schemas/brief";
 import type { MarketingBrief } from "@/server/schemas/brief";
 import { productIdSchema } from "@/server/schemas/product";
 import { AuthService } from "@/server/services/auth-service";
@@ -58,6 +58,67 @@ export class BriefService {
 
     return data ? mapMarketingBrief(data) : null;
   }
+
+  async createEditedVersion(input: unknown): Promise<MarketingBrief> {
+    const parsed = editMarketingBriefSchema.parse(input);
+    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+    const currentBrief = await this.getCurrentBrief({ productId: parsed.productId });
+
+    if (!currentBrief) {
+      throw new BriefEditError("No current Marketing Brief exists for this product.");
+    }
+
+    const nextVersion = currentBrief.version + 1;
+    const provenance = {
+      ...currentBrief.provenance,
+      editor: "user",
+      previousBriefId: currentBrief.id,
+      editedAt: new Date().toISOString(),
+    };
+
+    const { data, error } = await this.supabase
+      .from("marketing_briefs")
+      .insert({
+        product_id: parsed.productId,
+        version: nextVersion,
+        tagline: parsed.tagline,
+        value_props: parsed.valueProps,
+        personas: parsed.personas,
+        competitors: parsed.competitors,
+        keyword_clusters: currentBrief.keywordClusters,
+        tone_profile: {
+          voice: parsed.toneVoice,
+          avoid: parsed.toneAvoid,
+        },
+        channels_ranked: currentBrief.channelsRanked,
+        content_calendar_seed: currentBrief.contentCalendarSeed,
+        launch_date: currentBrief.launchDate,
+        provenance,
+      })
+      .select(
+        "id,product_id,version,tagline,value_props,personas,competitors,keyword_clusters,tone_profile,channels_ranked,content_calendar_seed,launch_date,provenance,created_at,updated_at",
+      )
+      .single();
+
+    if (error) {
+      throw new BriefEditError(error.message);
+    }
+
+    const brief = mapMarketingBrief(data);
+
+    const { error: productError } = await this.supabase
+      .from("products")
+      .update({
+        current_marketing_brief_id: brief.id,
+      })
+      .eq("id", parsed.productId);
+
+    if (productError) {
+      throw new BriefEditError(productError.message);
+    }
+
+    return brief;
+  }
 }
 
 export class BriefGenerationRequestError extends Error {
@@ -71,6 +132,13 @@ export class BriefReadError extends Error {
   constructor(message: string) {
     super(`Marketing brief could not be loaded: ${message}`);
     this.name = "BriefReadError";
+  }
+}
+
+export class BriefEditError extends Error {
+  constructor(message: string) {
+    super(`Marketing brief could not be edited: ${message}`);
+    this.name = "BriefEditError";
   }
 }
 

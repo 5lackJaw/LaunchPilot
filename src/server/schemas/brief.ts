@@ -37,4 +37,15 @@ export const marketingBriefSchema = z.object({
   updatedAt: z.string(),
 });
 
+export const editMarketingBriefSchema = z.object({
+  productId: z.string().uuid(),
+  tagline: z.string().trim().min(1, "Tagline is required.").max(500, "Use 500 characters or fewer."),
+  valueProps: z.array(z.string().trim().min(1)).max(12),
+  personas: z.array(z.string().trim().min(1)).max(12),
+  competitors: z.array(z.string().trim().min(1)).max(20),
+  toneVoice: z.string().trim().min(1, "Tone voice is required.").max(500),
+  toneAvoid: z.array(z.string().trim().min(1)).max(12),
+});
+
 export type MarketingBrief = z.infer<typeof marketingBriefSchema>;
+export type EditMarketingBriefInput = z.infer<typeof editMarketingBriefSchema>;

@@ -11,7 +11,7 @@ import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { BriefReadError, BriefService } from "@/server/services/brief-service";
 import { ProductReadError, ProductService } from "@/server/services/product-service";
-import { requestBriefGenerationAction } from "@/app/onboarding/brief/actions";
+import { requestBriefGenerationAction, saveBriefEditAction } from "@/app/onboarding/brief/actions";
 
 export const metadata: Metadata = {
   title: "Marketing Brief",
@@ -21,6 +21,8 @@ type PageProps = {
   searchParams: Promise<{
     productId?: string;
     requested?: string;
+    edited?: string;
+    editError?: string;
   }>;
 };
 
@@ -58,6 +60,18 @@ export default async function OnboardingBriefPage({ searchParams }: PageProps) {
               <AlertDescription>
                 The workflow is running in the background. Refresh this page if the brief is not visible yet.
               </AlertDescription>
+            </Alert>
+          ) : null}
+          {params.edited ? (
+            <Alert>
+              <AlertTitle>Brief version saved</AlertTitle>
+              <AlertDescription>The product now points to the latest edited Marketing Brief version.</AlertDescription>
+            </Alert>
+          ) : null}
+          {params.editError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Brief edit was not saved</AlertTitle>
+              <AlertDescription>{params.editError}</AlertDescription>
             </Alert>
           ) : null}
 
@@ -111,6 +125,8 @@ function BriefReview({ brief }: { brief: MarketingBrief }) {
           <p className="max-w-4xl text-lg leading-8">{brief.tagline}</p>
         </CardContent>
       </Card>
+
+      <BriefEditForm brief={brief} />
 
       <BriefList title="Value props" items={brief.valueProps} />
       <BriefList title="Personas" items={brief.personas} />
@@ -204,6 +220,72 @@ function BriefReview({ brief }: { brief: MarketingBrief }) {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function BriefEditForm({ brief }: { brief: MarketingBrief }) {
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader>
+        <CardTitle>Edit current brief</CardTitle>
+        <CardDescription>Saving creates a new version and makes it current. Existing versions remain available for downstream audit references.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form action={saveBriefEditAction} className="grid gap-4 lg:grid-cols-2">
+          <input type="hidden" name="productId" value={brief.productId} />
+          <label className="flex flex-col gap-2 lg:col-span-2">
+            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Tagline</span>
+            <textarea
+              name="tagline"
+              defaultValue={brief.tagline}
+              required
+              className="min-h-24 rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+            />
+          </label>
+          <TextareaList name="valueProps" label="Value props" items={brief.valueProps} />
+          <TextareaList name="personas" label="Personas" items={brief.personas} />
+          <TextareaList name="competitors" label="Competitors" items={brief.competitors} placeholder="One competitor per line" />
+          <label className="flex flex-col gap-2">
+            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Tone voice</span>
+            <textarea
+              name="toneVoice"
+              defaultValue={brief.toneProfile.voice}
+              required
+              className="min-h-28 rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+            />
+          </label>
+          <TextareaList name="toneAvoid" label="Tone avoid list" items={brief.toneProfile.avoid} />
+          <div className="flex items-center justify-between gap-3 border-t pt-4 lg:col-span-2">
+            <p className="font-mono text-xs text-muted-foreground">Next version: {brief.version + 1}</p>
+            <Button type="submit">Save new version</Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TextareaList({
+  name,
+  label,
+  items,
+  placeholder,
+}: {
+  name: string;
+  label: string;
+  items: string[];
+  placeholder?: string;
+}) {
+  return (
+    <label className="flex flex-col gap-2">
+      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
+      <textarea
+        name={name}
+        defaultValue={items.join("\n")}
+        placeholder={placeholder ?? "One item per line"}
+        className="min-h-32 rounded-md border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
+      />
+    </label>
   );
 }
 
