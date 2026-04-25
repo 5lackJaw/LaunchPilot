@@ -34,6 +34,10 @@ export async function createProductAction(
 
     redirect(`/onboarding/crawl?productId=${product.id}&created=1`);
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     if (error instanceof ZodError) {
       const flattened = error.flatten();
 
@@ -81,6 +85,10 @@ export async function startCrawlAction(
 
     redirect(`/onboarding/crawl?productId=${job.productId}&crawlJobId=${job.id}`);
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     if (error instanceof ZodError) {
       return {
         status: "error",
@@ -118,4 +126,8 @@ export async function startCrawlAction(
 
     throw error;
   }
+}
+
+function isRedirectError(error: unknown) {
+  return error instanceof Error && "digest" in error && String(error.digest).startsWith("NEXT_REDIRECT");
 }

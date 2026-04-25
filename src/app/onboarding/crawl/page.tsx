@@ -9,7 +9,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { CrawlJob, CrawlResult } from "@/server/schemas/crawl";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
-import { CrawlService } from "@/server/services/crawl-service";
+import { CrawlReadError, CrawlService } from "@/server/services/crawl-service";
 import { ProductReadError, ProductService } from "@/server/services/product-service";
 import { ProductCreateForm } from "@/app/onboarding/crawl/product-create-form";
 import { StartCrawlForm } from "@/app/onboarding/crawl/start-crawl-form";
@@ -244,7 +244,7 @@ async function loadCrawlPageData(productId: string): Promise<{
       return { product: null, crawlJob: null, crawlResult: null, error: error.message };
     }
 
-    if (error instanceof ProductReadError) {
+    if (error instanceof ProductReadError || error instanceof CrawlReadError) {
       return { product: null, crawlJob: null, crawlResult: null, error: error.message };
     }
 
