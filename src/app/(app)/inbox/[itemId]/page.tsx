@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { InboxAuthRequired } from "@/app/(app)/inbox/auth-required";
+import { reviewInboxItemAction } from "@/app/(app)/inbox/[itemId]/actions";
 import type { InboxItem, InboxItemEvent } from "@/server/schemas/inbox";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { InboxEventReadError, InboxItemReadError, InboxService } from "@/server/services/inbox-service";
@@ -13,11 +15,20 @@ type PageProps = {
   params: Promise<{
     itemId: string;
   }>;
+  searchParams: Promise<{
+    reviewed?: string;
+    reviewError?: string;
+  }>;
 };
 
-export default async function InboxItemPage({ params }: PageProps) {
+export default async function InboxItemPage({ params, searchParams }: PageProps) {
   const { itemId } = await params;
+  const query = await searchParams;
   const data = await loadInboxItemData(itemId);
+
+  if (data.authRequired) {
+    return <InboxAuthRequired />;
+  }
 
   if (data.error) {
     return (
@@ -60,14 +71,26 @@ export default async function InboxItemPage({ params }: PageProps) {
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{getPreview(data.item)}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm">Skip</Button>
-          <Button variant="outline" size="sm">Reject</Button>
-          <Button size="sm">Approve</Button>
+          <ReviewActionForm item={data.item} status="skipped" label="Skip" variant="outline" />
+          <ReviewActionForm item={data.item} status="rejected" label="Reject" variant="outline" includeReason />
+          <ReviewActionForm item={data.item} status="approved" label="Approve" />
         </div>
       </header>
 
       <section className="grid gap-4 p-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex flex-col gap-4">
+          {query.reviewed ? (
+            <Alert>
+              <AlertTitle>Review saved</AlertTitle>
+              <AlertDescription>The inbox item was marked as {query.reviewed} and an audit event was recorded.</AlertDescription>
+            </Alert>
+          ) : null}
+          {query.reviewError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Review action failed</AlertTitle>
+              <AlertDescription>{query.reviewError}</AlertDescription>
+            </Alert>
+          ) : null}
           <ReviewBody item={data.item} />
           <RawPayload item={data.item} />
         </div>
@@ -77,6 +100,40 @@ export default async function InboxItemPage({ params }: PageProps) {
         </aside>
       </section>
     </main>
+  );
+}
+
+function ReviewActionForm({
+  item,
+  status,
+  label,
+  variant,
+  includeReason = false,
+}: {
+  item: InboxItem;
+  status: "approved" | "rejected" | "skipped";
+  label: string;
+  variant?: "outline";
+  includeReason?: boolean;
+}) {
+  const disabled = item.status !== "pending";
+
+  return (
+    <form action={reviewInboxItemAction} className="flex items-center gap-2">
+      <input type="hidden" name="inboxItemId" value={item.id} />
+      <input type="hidden" name="status" value={status} />
+      {includeReason ? (
+        <input
+          name="reason"
+          className="h-8 w-44 rounded-md border bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground"
+          placeholder="Reason"
+          disabled={disabled}
+        />
+      ) : null}
+      <Button type="submit" size="sm" variant={variant} disabled={disabled}>
+        {label}
+      </Button>
+    </form>
   );
 }
 
@@ -282,6 +339,7 @@ async function loadInboxItemData(itemId: string): Promise<{
   item: InboxItem | null;
   events: InboxItemEvent[];
   error: string | null;
+  authRequired: boolean;
 }> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -289,14 +347,14 @@ async function loadInboxItemData(itemId: string): Promise<{
     const item = await inbox.getItem({ inboxItemId: itemId });
     const events = await inbox.listEvents({ inboxItemId: item.id });
 
-    return { item, events, error: null };
+    return { item, events, error: null, authRequired: false };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { item: null, events: [], error: error.message };
+      return { item: null, events: [], error: null, authRequired: true };
     }
 
     if (error instanceof InboxItemReadError || error instanceof InboxEventReadError) {
-      return { item: null, events: [], error: error.message };
+      return { item: null, events: [], error: error.message, authRequired: false };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
@@ -304,6 +362,7 @@ async function loadInboxItemData(itemId: string): Promise<{
         item: null,
         events: [],
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
+        authRequired: false,
       };
     }
 

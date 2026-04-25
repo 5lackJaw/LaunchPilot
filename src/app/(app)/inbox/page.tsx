@@ -1,5 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { InboxAuthRequired } from "@/app/(app)/inbox/auth-required";
 import { InboxClient } from "@/app/(app)/inbox/inbox-client";
 import type { InboxItem } from "@/server/schemas/inbox";
 import type { Product } from "@/server/schemas/product";
@@ -19,7 +20,9 @@ export default async function InboxPage({ searchParams }: PageProps) {
 
   return (
     <>
-      {data.error ? (
+      {data.authRequired ? (
+        <InboxAuthRequired />
+      ) : data.error ? (
         <main className="flex min-h-screen flex-col">
           <div className="p-6">
             <Alert variant="destructive">
@@ -39,6 +42,7 @@ async function loadInboxData(productId?: string): Promise<{
   product: Product | null;
   items: InboxItem[];
   error: string | null;
+  authRequired: boolean;
 }> {
   try {
     const supabase = await createSupabaseServerClient();
@@ -46,7 +50,7 @@ async function loadInboxData(productId?: string): Promise<{
     const product = productId ? await productService.getProduct({ productId }) : await productService.getLatestProduct();
 
     if (!product) {
-      return { product: null, items: [], error: null };
+      return { product: null, items: [], error: null, authRequired: false };
     }
 
     const items = await new InboxService(supabase).listItems({
@@ -54,14 +58,14 @@ async function loadInboxData(productId?: string): Promise<{
       status: "pending",
     });
 
-    return { product, items, error: null };
+    return { product, items, error: null, authRequired: false };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { product: null, items: [], error: error.message };
+      return { product: null, items: [], error: null, authRequired: true };
     }
 
     if (error instanceof ProductReadError || error instanceof InboxItemReadError) {
-      return { product: null, items: [], error: error.message };
+      return { product: null, items: [], error: error.message, authRequired: false };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
@@ -69,6 +73,7 @@ async function loadInboxData(productId?: string): Promise<{
         product: null,
         items: [],
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
+        authRequired: false,
       };
     }
 

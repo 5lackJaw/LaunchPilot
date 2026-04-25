@@ -19,7 +19,7 @@ export class AuthService {
 
 export class AuthRequiredError extends Error {
   constructor() {
-    super("You need to sign in before creating a product.");
+    super("You need to sign in to access this page.");
     this.name = "AuthRequiredError";
   }
 }

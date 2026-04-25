@@ -27,9 +27,9 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Inbox item persistence model
 - [x] Inbox list page
 - [x] Inbox detail rendering by item type
-- [ ] Approve action
-- [ ] Reject action with reason
-- [ ] Skip action
+- [x] Approve action
+- [x] Reject action with reason
+- [x] Skip action
 - [ ] Batch actions for supported items
 - [ ] Review audit trail
 
