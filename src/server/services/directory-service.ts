@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { inngest } from "@/inngest/client";
 import {
+  autoSubmitDirectorySubmissionSchema,
   directorySchema,
   directorySubmissionSchema,
   listDirectoryTrackerSchema,
@@ -85,6 +86,53 @@ export class DirectoryService {
     return mapSubmission(data);
   }
 
+  async autoSubmitSupported(input: unknown): Promise<DirectorySubmission> {
+    const parsed = autoSubmitDirectorySubmissionSchema.parse(input);
+    const current = await this.getSubmission({ submissionId: parsed.submissionId });
+    await new ProductService(this.supabase).getProduct({ productId: current.productId });
+    const directory = await this.getDirectory({ directoryId: current.directoryId });
+
+    if (directory.submissionMethod !== "auto_supported") {
+      throw new DirectoryUpdateError("This directory does not support automatic submission.");
+    }
+
+    if (current.status !== "pending") {
+      throw new DirectoryUpdateError("Only pending directory submissions can be auto-submitted.");
+    }
+
+    if (!Object.keys(current.listingPayload).length) {
+      throw new DirectoryUpdateError("Generate a listing package before auto-submitting.");
+    }
+
+    const submittedAt = new Date().toISOString();
+    const provenance = {
+      ...current.provenance,
+      autoSubmit: {
+        adapter: "directory-auto-submit-v0",
+        submittedAt,
+        directoryName: directory.name,
+      },
+    };
+
+    const { data, error } = await this.supabase
+      .from("directory_submissions")
+      .update({
+        status: "submitted",
+        submitted_at: submittedAt,
+        notes: current.notes ?? `Auto-submitted to ${directory.name}.`,
+        provenance,
+      })
+      .eq("id", parsed.submissionId)
+      .select(submissionSelect)
+      .single();
+
+    if (error) {
+      throw new DirectoryUpdateError(error.message);
+    }
+
+    return mapSubmission(data);
+  }
+
   private async getSubmission(input: { submissionId: string }): Promise<DirectorySubmission> {
     const { data, error } = await this.supabase
       .from("directory_submissions")
@@ -97,6 +145,16 @@ export class DirectoryService {
     }
 
     return mapSubmission(data);
+  }
+
+  private async getDirectory(input: { directoryId: string }): Promise<Directory> {
+    const { data, error } = await this.supabase.from("directories").select(directorySelect).eq("id", input.directoryId).single();
+
+    if (error) {
+      throw new DirectoryReadError(error.message);
+    }
+
+    return mapDirectory(data);
   }
 }
 

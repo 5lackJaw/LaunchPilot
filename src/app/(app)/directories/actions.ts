@@ -49,6 +49,23 @@ export async function updateDirectorySubmissionStatusAction(formData: FormData) 
   redirect("/directories?statusUpdated=1");
 }
 
+export async function autoSubmitDirectorySubmissionAction(formData: FormData) {
+  const submissionId = String(formData.get("submissionId") ?? "");
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    await new DirectoryService(supabase).autoSubmitSupported({ submissionId });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirect("/directories?autoSubmitError=1");
+  }
+
+  redirect("/directories?autoSubmitted=1");
+}
+
 function isRedirectError(error: unknown) {
   return error instanceof Error && "digest" in error && String(error.digest).startsWith("NEXT_REDIRECT");
 }

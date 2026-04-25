@@ -6,7 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requestDirectoryPackagesAction, updateDirectorySubmissionStatusAction } from "@/app/(app)/directories/actions";
+import {
+  autoSubmitDirectorySubmissionAction,
+  requestDirectoryPackagesAction,
+  updateDirectorySubmissionStatusAction,
+} from "@/app/(app)/directories/actions";
 import type { DirectoryTrackerItem } from "@/server/schemas/directory";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
@@ -19,6 +23,8 @@ type PageProps = {
     packageError?: string;
     statusUpdated?: string;
     statusError?: string;
+    autoSubmitted?: string;
+    autoSubmitError?: string;
   }>;
 };
 
@@ -86,6 +92,18 @@ export default async function DirectoriesPage({ searchParams }: PageProps) {
             <AlertDescription>Reload the page and try again.</AlertDescription>
           </Alert>
         ) : null}
+        {params.autoSubmitted ? (
+          <Alert className="xl:col-span-2">
+            <AlertTitle>Directory auto-submitted</AlertTitle>
+            <AlertDescription>The supported directory submission was recorded as submitted with server-side provenance.</AlertDescription>
+          </Alert>
+        ) : null}
+        {params.autoSubmitError ? (
+          <Alert variant="destructive" className="xl:col-span-2">
+            <AlertTitle>Directory auto-submit failed</AlertTitle>
+            <AlertDescription>Only pending submissions for auto-supported directories with generated packages can be submitted automatically.</AlertDescription>
+          </Alert>
+        ) : null}
         <div className="overflow-hidden rounded-lg border bg-card">
           <div className="grid grid-cols-[minmax(0,1.4fr)_120px_120px_120px_180px] border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
             <span>Directory</span>
@@ -122,7 +140,7 @@ export default async function DirectoriesPage({ searchParams }: PageProps) {
           <Card>
             <CardHeader>
               <CardTitle>Next step</CardTitle>
-              <CardDescription>Listing package generation will create directory-specific payloads and inbox review items in the next Phase 5 slice.</CardDescription>
+              <CardDescription>Manual and assisted directories stay review-gated. Auto-submit only appears for supported catalog entries.</CardDescription>
             </CardHeader>
           </Card>
         </aside>
@@ -174,6 +192,31 @@ function DirectoryActions({ item }: { item: DirectoryTrackerItem }) {
   }
 
   const status = item.submission.status;
+  const canAutoSubmit =
+    status === "pending" &&
+    item.directory.submissionMethod === "auto_supported" &&
+    Object.keys(item.submission.listingPayload).length > 0;
+
+  if (canAutoSubmit) {
+    return (
+      <div className="flex justify-end gap-1.5">
+        <form action={autoSubmitDirectorySubmissionAction}>
+          <input type="hidden" name="submissionId" value={item.submission.id} />
+          <Button type="submit" variant="secondary" size="sm">
+            Auto-submit
+          </Button>
+        </form>
+        <form action={updateDirectorySubmissionStatusAction}>
+          <input type="hidden" name="submissionId" value={item.submission.id} />
+          <input type="hidden" name="status" value="skipped" />
+          <Button type="submit" variant="ghost" size="sm">
+            Skip
+          </Button>
+        </form>
+      </div>
+    );
+  }
+
   const nextStatuses =
     status === "submitted"
       ? [
@@ -184,8 +227,8 @@ function DirectoryActions({ item }: { item: DirectoryTrackerItem }) {
         ? []
         : status === "pending"
           ? [
-            { status: "submitted", label: "Submitted" },
-            { status: "skipped", label: "Skip" },
+              { status: "submitted", label: "Submitted" },
+              { status: "skipped", label: "Skip" },
             ]
           : [{ status: "pending", label: "Retry" }];
 

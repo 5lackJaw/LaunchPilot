@@ -57,7 +57,7 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Listing package generation
 - [x] Directory tracker page
 - [x] Submission state transitions
-- [ ] Auto-submit support for supported directories
+- [x] Auto-submit support for supported directories
 - [x] Manual flow support for unsupported directories
 
 ## Phase 6 — community intelligence

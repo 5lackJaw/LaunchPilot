@@ -81,3 +81,10 @@ Format:
 - Current implication: In local or unconfigured environments, the workflow still persists `weekly_briefs` and creates a weekly recommendation inbox item, but it skips email delivery and leaves `sent_at` empty.
 - Follow-up trigger: Before live deployment or when choosing the final production email provider/sender domain.
 - Safe current behavior: Keep email credentials server-only and require explicit provider configuration before sending external email.
+
+- Date: 2026-04-26
+- Area: Directory integrations
+- Item: Directory auto-submit is currently a server-side supported-directory adapter path with durable provenance, not a live external provider integration.
+- Current implication: The app can safely auto-submit only catalog entries marked `auto_supported`, but the seeded directory catalog remains manual/assisted until real directory APIs or credentialed flows are configured.
+- Follow-up trigger: Before enabling any production directory auto-submit provider.
+- Safe current behavior: The server rejects unsupported directories and pending submissions without generated listing packages; manual and assisted directories remain review-gated.

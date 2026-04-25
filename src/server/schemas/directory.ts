@@ -50,6 +50,10 @@ export const updateDirectorySubmissionStatusSchema = z.object({
   notes: z.string().trim().max(1000).optional(),
 });
 
+export const autoSubmitDirectorySubmissionSchema = z.object({
+  submissionId: z.string().uuid(),
+});
+
 export type Directory = z.infer<typeof directorySchema>;
 export type DirectorySubmission = z.infer<typeof directorySubmissionSchema>;
 export type DirectoryTrackerItem = z.infer<typeof directoryTrackerItemSchema>;
