@@ -1,0 +1,175 @@
+import { ExternalLink, FolderKanban } from "lucide-react";
+import Link from "next/link";
+import { AppTopbar } from "@/components/layout/app-topbar";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { DirectoryTrackerItem } from "@/server/schemas/directory";
+import type { Product } from "@/server/schemas/product";
+import { AuthRequiredError } from "@/server/services/auth-service";
+import { DirectoryReadError, DirectoryService } from "@/server/services/directory-service";
+import { ProductReadError, ProductService } from "@/server/services/product-service";
+
+export default async function DirectoriesPage() {
+  const data = await loadDirectoryData();
+
+  if (data.error) {
+    return (
+      <main className="flex min-h-screen flex-col">
+        <AppTopbar title="Directories" eyebrow="Submission tracker" />
+        <div className="p-6">
+          <Alert variant="destructive">
+            <AlertTitle>Directory tracker could not be loaded</AlertTitle>
+            <AlertDescription>{data.error}</AlertDescription>
+          </Alert>
+        </div>
+      </main>
+    );
+  }
+
+  const counts = countStatuses(data.items);
+
+  return (
+    <main className="flex min-h-screen flex-col">
+      <AppTopbar
+        title="Directories"
+        eyebrow={data.product ? `Submission tracker / ${data.product.name}` : "Submission tracker"}
+        actions={<Badge variant="secondary">{data.items.length} directories</Badge>}
+      />
+
+      <section className="grid gap-4 p-6 xl:grid-cols-[1fr_340px]">
+        <div className="overflow-hidden rounded-lg border bg-card">
+          <div className="grid grid-cols-[minmax(0,1.4fr)_120px_120px_120px_auto] border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+            <span>Directory</span>
+            <span>Method</span>
+            <span>Status</span>
+            <span>Review</span>
+            <span className="text-right">Authority</span>
+          </div>
+          {data.product ? (
+            data.items.length ? (
+              data.items.map((item) => <DirectoryRow key={item.directory.id} item={item} />)
+            ) : (
+              <p className="p-4 text-sm text-muted-foreground">No active directories are configured.</p>
+            )
+          ) : (
+            <p className="p-4 text-sm text-muted-foreground">Create a product before tracking directory submissions.</p>
+          )}
+        </div>
+
+        <aside className="flex flex-col gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Submission state</CardTitle>
+              <CardDescription>Current product progress across the directory catalog.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <Metric label="Pending" value={counts.pending} />
+              <Metric label="Submitted" value={counts.submitted} />
+              <Metric label="Live" value={counts.live} />
+              <Metric label="Skipped / failed" value={counts.skippedFailed} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Next step</CardTitle>
+              <CardDescription>Listing package generation will create directory-specific payloads and inbox review items in the next Phase 5 slice.</CardDescription>
+            </CardHeader>
+          </Card>
+        </aside>
+      </section>
+    </main>
+  );
+}
+
+function DirectoryRow({ item }: { item: DirectoryTrackerItem }) {
+  const status = item.submission?.status ?? "pending";
+
+  return (
+    <div className="grid grid-cols-[minmax(0,1.4fr)_120px_120px_120px_auto] items-center gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-secondary/60">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <FolderKanban className="size-4 text-muted-foreground" aria-hidden="true" />
+          <p className="truncate text-sm font-medium">{item.directory.name}</p>
+        </div>
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {item.directory.categories.slice(0, 3).map((category) => (
+            <Badge key={category} variant="outline">
+              {category}
+            </Badge>
+          ))}
+        </div>
+      </div>
+      <span className="font-mono text-[11px] text-muted-foreground">{item.directory.submissionMethod.replace("_", " ")}</span>
+      <Badge variant={status === "live" ? "success" : status === "failed" || status === "rejected" ? "danger" : status === "submitted" ? "warning" : "secondary"}>
+        {status}
+      </Badge>
+      <span className="font-mono text-[11px] text-muted-foreground">
+        {item.directory.reviewTimeDays === null ? "unknown" : `${item.directory.reviewTimeDays}d`}
+      </span>
+      <Button variant="ghost" size="sm" asChild>
+        <Link href={item.directory.url} target="_blank" rel="noreferrer">
+          {item.directory.avgDa ?? "n/a"}
+          <ExternalLink data-icon="inline-end" />
+        </Link>
+      </Button>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between border-b pb-2 last:border-b-0 last:pb-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-mono text-sm">{value}</span>
+    </div>
+  );
+}
+
+async function loadDirectoryData(): Promise<{
+  product: Product | null;
+  items: DirectoryTrackerItem[];
+  error: string | null;
+}> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const product = await new ProductService(supabase).getLatestProduct();
+
+    if (!product) {
+      return { product: null, items: [], error: null };
+    }
+
+    const items = await new DirectoryService(supabase).listTracker({ productId: product.id });
+    return { product, items, error: null };
+  } catch (error) {
+    if (error instanceof AuthRequiredError) {
+      return { product: null, items: [], error: error.message };
+    }
+
+    if (error instanceof ProductReadError || error instanceof DirectoryReadError) {
+      return { product: null, items: [], error: error.message };
+    }
+
+    if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
+      return {
+        product: null,
+        items: [],
+        error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
+      };
+    }
+
+    throw error;
+  }
+}
+
+function countStatuses(items: DirectoryTrackerItem[]) {
+  return {
+    pending: String(items.filter((item) => !item.submission || item.submission.status === "pending").length),
+    submitted: String(items.filter((item) => item.submission?.status === "submitted").length),
+    live: String(items.filter((item) => item.submission?.status === "live").length),
+    skippedFailed: String(items.filter((item) => item.submission && ["skipped", "failed", "rejected"].includes(item.submission.status)).length),
+  };
+}

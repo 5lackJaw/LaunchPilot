@@ -53,9 +53,9 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Weekly digest email
 
 ## Phase 5 — directory agent
-- [ ] Directory catalog model
+- [x] Directory catalog model
 - [ ] Listing package generation
-- [ ] Directory tracker page
+- [x] Directory tracker page
 - [ ] Submission state transitions
 - [ ] Auto-submit support for supported directories
 - [ ] Manual flow support for unsupported directories
