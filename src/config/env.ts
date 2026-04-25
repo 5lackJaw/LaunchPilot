@@ -19,6 +19,9 @@ const envSchema = z.object({
   GHOST_ADMIN_URL: optionalUrl,
   GHOST_ADMIN_API_KEY: optionalNonEmptyString,
   GHOST_API_VERSION: z.string().default("v6.0"),
+  WORDPRESS_SITE_URL: optionalUrl,
+  WORDPRESS_USERNAME: optionalNonEmptyString,
+  WORDPRESS_APPLICATION_PASSWORD: optionalNonEmptyString,
   SENTRY_DSN: optionalNonEmptyString,
 });
 

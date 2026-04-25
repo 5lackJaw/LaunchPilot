@@ -34,6 +34,27 @@ export async function publishContentAssetToGhostAction(formData: FormData) {
   redirect(redirectTo);
 }
 
+export async function publishContentAssetToWordPressAction(formData: FormData) {
+  const assetId = String(formData.get("assetId") ?? "");
+  let redirectTo = assetId ? `/content/${encodeURIComponent(assetId)}` : "/content";
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const asset = await new ContentService(supabase).publishToWordPress({ assetId });
+
+    revalidatePath("/content");
+    revalidatePath(`/content/${asset.id}`);
+    redirectTo = `/content/${asset.id}?wordpressPublished=1`;
+  } catch (error) {
+    const message = toWordPressPublishMessage(error);
+    redirectTo = assetId
+      ? `/content/${encodeURIComponent(assetId)}?wordpressError=${encodeURIComponent(message)}`
+      : `/content?wordpressError=${encodeURIComponent(message)}`;
+  }
+
+  redirect(redirectTo);
+}
+
 export async function requestArticleGenerationAction(formData: FormData) {
   const assetId = String(formData.get("assetId") ?? "");
   let redirectTo = assetId ? `/content/${encodeURIComponent(assetId)}` : "/content";
@@ -156,4 +177,28 @@ function toGhostPublishMessage(error: unknown) {
   }
 
   return "Ghost publish failed.";
+}
+
+function toWordPressPublishMessage(error: unknown) {
+  if (error instanceof ZodError) {
+    return "Choose a valid content asset.";
+  }
+
+  if (error instanceof AuthRequiredError) {
+    return error.message;
+  }
+
+  if (error instanceof ContentAssetReadError || error instanceof ContentPublishError) {
+    return error.message;
+  }
+
+  if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
+    return "Supabase is not configured yet.";
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "WordPress publish failed.";
 }

@@ -41,7 +41,7 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Content detail/editor page
 - [x] Markdown export
 - [x] Ghost publishing adapter
-- [ ] WordPress publishing adapter
+- [x] WordPress publishing adapter
 - [ ] Webflow publishing adapter
 
 ## Phase 4 — analytics baseline

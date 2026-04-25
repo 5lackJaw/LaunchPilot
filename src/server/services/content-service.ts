@@ -11,6 +11,7 @@ import {
 import type { ContentAsset, ContentAssetType, KeywordOpportunity } from "@/server/schemas/content";
 import type { MarketingBrief } from "@/server/schemas/brief";
 import { isGhostPublishingConfigured, publishContentAssetToGhost } from "@/server/publishing/ghost-adapter";
+import { isWordPressPublishingConfigured, publishContentAssetToWordPress } from "@/server/publishing/wordpress-adapter";
 import { BriefService } from "@/server/services/brief-service";
 import { ProductService } from "@/server/services/product-service";
 
@@ -188,6 +189,47 @@ export class ContentService {
     const provenance = {
       ...asset.provenance,
       ghost: {
+        providerPostId: published.providerPostId,
+        providerStatus: published.providerStatus,
+        sentAt: new Date().toISOString(),
+      },
+    };
+
+    const { data, error } = await this.supabase
+      .from("content_assets")
+      .update({
+        status: "published",
+        published_url: published.publishedUrl,
+        provenance,
+      })
+      .eq("id", asset.id)
+      .select(contentAssetSelect)
+      .single();
+
+    if (error) {
+      throw new ContentPublishError(error.message);
+    }
+
+    return mapContentAsset(data);
+  }
+
+  async publishToWordPress(input: unknown): Promise<ContentAsset> {
+    const parsed = contentAssetIdSchema.parse(input);
+    const asset = await this.getContentAsset({ assetId: parsed.assetId });
+    await new ProductService(this.supabase).getProduct({ productId: asset.productId });
+
+    if (!isWordPressPublishingConfigured()) {
+      throw new ContentPublishError("WordPress publishing is not configured.");
+    }
+
+    if (!["approved", "pending_review"].includes(asset.status)) {
+      throw new ContentPublishError("Only approved or pending review content assets can be sent to WordPress as drafts.");
+    }
+
+    const published = await publishContentAssetToWordPress(asset);
+    const provenance = {
+      ...asset.provenance,
+      wordpress: {
         providerPostId: published.providerPostId,
         providerStatus: published.providerStatus,
         sentAt: new Date().toISOString(),

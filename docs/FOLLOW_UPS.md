@@ -46,3 +46,10 @@ Format:
 - Current implication: The adapter can create Ghost drafts for local/server-configured testing, but it is not yet the final multi-tenant connection model.
 - Follow-up trigger: When the connections settings area and encrypted `external_connections` storage are implemented.
 - Safe current behavior: Keep Ghost Admin API credentials server-only, never expose them to the client, and create drafts rather than directly publishing live posts.
+
+- Date: 2026-04-25
+- Area: WordPress publishing
+- Item: WordPress publishing is currently configured with server environment variables and Application Passwords instead of encrypted per-user connections.
+- Current implication: The adapter can create WordPress drafts for local/server-configured testing, but it is not yet the final multi-tenant OAuth/connection model.
+- Follow-up trigger: When the connections settings area and encrypted `external_connections` storage are implemented.
+- Safe current behavior: Keep WordPress credentials server-only, use draft status, and require review before any live publishing workflow is added.

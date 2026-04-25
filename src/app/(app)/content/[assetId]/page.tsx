@@ -11,10 +11,12 @@ import { AppTopbar } from "@/components/layout/app-topbar";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   publishContentAssetToGhostAction,
+  publishContentAssetToWordPressAction,
   requestArticleGenerationAction,
   updateContentAssetAction,
 } from "@/app/(app)/content/[assetId]/actions";
 import { isGhostPublishingConfigured } from "@/server/publishing/ghost-adapter";
+import { isWordPressPublishingConfigured } from "@/server/publishing/wordpress-adapter";
 import type { ContentAsset } from "@/server/schemas/content";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { ContentAssetReadError, ContentService } from "@/server/services/content-service";
@@ -29,6 +31,8 @@ type PageProps = {
     generationError?: string;
     ghostPublished?: string;
     ghostError?: string;
+    wordpressPublished?: string;
+    wordpressError?: string;
   }>;
 };
 
@@ -85,6 +89,12 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
               <AlertDescription>The content asset was sent to Ghost as a draft.</AlertDescription>
             </Alert>
           ) : null}
+          {query.wordpressPublished ? (
+            <Alert>
+              <AlertTitle>WordPress draft created</AlertTitle>
+              <AlertDescription>The content asset was sent to WordPress as a draft.</AlertDescription>
+            </Alert>
+          ) : null}
           {query.saveError ? (
             <Alert variant="destructive">
               <AlertTitle>Save failed</AlertTitle>
@@ -101,6 +111,12 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
             <Alert variant="destructive">
               <AlertTitle>Ghost publish failed</AlertTitle>
               <AlertDescription>{query.ghostError}</AlertDescription>
+            </Alert>
+          ) : null}
+          {query.wordpressError ? (
+            <Alert variant="destructive">
+              <AlertTitle>WordPress publish failed</AlertTitle>
+              <AlertDescription>{query.wordpressError}</AlertDescription>
             </Alert>
           ) : null}
 
@@ -214,6 +230,20 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
               </form>
               {!isGhostPublishingConfigured() ? (
                 <p className="text-xs text-muted-foreground">Set GHOST_ADMIN_URL and GHOST_ADMIN_API_KEY to enable Ghost publishing.</p>
+              ) : null}
+              <form action={publishContentAssetToWordPressAction}>
+                <input type="hidden" name="assetId" value={data.asset.id} />
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="w-full"
+                  disabled={!isWordPressPublishingConfigured() || !data.asset.bodyMd.trim() || !["approved", "pending_review"].includes(data.asset.status)}
+                >
+                  Send draft to WordPress
+                </Button>
+              </form>
+              {!isWordPressPublishingConfigured() ? (
+                <p className="text-xs text-muted-foreground">Set WORDPRESS_SITE_URL, WORDPRESS_USERNAME, and WORDPRESS_APPLICATION_PASSWORD to enable WordPress publishing.</p>
               ) : null}
             </CardContent>
             {data.asset.publishedUrl ? (
