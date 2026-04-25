@@ -6,66 +6,27 @@ import { AppTopbar } from "@/components/layout/app-topbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
-const items = [
-  {
-    id: "article-usdc",
-    type: "article",
-    title: "How to invoice clients in USDC: a freelancer's guide",
-    preview: "1,840 words - targets usdc invoice freelancer.",
-    confidence: 92,
-    impact: "High",
-    reviewTime: "8 min",
-    bulkSafe: true,
-  },
-  {
-    id: "reply-reddit",
-    type: "reply",
-    title: 'r/freelance - "Anyone accepting crypto payments yet?"',
-    preview: "Reddit reply draft - relevance score 82.",
-    confidence: 82,
-    impact: "Medium",
-    reviewTime: "3 min",
-    bulkSafe: false,
-  },
-  {
-    id: "article-comparison",
-    type: "article",
-    title: "Crypto invoicing vs traditional invoicing: a comparison",
-    preview: "Comparison article - targets alternative invoicing tools.",
-    confidence: 91,
-    impact: "High",
-    reviewTime: "9 min",
-    bulkSafe: true,
-  },
-  {
-    id: "listing-ph",
-    type: "listing",
-    title: "ProductHunt launch package - tagline, description, screenshots",
-    preview: "Directory package with five generated assets.",
-    confidence: 88,
-    impact: "High",
-    reviewTime: "5 min",
-    bulkSafe: true,
-  },
-  {
-    id: "outreach-newsletter",
-    type: "outreach",
-    title: "Newsletter pitch for indie payments roundup",
-    preview: "Cold outreach draft with product-specific hook.",
-    confidence: 74,
-    impact: "Medium",
-    reviewTime: "4 min",
-    bulkSafe: false,
-  },
-];
+import type { InboxItem } from "@/server/schemas/inbox";
+import type { Product } from "@/server/schemas/product";
 
 const filters = ["all", "article", "reply", "listing", "outreach", "copy"] as const;
 
-export function InboxClient() {
+type InboxListItem = {
+  id: string;
+  type: (typeof filters)[number] extends "all" ? never : Exclude<(typeof filters)[number], "all">;
+  title: string;
+  preview: string;
+  confidence: number | null;
+  impact: string;
+  reviewTime: string;
+  bulkSafe: boolean;
+};
+
+export function InboxClient({ items: persistedItems, product }: { items: InboxItem[]; product: Product | null }) {
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const highConfidenceIds = useMemo(() => items.filter((item) => item.bulkSafe).map((item) => item.id), []);
+  const items = useMemo(() => persistedItems.map(mapInboxItem), [persistedItems]);
+  const highConfidenceIds = useMemo(() => items.filter((item) => item.bulkSafe).map((item) => item.id), [items]);
   const visibleItems = activeFilter === "all" ? items : items.filter((item) => item.type === activeFilter);
 
   function toggleItem(id: string) {
@@ -88,11 +49,11 @@ export function InboxClient() {
     <main className="flex min-h-screen flex-col">
       <AppTopbar
         title="Inbox"
-        eyebrow="Approval queue"
+        eyebrow={product ? `Approval queue / ${product.name}` : "Approval queue"}
         actions={
           <>
             <Button type="button" variant="ghost" size="sm" onClick={approveHighConfidence}>
-              Approve all high-confidence (3)
+              Approve all high-confidence ({highConfidenceIds.length})
             </Button>
             <Badge variant="warning">{items.length} pending</Badge>
           </>
@@ -115,7 +76,7 @@ export function InboxClient() {
 
       <section className="grid gap-4 p-6 xl:grid-cols-[1fr_360px]">
         <div className="flex flex-col gap-3">
-          {visibleItems.map((item) => (
+          {visibleItems.length ? visibleItems.map((item) => (
             <Card key={item.id} className={selected.has(item.id) ? "border-primary" : undefined}>
               <CardHeader className="pb-3">
                 <div className="flex items-start gap-3">
@@ -129,7 +90,7 @@ export function InboxClient() {
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <Badge variant="secondary">{item.type}</Badge>
-                      <Badge variant={item.bulkSafe ? "success" : "outline"}>{item.confidence}% confidence</Badge>
+                      <Badge variant={item.bulkSafe ? "success" : "outline"}>{formatConfidence(item.confidence)}</Badge>
                       <Badge variant="outline">{item.impact} impact</Badge>
                     </div>
                     <CardTitle className="truncate text-base">{item.title}</CardTitle>
@@ -154,7 +115,16 @@ export function InboxClient() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+          )) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>No pending items</CardTitle>
+                <CardDescription>
+                  Generated actions will appear here when content, community, directory, outreach, or positioning workflows create inbox items.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
         </div>
 
         <Card>
@@ -166,11 +136,63 @@ export function InboxClient() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
             <p>{selected.size} selected</p>
-            <p>Approval execution remains server-authoritative in the inbox backbone slice.</p>
+            <p>Approval execution remains server-authoritative. This page now reads persisted inbox items.</p>
             <p>Low-confidence items stay review-gated.</p>
           </CardContent>
         </Card>
       </section>
     </main>
   );
+}
+
+function mapInboxItem(item: InboxItem): InboxListItem {
+  const confidence = item.aiConfidence === null ? null : Math.round(item.aiConfidence * 100);
+
+  return {
+    id: item.id,
+    type: mapItemType(item.itemType),
+    title: item.payload.title ?? humanizeItemType(item.itemType),
+    preview: item.payload.preview ?? item.payload.suggestedAction ?? "Review the generated recommendation before taking action.",
+    confidence,
+    impact: titleCase(item.impactEstimate),
+    reviewTime: formatReviewTime(item.reviewTimeEstimateSeconds),
+    bulkSafe: item.impactEstimate === "high" && (item.aiConfidence ?? 0) >= 0.88,
+  };
+}
+
+function mapItemType(itemType: InboxItem["itemType"]): InboxListItem["type"] {
+  switch (itemType) {
+    case "content_draft":
+      return "article";
+    case "community_reply":
+      return "reply";
+    case "directory_package":
+      return "listing";
+    case "outreach_email":
+      return "outreach";
+    case "positioning_update":
+    case "weekly_recommendation":
+      return "copy";
+  }
+}
+
+function humanizeItemType(itemType: InboxItem["itemType"]) {
+  return itemType.replaceAll("_", " ");
+}
+
+function titleCase(value: string) {
+  return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatReviewTime(seconds: number | null) {
+  if (seconds === null) {
+    return "Review";
+  }
+
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  return `${minutes} min`;
+}
+
+function formatConfidence(confidence: number | null) {
+  return confidence === null ? "No confidence score" : `${confidence}% confidence`;
 }

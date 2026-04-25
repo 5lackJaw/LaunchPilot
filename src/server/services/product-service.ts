@@ -59,6 +59,33 @@ export class ProductService {
       createdAt: data.created_at,
     });
   }
+
+  async getLatestProduct() {
+    await new AuthService(this.supabase).requireUser();
+
+    const { data, error } = await this.supabase
+      .from("products")
+      .select("id,user_id,name,url,status,current_marketing_brief_id,created_at")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw new ProductReadError(error.message);
+    }
+
+    return data
+      ? productSchema.parse({
+          id: data.id,
+          userId: data.user_id,
+          name: data.name,
+          url: data.url,
+          status: data.status,
+          currentMarketingBriefId: data.current_marketing_brief_id,
+          createdAt: data.created_at,
+        })
+      : null;
+  }
 }
 
 export class ProductCreateError extends Error {
