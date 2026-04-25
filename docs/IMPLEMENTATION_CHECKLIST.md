@@ -34,9 +34,9 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Review audit trail
 
 ## Phase 3 — content pipeline
-- [ ] Keyword opportunity selection flow
+- [x] Keyword opportunity selection flow
 - [ ] Article generation workflow
-- [ ] Content asset storage model
+- [x] Content asset storage model
 - [ ] Content library page
 - [ ] Content detail/editor page
 - [ ] Markdown export

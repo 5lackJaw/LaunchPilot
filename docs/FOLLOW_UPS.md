@@ -25,3 +25,10 @@ Format:
 - Current implication: Seed rows are intentionally tagged with `source_entity_type = 'dev_seed'` and can be cleared from the inbox UI, so unfinished generator workflows do not block manual inbox inspection.
 - Follow-up trigger: Before production deployment, before demoing against production-like data, or when real content/community/directory generators begin creating inbox items.
 - Safe current behavior: The seed UI is disabled by default, hidden in `NODE_ENV=production`, and production inbox reads suppress `dev_seed` rows if any were accidentally present.
+
+- Date: 2026-04-25
+- Area: SEO content planning
+- Item: Keyword opportunity priority is currently deterministic from Marketing Brief keyword clusters and content calendar seeds.
+- Current implication: The `/seo` selection flow is usable before analytics/rank data exists, but the score is not yet based on live volume, difficulty, conversion, or rank movement signals.
+- Follow-up trigger: When Phase 4 analytics and keyword movement data are available, or before treating priority score as a production recommendation.
+- Safe current behavior: Label the value as priority, keep the rationale visible, and use it only to order generated opportunities from the current brief.
