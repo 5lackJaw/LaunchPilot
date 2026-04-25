@@ -1,7 +1,10 @@
 import { inngest } from "@/inngest/client";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { buildInitialBrief } from "@/server/brief/build-initial-brief";
+import { buildArticleDraft } from "@/server/content/build-article-draft";
 import { extractPageSignals } from "@/server/crawl/extract-page-signals";
+import { contentAssetSchema } from "@/server/schemas/content";
+import { marketingBriefSchema } from "@/server/schemas/brief";
 
 export const briefGenerationWorkflow = inngest.createFunction(
   { id: "brief-generation-workflow", triggers: [{ event: "brief/generation.requested" }] },
@@ -226,4 +229,185 @@ export const productCrawlPlaceholder = inngest.createFunction(
   },
 );
 
-export const functions = [briefGenerationWorkflow, productCrawlPlaceholder];
+export const contentGenerationWorkflow = inngest.createFunction(
+  { id: "content-generation-workflow", triggers: [{ event: "content/generation.requested" }] },
+  async ({ event, step }) => {
+    const contentAssetId = event.data.contentAssetId as string;
+    const supabase = createSupabaseAdminClient();
+
+    const inputs = await step.run("load-content-inputs", async () => {
+      const assetResult = await supabase
+        .from("content_assets")
+        .select("id,product_id,brief_version,type,title,body_md,target_keyword,meta_title,meta_description,status,published_url,ai_confidence,provenance,created_at,updated_at")
+        .eq("id", contentAssetId)
+        .single();
+
+      if (assetResult.error) {
+        throw assetResult.error;
+      }
+
+      const asset = contentAssetSchema.parse({
+        id: assetResult.data.id,
+        productId: assetResult.data.product_id,
+        briefVersion: assetResult.data.brief_version,
+        type: assetResult.data.type,
+        title: assetResult.data.title,
+        bodyMd: assetResult.data.body_md,
+        targetKeyword: assetResult.data.target_keyword,
+        metaTitle: assetResult.data.meta_title,
+        metaDescription: assetResult.data.meta_description,
+        status: assetResult.data.status,
+        publishedUrl: assetResult.data.published_url,
+        aiConfidence: assetResult.data.ai_confidence === null ? null : Number(assetResult.data.ai_confidence),
+        provenance: assetResult.data.provenance,
+        createdAt: assetResult.data.created_at,
+        updatedAt: assetResult.data.updated_at,
+      });
+
+      if (!["draft", "pending_review", "rejected", "failed"].includes(asset.status)) {
+        throw new Error("Content asset is not eligible for generation.");
+      }
+
+      const [productResult, briefResult] = await Promise.all([
+        supabase.from("products").select("id,name").eq("id", asset.productId).single(),
+        supabase
+          .from("marketing_briefs")
+          .select(
+            "id,product_id,version,tagline,value_props,personas,competitors,keyword_clusters,tone_profile,channels_ranked,content_calendar_seed,launch_date,provenance,created_at,updated_at",
+          )
+          .eq("product_id", asset.productId)
+          .eq("version", asset.briefVersion)
+          .single(),
+      ]);
+
+      if (productResult.error) {
+        throw productResult.error;
+      }
+
+      if (briefResult.error) {
+        throw briefResult.error;
+      }
+
+      const brief = marketingBriefSchema.parse({
+        id: briefResult.data.id,
+        productId: briefResult.data.product_id,
+        version: briefResult.data.version,
+        tagline: briefResult.data.tagline,
+        valueProps: briefResult.data.value_props,
+        personas: briefResult.data.personas,
+        competitors: briefResult.data.competitors,
+        keywordClusters: briefResult.data.keyword_clusters,
+        toneProfile: briefResult.data.tone_profile,
+        channelsRanked: briefResult.data.channels_ranked,
+        contentCalendarSeed: briefResult.data.content_calendar_seed,
+        launchDate: briefResult.data.launch_date,
+        provenance: briefResult.data.provenance,
+        createdAt: briefResult.data.created_at,
+        updatedAt: briefResult.data.updated_at,
+      });
+
+      return { asset, brief, product: productResult.data };
+    });
+
+    const draft = await step.run("compose-article-draft", async () =>
+      buildArticleDraft({
+        asset: inputs.asset,
+        brief: inputs.brief,
+        productName: inputs.product.name,
+      }),
+    );
+
+    const updated = await step.run("persist-content-asset", async () => {
+      const { data, error } = await supabase
+        .from("content_assets")
+        .update({
+          title: draft.title,
+          body_md: draft.bodyMd,
+          meta_title: draft.metaTitle,
+          meta_description: draft.metaDescription,
+          status: "pending_review",
+          ai_confidence: draft.aiConfidence,
+          provenance: {
+            ...inputs.asset.provenance,
+            generator: "deterministic-content-v0",
+            generatedAt: new Date().toISOString(),
+            briefVersion: inputs.brief.version,
+          },
+        })
+        .eq("id", inputs.asset.id)
+        .select("id,product_id,title,target_keyword,ai_confidence")
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return data;
+    });
+
+    await step.run("create-review-inbox-item", async () => {
+      const existing = await supabase
+        .from("inbox_items")
+        .select("id")
+        .eq("product_id", updated.product_id)
+        .eq("source_entity_type", "content_asset")
+        .eq("source_entity_id", updated.id)
+        .eq("status", "pending")
+        .maybeSingle();
+
+      if (existing.error) {
+        throw existing.error;
+      }
+
+      if (existing.data) {
+        return existing.data;
+      }
+
+      const { data, error } = await supabase
+        .from("inbox_items")
+        .insert({
+          product_id: updated.product_id,
+          item_type: "content_draft",
+          source_entity_type: "content_asset",
+          source_entity_id: updated.id,
+          payload: {
+            title: updated.title,
+            preview: `${inputs.asset.type} draft for ${updated.target_keyword ?? "selected keyword"}.`,
+            body: draft.bodyMd,
+            targetKeyword: updated.target_keyword,
+            metaTitle: draft.metaTitle,
+            metaDescription: draft.metaDescription,
+            suggestedAction: "Review the generated content draft before publishing or exporting.",
+          },
+          ai_confidence: draft.aiConfidence,
+          impact_estimate: "high",
+          review_time_estimate_seconds: 600,
+        })
+        .select("id,product_id")
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      const eventResult = await supabase.from("inbox_item_events").insert({
+        inbox_item_id: data.id,
+        product_id: data.product_id,
+        event_type: "created",
+        metadata: {
+          sourceEntityType: "content_asset",
+          sourceEntityId: updated.id,
+          workflow: "content_generation",
+        },
+      });
+
+      if (eventResult.error) {
+        throw eventResult.error;
+      }
+
+      return data;
+    });
+  },
+);
+
+export const functions = [briefGenerationWorkflow, productCrawlPlaceholder, contentGenerationWorkflow];

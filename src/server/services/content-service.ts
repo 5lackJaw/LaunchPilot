@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { inngest } from "@/inngest/client";
 import {
   contentAssetIdSchema,
   contentAssetSchema,
@@ -149,6 +150,26 @@ export class ContentService {
     return mapContentAsset(data);
   }
 
+  async requestArticleGeneration(input: unknown): Promise<ContentAsset> {
+    const parsed = contentAssetIdSchema.parse(input);
+    const asset = await this.getContentAsset({ assetId: parsed.assetId });
+    await new ProductService(this.supabase).getProduct({ productId: asset.productId });
+
+    if (!["draft", "pending_review", "rejected", "failed"].includes(asset.status)) {
+      throw new ContentGenerationRequestError("Only draft, pending review, rejected, or failed content assets can be regenerated.");
+    }
+
+    await inngest.send({
+      name: "content/generation.requested",
+      data: {
+        contentAssetId: asset.id,
+        productId: asset.productId,
+      },
+    });
+
+    return asset;
+  }
+
   private async findActiveAssetForKeyword(input: { productId: string; targetKeyword: string }) {
     const { data, error } = await this.supabase
       .from("content_assets")
@@ -186,6 +207,13 @@ export class ContentAssetUpdateError extends Error {
   constructor(message: string) {
     super(`Content asset could not be updated: ${message}`);
     this.name = "ContentAssetUpdateError";
+  }
+}
+
+export class ContentGenerationRequestError extends Error {
+  constructor(message: string) {
+    super(`Content generation could not be requested: ${message}`);
+    this.name = "ContentGenerationRequestError";
   }
 }
 

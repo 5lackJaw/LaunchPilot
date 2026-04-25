@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { updateContentAssetAction } from "@/app/(app)/content/[assetId]/actions";
+import { requestArticleGenerationAction, updateContentAssetAction } from "@/app/(app)/content/[assetId]/actions";
 import type { ContentAsset } from "@/server/schemas/content";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { ContentAssetReadError, ContentService } from "@/server/services/content-service";
@@ -20,6 +20,8 @@ type PageProps = {
     selected?: string;
     saved?: string;
     saveError?: string;
+    generationRequested?: string;
+    generationError?: string;
   }>;
 };
 
@@ -64,10 +66,22 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
               <AlertDescription>The draft fields were updated.</AlertDescription>
             </Alert>
           ) : null}
+          {query.generationRequested ? (
+            <Alert>
+              <AlertTitle>Generation requested</AlertTitle>
+              <AlertDescription>The content workflow will generate a draft and create an inbox review item.</AlertDescription>
+            </Alert>
+          ) : null}
           {query.saveError ? (
             <Alert variant="destructive">
               <AlertTitle>Save failed</AlertTitle>
               <AlertDescription>{query.saveError}</AlertDescription>
+            </Alert>
+          ) : null}
+          {query.generationError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Generation request failed</AlertTitle>
+              <AlertDescription>{query.generationError}</AlertDescription>
             </Alert>
           ) : null}
 
@@ -123,6 +137,26 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
               <Row label="Type" value={data.asset.type} />
               <Row label="Brief" value={`v${data.asset.briefVersion}`} />
               <Row label="Confidence" value={data.asset.aiConfidence === null ? "Not scored" : `${Math.round(data.asset.aiConfidence * 100)}%`} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Draft generation</CardTitle>
+              <CardDescription>Generate body copy and send the draft to the approval inbox.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form action={requestArticleGenerationAction}>
+                <input type="hidden" name="assetId" value={data.asset.id} />
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="w-full"
+                  disabled={!["draft", "pending_review", "rejected", "failed"].includes(data.asset.status)}
+                >
+                  Generate draft
+                </Button>
+              </form>
             </CardContent>
           </Card>
 

@@ -5,7 +5,33 @@ import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthRequiredError } from "@/server/services/auth-service";
-import { ContentAssetReadError, ContentAssetUpdateError, ContentService } from "@/server/services/content-service";
+import {
+  ContentAssetReadError,
+  ContentAssetUpdateError,
+  ContentGenerationRequestError,
+  ContentService,
+} from "@/server/services/content-service";
+
+export async function requestArticleGenerationAction(formData: FormData) {
+  const assetId = String(formData.get("assetId") ?? "");
+  let redirectTo = assetId ? `/content/${encodeURIComponent(assetId)}` : "/content";
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const asset = await new ContentService(supabase).requestArticleGeneration({ assetId });
+
+    revalidatePath("/content");
+    revalidatePath(`/content/${asset.id}`);
+    redirectTo = `/content/${asset.id}?generationRequested=1`;
+  } catch (error) {
+    const message = toGenerationRequestMessage(error);
+    redirectTo = assetId
+      ? `/content/${encodeURIComponent(assetId)}?generationError=${encodeURIComponent(message)}`
+      : `/content?generationError=${encodeURIComponent(message)}`;
+  }
+
+  redirect(redirectTo);
+}
 
 export async function updateContentAssetAction(formData: FormData) {
   const assetId = String(formData.get("assetId") ?? "");
@@ -60,4 +86,28 @@ function toUpdateErrorMessage(error: unknown) {
   }
 
   return "Content asset could not be saved.";
+}
+
+function toGenerationRequestMessage(error: unknown) {
+  if (error instanceof ZodError) {
+    return "Choose a valid content asset.";
+  }
+
+  if (error instanceof AuthRequiredError) {
+    return error.message;
+  }
+
+  if (error instanceof ContentAssetReadError || error instanceof ContentGenerationRequestError) {
+    return error.message;
+  }
+
+  if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
+    return "Supabase is not configured yet.";
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Content generation could not be requested.";
 }

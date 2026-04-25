@@ -32,3 +32,10 @@ Format:
 - Current implication: The `/seo` selection flow is usable before analytics/rank data exists, but the score is not yet based on live volume, difficulty, conversion, or rank movement signals.
 - Follow-up trigger: When Phase 4 analytics and keyword movement data are available, or before treating priority score as a production recommendation.
 - Safe current behavior: Label the value as priority, keep the rationale visible, and use it only to order generated opportunities from the current brief.
+
+- Date: 2026-04-25
+- Area: Article generation
+- Item: The Phase 3 article generation workflow currently uses deterministic draft composition rather than an AI provider.
+- Current implication: The workflow exercises the durable pipeline, content asset updates, and approval inbox handoff, but generated copy is placeholder-quality and should not be treated as production-ready.
+- Follow-up trigger: When Anthropic/OpenAI generation is wired, replace the deterministic composer with the provider-backed outline, draft, and SEO review steps.
+- Safe current behavior: Keep generated content in `pending_review`, create an inbox item, and require human review before publishing or export.

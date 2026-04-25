@@ -35,7 +35,7 @@ Use this as the execution checklist. Check items only when fully implemented.
 
 ## Phase 3 — content pipeline
 - [x] Keyword opportunity selection flow
-- [ ] Article generation workflow
+- [x] Article generation workflow
 - [x] Content asset storage model
 - [x] Content library page
 - [x] Content detail/editor page
