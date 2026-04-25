@@ -11,6 +11,8 @@ import { ProductReadError, ProductService } from "@/server/services/product-serv
 type PageProps = {
   searchParams: Promise<{
     productId?: string;
+    batchApproved?: string;
+    batchError?: string;
   }>;
 };
 
@@ -32,7 +34,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
           </div>
         </main>
       ) : (
-        <InboxClient items={data.items} product={data.product} />
+        <InboxClient items={data.items} product={data.product} batchApproved={params.batchApproved} batchError={params.batchError} />
       )}
     </>
   );

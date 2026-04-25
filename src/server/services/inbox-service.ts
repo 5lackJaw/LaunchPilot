@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  batchApproveInboxItemsSchema,
   createInboxItemSchema,
   inboxItemEventSchema,
   inboxItemSchema,
@@ -122,6 +123,30 @@ export class InboxService {
     });
 
     return item;
+  }
+
+  async batchApproveSupported(input: unknown): Promise<InboxItem[]> {
+    const parsed = batchApproveInboxItemsSchema.parse(input);
+    const uniqueIds = Array.from(new Set(parsed.inboxItemIds));
+    const items = await Promise.all(uniqueIds.map((inboxItemId) => this.getItem({ inboxItemId })));
+    const eligibleItems = items.filter(isBatchApprovalEligible);
+
+    if (!eligibleItems.length) {
+      throw new InboxItemReviewError("No selected inbox items are eligible for batch approval.");
+    }
+
+    const approvedItems: InboxItem[] = [];
+
+    for (const item of eligibleItems) {
+      const approved = await this.reviewItem({
+        inboxItemId: item.id,
+        status: "approved",
+        reason: "Batch approved as high-confidence item.",
+      });
+      approvedItems.push(approved);
+    }
+
+    return approvedItems;
   }
 
   async listEvents(input: unknown): Promise<InboxItemEvent[]> {
@@ -251,4 +276,8 @@ function mapInboxEvent(data: {
     metadata: data.metadata,
     createdAt: data.created_at,
   });
+}
+
+function isBatchApprovalEligible(item: InboxItem) {
+  return item.status === "pending" && item.impactEstimate === "high" && (item.aiConfidence ?? 0) >= 0.88;
 }

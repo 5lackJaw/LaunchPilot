@@ -30,8 +30,8 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Approve action
 - [x] Reject action with reason
 - [x] Skip action
-- [ ] Batch actions for supported items
-- [ ] Review audit trail
+- [x] Batch actions for supported items
+- [x] Review audit trail
 
 ## Phase 3 — content pipeline
 - [ ] Keyword opportunity selection flow

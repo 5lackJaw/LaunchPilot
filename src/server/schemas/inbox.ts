@@ -72,8 +72,13 @@ export const reviewInboxItemSchema = z.object({
   reason: z.string().trim().max(1000).optional(),
 });
 
+export const batchApproveInboxItemsSchema = z.object({
+  inboxItemIds: z.array(z.string().uuid()).min(1).max(25),
+});
+
 export type InboxItem = z.infer<typeof inboxItemSchema>;
 export type InboxItemEvent = z.infer<typeof inboxItemEventSchema>;
 export type CreateInboxItemInput = z.infer<typeof createInboxItemSchema>;
 export type ListInboxItemsInput = z.infer<typeof listInboxItemsSchema>;
 export type ReviewInboxItemInput = z.infer<typeof reviewInboxItemSchema>;
+export type BatchApproveInboxItemsInput = z.infer<typeof batchApproveInboxItemsSchema>;

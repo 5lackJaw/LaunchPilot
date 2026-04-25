@@ -7,6 +7,8 @@ import { AppTopbar } from "@/components/layout/app-topbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { batchApproveInboxItemsAction } from "@/app/(app)/inbox/actions";
 import type { InboxItem } from "@/server/schemas/inbox";
 import type { Product } from "@/server/schemas/product";
 
@@ -23,7 +25,17 @@ type InboxListItem = {
   bulkSafe: boolean;
 };
 
-export function InboxClient({ items: persistedItems, product }: { items: InboxItem[]; product: Product | null }) {
+export function InboxClient({
+  items: persistedItems,
+  product,
+  batchApproved,
+  batchError,
+}: {
+  items: InboxItem[];
+  product: Product | null;
+  batchApproved?: string;
+  batchError?: string;
+}) {
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const items = useMemo(() => persistedItems.map(mapInboxItem), [persistedItems]);
@@ -54,7 +66,7 @@ export function InboxClient({ items: persistedItems, product }: { items: InboxIt
         actions={
           <>
             <Button type="button" variant="ghost" size="sm" onClick={approveHighConfidence}>
-              Approve all high-confidence ({highConfidenceIds.length})
+              Select high-confidence ({highConfidenceIds.length})
             </Button>
             <Badge variant="warning">{items.length} pending</Badge>
           </>
@@ -77,6 +89,18 @@ export function InboxClient({ items: persistedItems, product }: { items: InboxIt
 
       <section className="grid gap-4 p-6 xl:grid-cols-[1fr_360px]">
         <div className="flex flex-col gap-3">
+          {batchApproved ? (
+            <Alert>
+              <AlertTitle>Batch approval saved</AlertTitle>
+              <AlertDescription>{batchApproved} supported inbox item(s) were approved and audited.</AlertDescription>
+            </Alert>
+          ) : null}
+          {batchError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Batch approval failed</AlertTitle>
+              <AlertDescription>{batchError}</AlertDescription>
+            </Alert>
+          ) : null}
           {visibleItems.length ? visibleItems.map((item) => (
             <Card key={item.id} className={selected.has(item.id) ? "border-primary" : undefined}>
               <CardHeader className="pb-3">
@@ -139,7 +163,15 @@ export function InboxClient({ items: persistedItems, product }: { items: InboxIt
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
             <p>{selected.size} selected</p>
-            <p>Approval execution remains server-authoritative. This page now reads persisted inbox items.</p>
+            <form action={batchApproveInboxItemsAction} className="flex flex-col gap-2">
+              {Array.from(selected).map((id) => (
+                <input key={id} type="hidden" name="inboxItemIds" value={id} />
+              ))}
+              <Button type="submit" size="sm" disabled={!selected.size}>
+                Approve selected supported items
+              </Button>
+            </form>
+            <p>Approval execution is server-authoritative. Unsupported or low-confidence selected items are ignored.</p>
             <p>Low-confidence items stay review-gated.</p>
           </CardContent>
         </Card>
