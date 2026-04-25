@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, Clock3, MoreHorizontal } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { Badge } from "@/components/ui/badge";
@@ -108,9 +109,11 @@ export function InboxClient({ items: persistedItems, product }: { items: InboxIt
                 </span>
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="outline">Skip</Button>
-                  <Button size="sm">
-                    Open review
-                    <ArrowRight data-icon="inline-end" />
+                  <Button size="sm" asChild>
+                    <Link href={`/inbox/${item.id}`}>
+                      Open review
+                      <ArrowRight data-icon="inline-end" />
+                    </Link>
                   </Button>
                 </div>
               </CardContent>

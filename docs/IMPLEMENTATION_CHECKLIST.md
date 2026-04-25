@@ -26,7 +26,7 @@ Use this as the execution checklist. Check items only when fully implemented.
 ## Phase 2 — inbox backbone
 - [x] Inbox item persistence model
 - [x] Inbox list page
-- [ ] Inbox detail rendering by item type
+- [x] Inbox detail rendering by item type
 - [ ] Approve action
 - [ ] Reject action with reason
 - [ ] Skip action
