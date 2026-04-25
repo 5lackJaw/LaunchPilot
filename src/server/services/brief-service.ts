@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { inngest } from "@/inngest/client";
+import { buildInitialBrief } from "@/server/brief/build-initial-brief";
 import { editMarketingBriefSchema, marketingBriefSchema } from "@/server/schemas/brief";
 import type { MarketingBrief } from "@/server/schemas/brief";
 import { productIdSchema } from "@/server/schemas/product";
@@ -21,6 +22,90 @@ export class BriefService {
     });
 
     return { productId };
+  }
+
+  async generateInitialBriefNow(input: unknown): Promise<MarketingBrief> {
+    const { productId } = productIdSchema.parse(input);
+    await new ProductService(this.supabase).getProduct({ productId });
+
+    const [productResult, crawlResult, answersResult, versionResult] = await Promise.all([
+      this.supabase.from("products").select("id,name,url").eq("id", productId).single(),
+      this.supabase
+        .from("crawl_results")
+        .select("id,page_title,meta_description,h1,created_at")
+        .eq("product_id", productId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      this.supabase.from("interview_answers").select("question_id,answer").eq("product_id", productId),
+      this.supabase.from("marketing_briefs").select("version").eq("product_id", productId).order("version", { ascending: false }).limit(1),
+    ]);
+
+    if (productResult.error) {
+      throw new BriefGenerationRequestError(productResult.error.message);
+    }
+
+    if (crawlResult.error) {
+      throw new BriefGenerationRequestError(crawlResult.error.message);
+    }
+
+    if (answersResult.error) {
+      throw new BriefGenerationRequestError(answersResult.error.message);
+    }
+
+    if (versionResult.error) {
+      throw new BriefGenerationRequestError(versionResult.error.message);
+    }
+
+    const brief = buildInitialBrief({
+      product: productResult.data,
+      crawl: crawlResult.data,
+      answers: answersResult.data,
+      nextVersion: (versionResult.data[0]?.version ?? 0) + 1,
+    });
+
+    const { data, error } = await this.supabase
+      .from("marketing_briefs")
+      .insert({
+        product_id: productId,
+        version: brief.version,
+        tagline: brief.tagline,
+        value_props: brief.valueProps,
+        personas: brief.personas,
+        competitors: brief.competitors,
+        keyword_clusters: brief.keywordClusters,
+        tone_profile: brief.toneProfile,
+        channels_ranked: brief.channelsRanked,
+        content_calendar_seed: brief.contentCalendarSeed,
+        provenance: {
+          ...brief.provenance,
+          execution: "server_action",
+        },
+      })
+      .select(
+        "id,product_id,version,tagline,value_props,personas,competitors,keyword_clusters,tone_profile,channels_ranked,content_calendar_seed,launch_date,provenance,created_at,updated_at",
+      )
+      .single();
+
+    if (error) {
+      throw new BriefGenerationRequestError(error.message);
+    }
+
+    const inserted = mapMarketingBrief(data);
+
+    const { error: productError } = await this.supabase
+      .from("products")
+      .update({
+        current_marketing_brief_id: inserted.id,
+        status: "onboarding",
+      })
+      .eq("id", productId);
+
+    if (productError) {
+      throw new BriefGenerationRequestError(productError.message);
+    }
+
+    return inserted;
   }
 
   async getCurrentBrief(input: unknown): Promise<MarketingBrief | null> {

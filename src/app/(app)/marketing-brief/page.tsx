@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { saveMarketingBriefAction } from "@/app/(app)/marketing-brief/actions";
+import { generateMarketingBriefNowAction, saveMarketingBriefAction } from "@/app/(app)/marketing-brief/actions";
 import type { MarketingBrief } from "@/server/schemas/brief";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
@@ -17,6 +17,8 @@ type PageProps = {
   searchParams: Promise<{
     saved?: string;
     saveError?: string;
+    generated?: string;
+    generationError?: string;
   }>;
 };
 
@@ -48,10 +50,22 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
               <AlertDescription>A new version is now current and downstream planning will use it.</AlertDescription>
             </Alert>
           ) : null}
+          {params.generated ? (
+            <Alert>
+              <AlertTitle>Marketing Brief generated</AlertTitle>
+              <AlertDescription>The current product now has a deterministic brief for local review and keyword planning.</AlertDescription>
+            </Alert>
+          ) : null}
           {params.saveError ? (
             <Alert variant="destructive">
               <AlertTitle>Save failed</AlertTitle>
               <AlertDescription>{params.saveError}</AlertDescription>
+            </Alert>
+          ) : null}
+          {params.generationError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Generation failed</AlertTitle>
+              <AlertDescription>{params.generationError}</AlertDescription>
             </Alert>
           ) : null}
 
@@ -66,12 +80,13 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
-                <Button asChild size="sm">
-                  <Link href={`/onboarding/brief?productId=${data.product.id}`}>
-                    Open onboarding brief
+                <form action={generateMarketingBriefNowAction}>
+                  <input type="hidden" name="productId" value={data.product.id} />
+                  <Button type="submit" size="sm">
+                    Generate brief now
                     <ArrowRight data-icon="inline-end" />
-                  </Link>
-                </Button>
+                  </Button>
+                </form>
                 <Button asChild size="sm" variant="outline">
                   <Link href="/onboarding/interview">
                     Continue interview
