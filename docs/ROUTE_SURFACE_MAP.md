@@ -26,7 +26,8 @@ This file defines the app route inventory and the primary responsibility of each
 - `/outreach` prospect pipeline and outreach draft management
 - `/directories` directory submission tracking
 - `/analytics` traffic and performance analytics
-- `/brief` full marketing brief editor
+- `/marketing-brief` full Marketing Brief editor
+- `/brief` redirects to `/marketing-brief`
 
 ### Settings
 - `/settings/connections` integration connection management
