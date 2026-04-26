@@ -26,6 +26,23 @@ export async function requestCommunityThreadIngestionAction() {
   redirect("/community?ingestionRequested=1");
 }
 
+export async function requestCommunityReplyGenerationAction(formData: FormData) {
+  const threadId = String(formData.get("threadId") ?? "");
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    await new CommunityService(supabase).requestReplyGeneration({ threadId });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirect("/community?draftError=1");
+  }
+
+  redirect("/community?draftRequested=1");
+}
+
 function isRedirectError(error: unknown) {
   return error instanceof Error && "digest" in error && String(error.digest).startsWith("NEXT_REDIRECT");
 }

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requestCommunityThreadIngestionAction } from "@/app/(app)/community/actions";
+import { requestCommunityReplyGenerationAction, requestCommunityThreadIngestionAction } from "@/app/(app)/community/actions";
 import type { CommunityThread } from "@/server/schemas/community";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
@@ -17,6 +17,8 @@ type PageProps = {
   searchParams: Promise<{
     ingestionRequested?: string;
     ingestionError?: string;
+    draftRequested?: string;
+    draftError?: string;
   }>;
 };
 
@@ -57,9 +59,21 @@ export default async function CommunityPage({ searchParams }: PageProps) {
             <AlertDescription>{data.error ?? "Try again after confirming the product and workflow configuration."}</AlertDescription>
           </Alert>
         ) : null}
+        {params.draftRequested ? (
+          <Alert className="xl:col-span-2">
+            <AlertTitle>Reply draft requested</AlertTitle>
+            <AlertDescription>A review-gated community reply will appear here and in the inbox after guardrail scoring.</AlertDescription>
+          </Alert>
+        ) : null}
+        {params.draftError ? (
+          <Alert variant="destructive" className="xl:col-span-2">
+            <AlertTitle>Reply draft request failed</AlertTitle>
+            <AlertDescription>Only observed, drafted, or failed threads can request a new reply draft.</AlertDescription>
+          </Alert>
+        ) : null}
 
         <div className="overflow-hidden rounded-lg border bg-card">
-          <div className="grid grid-cols-[120px_minmax(0,1fr)_120px_120px_120px] border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+          <div className="grid grid-cols-[120px_minmax(0,1fr)_120px_120px_150px] border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
             <span>Platform</span>
             <span>Thread</span>
             <span>Relevance</span>
@@ -94,7 +108,7 @@ export default async function CommunityPage({ searchParams }: PageProps) {
           <Card>
             <CardHeader>
               <CardTitle>Next step</CardTitle>
-              <CardDescription>Reply drafts and authenticity guardrails will build on these scored thread records.</CardDescription>
+              <CardDescription>Approved reply posting and trust-level automation remain review-gated future slices.</CardDescription>
             </CardHeader>
           </Card>
         </aside>
@@ -105,20 +119,30 @@ export default async function CommunityPage({ searchParams }: PageProps) {
 
 function ThreadRow({ thread }: { thread: CommunityThread }) {
   return (
-    <div className="grid grid-cols-[120px_minmax(0,1fr)_120px_120px_120px] items-center gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-secondary/60">
+    <div className="grid grid-cols-[120px_minmax(0,1fr)_120px_120px_150px] items-center gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-secondary/60">
       <span className="font-mono text-[11px] text-muted-foreground">{thread.platform.replace("_", " ")}</span>
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <MessageSquareText className="size-4 text-muted-foreground" aria-hidden="true" />
           <p className="truncate text-sm font-medium">{thread.threadTitle}</p>
         </div>
-        <p className="mt-1 truncate text-xs text-muted-foreground">{thread.threadAuthorHandle ?? "unknown author"}</p>
+        <p className="mt-1 truncate text-xs text-muted-foreground">
+          {thread.replyDraft ? `Draft ready / promotional score ${Math.round((thread.promotionalScore ?? 0) * 100)}%` : (thread.threadAuthorHandle ?? "unknown author")}
+        </p>
       </div>
       <span className="font-mono text-sm">{Math.round(thread.relevanceScore * 100)}%</span>
       <Badge variant={thread.status === "failed" || thread.status === "blocked" ? "danger" : thread.status === "posted" ? "success" : "secondary"}>
         {thread.status.replace("_", " ")}
       </Badge>
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-1.5">
+        {["observed", "drafted", "failed"].includes(thread.status) ? (
+          <form action={requestCommunityReplyGenerationAction}>
+            <input type="hidden" name="threadId" value={thread.id} />
+            <Button type="submit" variant="secondary" size="sm">
+              Draft
+            </Button>
+          </form>
+        ) : null}
         <Button variant="ghost" size="sm" asChild>
           <Link href={thread.threadUrl} target="_blank" rel="noreferrer">
             Open

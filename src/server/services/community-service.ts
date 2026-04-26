@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { inngest } from "@/inngest/client";
-import { communityThreadSchema, listCommunityThreadsSchema, requestCommunityThreadIngestionSchema } from "@/server/schemas/community";
+import {
+  communityThreadSchema,
+  listCommunityThreadsSchema,
+  requestCommunityReplyGenerationSchema,
+  requestCommunityThreadIngestionSchema,
+} from "@/server/schemas/community";
 import type { CommunityThread } from "@/server/schemas/community";
 import { ProductService } from "@/server/services/product-service";
 
@@ -45,6 +50,38 @@ export class CommunityService {
       },
     });
   }
+
+  async requestReplyGeneration(input: unknown) {
+    const parsed = requestCommunityReplyGenerationSchema.parse(input);
+    const thread = await this.getThread({ threadId: parsed.threadId });
+    await new ProductService(this.supabase).getProduct({ productId: thread.productId });
+
+    if (!["observed", "drafted", "failed"].includes(thread.status)) {
+      throw new CommunityReplyGenerationRequestError("Only observed, drafted, or failed threads can request reply generation.");
+    }
+
+    await inngest.send({
+      name: "community_reply/generation.requested",
+      data: {
+        threadId: thread.id,
+        productId: thread.productId,
+      },
+    });
+  }
+
+  private async getThread(input: { threadId: string }): Promise<CommunityThread> {
+    const { data, error } = await this.supabase
+      .from("community_threads")
+      .select(communityThreadSelect)
+      .eq("id", input.threadId)
+      .single();
+
+    if (error) {
+      throw new CommunityThreadReadError(error.message);
+    }
+
+    return mapCommunityThread(data);
+  }
 }
 
 export class CommunityThreadReadError extends Error {
@@ -58,6 +95,13 @@ export class CommunityThreadIngestionRequestError extends Error {
   constructor(message: string) {
     super(`Community thread ingestion could not be requested: ${message}`);
     this.name = "CommunityThreadIngestionRequestError";
+  }
+}
+
+export class CommunityReplyGenerationRequestError extends Error {
+  constructor(message: string) {
+    super(`Community reply generation could not be requested: ${message}`);
+    this.name = "CommunityReplyGenerationRequestError";
   }
 }
 
