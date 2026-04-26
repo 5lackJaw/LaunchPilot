@@ -116,3 +116,10 @@ Format:
 - Current implication: Approving an outreach email can transition the contact to `sent` with audit provenance, but no external email is delivered yet.
 - Follow-up trigger: When encrypted email provider connections, sender identity, and unsubscribe/suppression enforcement are implemented.
 - Safe current behavior: Keep sending server-authoritative, require inbox approval, and record `last_contact_at` only after the simulated send path succeeds.
+
+- Date: 2026-04-26
+- Area: Outreach compliance
+- Item: Suppression is currently enforced as product-local contact state in `outreach_contacts`, not as a global unsubscribe/suppression registry.
+- Current implication: LaunchPilot blocks suppressed contacts from app-level draft generation, sending, and follow-up scheduling for the current product, but production email delivery will need provider-level suppression and unsubscribe handling.
+- Follow-up trigger: Before enabling live email sending or adding encrypted email provider connections.
+- Safe current behavior: Keep suppression server-authoritative, store suppression provenance, and reject all outreach actions for suppressed contacts.

@@ -232,7 +232,7 @@ Fields:
 Rules:
 - follow-up scheduling metadata is stored in provenance until a dedicated follow-up entity is needed
 - sent/opened contacts can receive follow-up reminders
-- suppressed contacts must not receive follow-up scheduling or sending
+- suppressed contacts must not receive draft generation, sending, or follow-up scheduling
 
 Recommended `outreach_contacts.status`:
 - identified

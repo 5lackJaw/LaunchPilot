@@ -44,6 +44,11 @@ export const sendOutreachEmailSchema = z.object({
   contactId: z.string().uuid(),
 });
 
+export const suppressOutreachContactSchema = z.object({
+  contactId: z.string().uuid(),
+  reason: z.string().trim().max(1000).optional(),
+});
+
 export const scheduleOutreachFollowUpSchema = z.object({
   contactId: z.string().uuid(),
   delayDays: z.coerce.number().int().min(1).max(30).default(5),

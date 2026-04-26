@@ -7,18 +7,22 @@ import {
   requestProspectIdentificationSchema,
   scheduleOutreachFollowUpSchema,
   sendOutreachEmailSchema,
+  suppressOutreachContactSchema,
 } from "@/server/schemas/outreach";
 import type { OutreachContact } from "@/server/schemas/outreach";
 import { ProductService } from "@/server/services/product-service";
 
-const outreachContactSelect = "id,product_id,name,email,publication,url,score,status,last_contact_at,provenance,created_at,updated_at";
+const outreachContactSelect =
+  "id,product_id,name,email,publication,url,score,status,last_contact_at,provenance,created_at,updated_at";
 
 export class OutreachService {
   constructor(private readonly supabase: SupabaseClient) {}
 
   async listContacts(input: unknown): Promise<OutreachContact[]> {
     const parsed = listOutreachContactsSchema.parse(input);
-    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: parsed.productId,
+    });
 
     let query = this.supabase
       .from("outreach_contacts")
@@ -42,7 +46,9 @@ export class OutreachService {
 
   async requestProspectIdentification(input: unknown) {
     const parsed = requestProspectIdentificationSchema.parse(input);
-    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: parsed.productId,
+    });
 
     await inngest.send({
       name: "outreach/prospect_identification.requested",
@@ -55,10 +61,20 @@ export class OutreachService {
   async requestDraftGeneration(input: unknown) {
     const parsed = requestOutreachDraftGenerationSchema.parse(input);
     const contact = await this.getContact({ contactId: parsed.contactId });
-    await new ProductService(this.supabase).getProduct({ productId: contact.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: contact.productId,
+    });
+
+    if (contact.status === "suppressed") {
+      throw new OutreachDraftRequestError(
+        "Suppressed contacts cannot request outreach drafts.",
+      );
+    }
 
     if (!["identified", "drafted", "failed"].includes(contact.status)) {
-      throw new OutreachDraftRequestError("Only identified, drafted, or failed contacts can request outreach drafts.");
+      throw new OutreachDraftRequestError(
+        "Only identified, drafted, or failed contacts can request outreach drafts.",
+      );
     }
 
     await inngest.send({
@@ -73,7 +89,15 @@ export class OutreachService {
   async sendApprovedEmail(input: unknown): Promise<OutreachContact> {
     const parsed = sendOutreachEmailSchema.parse(input);
     const contact = await this.getContact({ contactId: parsed.contactId });
-    await new ProductService(this.supabase).getProduct({ productId: contact.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: contact.productId,
+    });
+
+    if (contact.status === "suppressed") {
+      throw new OutreachSendError(
+        "Suppressed contacts cannot receive outreach emails.",
+      );
+    }
 
     if (contact.status !== "pending_review" && contact.status !== "drafted") {
       throw new OutreachSendError("Only reviewed outreach drafts can be sent.");
@@ -105,13 +129,59 @@ export class OutreachService {
     return mapOutreachContact(data);
   }
 
+  async suppressContact(input: unknown): Promise<OutreachContact> {
+    const parsed = suppressOutreachContactSchema.parse(input);
+    const contact = await this.getContact({ contactId: parsed.contactId });
+    await new ProductService(this.supabase).getProduct({
+      productId: contact.productId,
+    });
+
+    if (contact.status === "suppressed") {
+      throw new OutreachSuppressError("Contact is already suppressed.");
+    }
+
+    const suppressedAt = new Date().toISOString();
+    const { data, error } = await this.supabase
+      .from("outreach_contacts")
+      .update({
+        status: "suppressed",
+        provenance: {
+          ...contact.provenance,
+          suppression: {
+            reason: parsed.reason || null,
+            suppressedAt,
+            suppressor: "manual",
+          },
+        },
+      })
+      .eq("id", contact.id)
+      .select(outreachContactSelect)
+      .single();
+
+    if (error) {
+      throw new OutreachSuppressError(error.message);
+    }
+
+    return mapOutreachContact(data);
+  }
+
   async scheduleFollowUp(input: unknown): Promise<OutreachContact> {
     const parsed = scheduleOutreachFollowUpSchema.parse(input);
     const contact = await this.getContact({ contactId: parsed.contactId });
-    await new ProductService(this.supabase).getProduct({ productId: contact.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: contact.productId,
+    });
+
+    if (contact.status === "suppressed") {
+      throw new OutreachFollowUpScheduleError(
+        "Suppressed contacts cannot have follow-ups scheduled.",
+      );
+    }
 
     if (!["sent", "opened"].includes(contact.status)) {
-      throw new OutreachFollowUpScheduleError("Only sent or opened outreach contacts can have follow-ups scheduled.");
+      throw new OutreachFollowUpScheduleError(
+        "Only sent or opened outreach contacts can have follow-ups scheduled.",
+      );
     }
 
     const scheduledFor = new Date();
@@ -141,7 +211,9 @@ export class OutreachService {
     return mapOutreachContact(data);
   }
 
-  private async getContact(input: { contactId: string }): Promise<OutreachContact> {
+  private async getContact(input: {
+    contactId: string;
+  }): Promise<OutreachContact> {
     const { data, error } = await this.supabase
       .from("outreach_contacts")
       .select(outreachContactSelect)
@@ -181,6 +253,13 @@ export class OutreachSendError extends Error {
   constructor(message: string) {
     super(`Outreach email could not be sent: ${message}`);
     this.name = "OutreachSendError";
+  }
+}
+
+export class OutreachSuppressError extends Error {
+  constructor(message: string) {
+    super(`Outreach contact could not be suppressed: ${message}`);
+    this.name = "OutreachSuppressError";
   }
 }
 

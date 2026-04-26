@@ -14,7 +14,9 @@ export async function requestProspectIdentificationAction() {
       redirect("/outreach?prospectError=missing-product");
     }
 
-    await new OutreachService(supabase).requestProspectIdentification({ productId: product.id });
+    await new OutreachService(supabase).requestProspectIdentification({
+      productId: product.id,
+    });
   } catch (error) {
     if (isRedirectError(error)) {
       throw error;
@@ -49,7 +51,10 @@ export async function scheduleOutreachFollowUpAction(formData: FormData) {
 
   try {
     const supabase = await createSupabaseServerClient();
-    await new OutreachService(supabase).scheduleFollowUp({ contactId, delayDays });
+    await new OutreachService(supabase).scheduleFollowUp({
+      contactId,
+      delayDays,
+    });
   } catch (error) {
     if (isRedirectError(error)) {
       throw error;
@@ -61,6 +66,28 @@ export async function scheduleOutreachFollowUpAction(formData: FormData) {
   redirect("/outreach?followUpScheduled=1");
 }
 
+export async function suppressOutreachContactAction(formData: FormData) {
+  const contactId = String(formData.get("contactId") ?? "");
+  const reason = String(formData.get("reason") ?? "");
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    await new OutreachService(supabase).suppressContact({ contactId, reason });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirect("/outreach?suppressError=1");
+  }
+
+  redirect("/outreach?suppressed=1");
+}
+
 function isRedirectError(error: unknown) {
-  return error instanceof Error && "digest" in error && String(error.digest).startsWith("NEXT_REDIRECT");
+  return (
+    error instanceof Error &&
+    "digest" in error &&
+    String(error.digest).startsWith("NEXT_REDIRECT")
+  );
 }
