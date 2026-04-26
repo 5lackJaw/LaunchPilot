@@ -5,6 +5,8 @@ import { functions } from "@/inngest/functions";
 import { inngest } from "@/inngest/client";
 import { outreachDraftGenerationWorkflow, prospectIdentificationWorkflow } from "@/inngest/outreach-functions";
 
+export const maxDuration = 300;
+
 export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [
