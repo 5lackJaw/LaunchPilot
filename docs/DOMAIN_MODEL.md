@@ -284,6 +284,23 @@ Fields:
 - created_at
 - updated_at
 
+### automation_preferences
+Purpose: product-scoped trust-level and review-window settings for automation channels.
+Fields:
+- id
+- product_id
+- channel: content | community | directories | outreach
+- trust_level: 1 | 2 | 3
+- daily_auto_action_limit
+- review_window_hours
+- created_at
+- updated_at
+
+Rules:
+- preferences belong to a product and must be tenant-checked through product ownership
+- trust levels are hints for server-side eligibility checks, not client authority
+- low-confidence or high-risk outputs remain review-gated regardless of trust level
+
 ### keyword_rank_snapshots
 Purpose: time-series keyword performance.
 Fields:

@@ -220,6 +220,75 @@ export const communityReplyGenerationWorkflow = inngest.createFunction(
       return updated;
     }
 
+    const executionMode = await step.run("resolve-trust-level-eligibility", async () => {
+      const { data, error } = await supabase
+        .from("automation_preferences")
+        .select("trust_level,daily_auto_action_limit")
+        .eq("product_id", updated.product_id)
+        .eq("channel", "community")
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      const trustLevel = Number(data?.trust_level ?? 1);
+      const dailyLimit = Number(data?.daily_auto_action_limit ?? 0);
+      const eligibleForLevel2 = draft.confidence >= 0.88 && draft.promotionalScore <= 0.2;
+      const eligibleForLevel3 = draft.confidence >= 0.8 && draft.promotionalScore <= 0.3;
+      const todayStart = new Date();
+      todayStart.setUTCHours(0, 0, 0, 0);
+      const usage = await supabase
+        .from("inbox_items")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", updated.product_id)
+        .eq("item_type", "community_reply")
+        .eq("status", "auto_executed")
+        .gte("reviewed_at", todayStart.toISOString());
+
+      if (usage.error) {
+        throw usage.error;
+      }
+
+      const underDailyLimit = dailyLimit > 0 && (usage.count ?? 0) < dailyLimit;
+      const canAutoExecute = underDailyLimit && ((trustLevel === 2 && eligibleForLevel2) || (trustLevel === 3 && eligibleForLevel3));
+
+      return canAutoExecute ? "auto_executed" : "pending_review";
+    });
+
+    if (executionMode === "auto_executed") {
+      await step.run("auto-execute-community-reply", async () => {
+        const postedAt = new Date().toISOString();
+        const { error } = await supabase
+          .from("community_threads")
+          .update({
+            status: "posted",
+            posted_at: postedAt,
+            provenance: {
+              ...inputs.thread.provenance,
+              replyDraft: {
+                generator: "deterministic-community-reply-v0",
+                generatedAt: new Date().toISOString(),
+                rationale: draft.rationale,
+                confidence: draft.confidence,
+                guardrail: "auto_executed_by_trust_level",
+              },
+              posting: {
+                adapter: "community-posting-simulated-v0",
+                postedAt,
+                platform: updated.platform,
+                executionMode,
+              },
+            },
+          })
+          .eq("id", updated.id);
+
+        if (error) {
+          throw error;
+        }
+      });
+    }
+
     await step.run("create-community-reply-inbox-item", async () => {
       const existing = await supabase
         .from("inbox_items")
@@ -245,6 +314,8 @@ export const communityReplyGenerationWorkflow = inngest.createFunction(
           item_type: "community_reply",
           source_entity_type: "community_thread",
           source_entity_id: updated.id,
+          status: executionMode,
+          reviewed_at: executionMode === "auto_executed" ? new Date().toISOString() : null,
           payload: {
             title: updated.thread_title,
             preview: `Helpful ${updated.platform.replace("_", " ")} reply draft. Promotional score ${Math.round(Number(updated.promotional_score) * 100)}%.`,
@@ -273,8 +344,8 @@ export const communityReplyGenerationWorkflow = inngest.createFunction(
       const eventResult = await supabase.from("inbox_item_events").insert({
         inbox_item_id: itemResult.data.id,
         product_id: itemResult.data.product_id,
-        event_type: "created",
-        metadata: { sourceEntityType: "community_thread", sourceEntityId: updated.id, workflow: "community_reply_generation" },
+        event_type: executionMode === "auto_executed" ? "auto_executed" : "created",
+        metadata: { sourceEntityType: "community_thread", sourceEntityId: updated.id, workflow: "community_reply_generation", executionMode },
       });
 
       if (eventResult.error) {

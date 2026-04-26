@@ -36,7 +36,7 @@ const navGroups = [
     items: [
       { href: "/marketing-brief",       label: "Marketing Brief", icon: FileEdit },
       { href: "/settings/connections",  label: "Connections",     icon: Plug     },
-      { href: "/settings",              label: "Settings",        icon: Settings },
+      { href: "/settings/preferences",  label: "Settings",        icon: Settings },
     ],
   },
 ];
