@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   CreditCard,
+  Database,
   FileEdit,
   FileText,
   Hash,
@@ -51,7 +52,8 @@ const navGroups = [
       { href: "/marketing-brief", label: "Marketing Brief", icon: FileEdit },
       { href: "/settings/connections", label: "Connections", icon: Plug },
       { href: "/settings/billing", label: "Billing", icon: CreditCard },
-      { href: "/settings/preferences", label: "Settings", icon: Settings },
+      { href: "/settings/preferences", label: "Preferences", icon: Settings },
+      { href: "/settings/account", label: "Account data", icon: Database },
     ],
   },
 ];

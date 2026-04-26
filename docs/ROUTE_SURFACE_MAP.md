@@ -33,6 +33,7 @@ This file defines the app route inventory and the primary responsibility of each
 - `/settings/connections` integration connection management
 - `/settings/billing` billing and Stripe portal entry
 - `/settings/preferences` trust levels, review windows, notifications
+- `/settings/account` account data export and deletion controls
 
 ## API / server responsibilities
 Implementation may use route handlers, tRPC, server actions, or a mixed pattern, but the responsibilities below must exist.
@@ -107,6 +108,11 @@ Implementation may use route handlers, tRPC, server actions, or a mixed pattern,
 - open customer portal
 - ingest Stripe webhook events
 - enforce plan limits and overages
+
+### Account data
+- export account-owned product, workflow, approval, analytics, and settings records
+- delete account-owned data through a server-authoritative confirmation flow
+- never expose raw encrypted provider credentials in exports
 
 ## Route behavior constraints
 - all mutating actions must be server-authoritative

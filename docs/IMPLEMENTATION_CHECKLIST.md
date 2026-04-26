@@ -85,4 +85,4 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Mobile polish for primary routes
 - [x] Empty and error states
 - [x] Logging and observability improvements
-- [ ] Data export and deletion paths
+- [x] Data export and deletion paths
