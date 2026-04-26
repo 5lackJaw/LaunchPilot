@@ -1,7 +1,13 @@
 import { z } from "zod";
 
-const optionalNonEmptyString = z.preprocess((value) => (value === "" ? undefined : value), z.string().optional());
-const optionalUrl = z.preprocess((value) => (value === "" ? undefined : value), z.string().url().optional());
+const optionalNonEmptyString = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().optional(),
+);
+const optionalUrl = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().url().optional(),
+);
 
 const envSchema = z.object({
   NEXT_PUBLIC_APP_NAME: z.string().default("LaunchPilot"),
@@ -13,6 +19,8 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: optionalNonEmptyString,
   STRIPE_SECRET_KEY: optionalNonEmptyString,
   STRIPE_WEBHOOK_SECRET: optionalNonEmptyString,
+  STRIPE_LAUNCH_PRICE_ID: optionalNonEmptyString,
+  STRIPE_GROWTH_PRICE_ID: optionalNonEmptyString,
   INNGEST_EVENT_KEY: optionalNonEmptyString,
   INNGEST_SIGNING_KEY: optionalNonEmptyString,
   ENABLE_DEV_INBOX_SEED: optionalNonEmptyString,
@@ -35,5 +43,7 @@ const envSchema = z.object({
 
 export const env = envSchema.parse(process.env);
 
-export const supabasePublicKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-export const supabaseSecretKey = env.SUPABASE_SECRET_KEY ?? env.SUPABASE_SERVICE_ROLE_KEY;
+export const supabasePublicKey =
+  env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+export const supabaseSecretKey =
+  env.SUPABASE_SECRET_KEY ?? env.SUPABASE_SERVICE_ROLE_KEY;

@@ -81,7 +81,7 @@ Use this as the execution checklist. Check items only when fully implemented.
 ## Phase 8 — hardening
 - [x] Plan and quota enforcement
 - [x] Connection management page
-- [ ] Billing page / portal access
+- [x] Billing page / portal access
 - [ ] Mobile polish for primary routes
 - [ ] Empty and error states
 - [ ] Logging and observability improvements

@@ -130,3 +130,10 @@ Format:
 - Current implication: Users can see provider readiness and mark setup intent, while live integrations still rely on server environment variables or simulated adapters.
 - Follow-up trigger: When implementing each production provider connection flow.
 - Safe current behavior: Never accept raw secrets in the browser, never expose server environment values, and clear stored credentials on revocation.
+
+- Date: 2026-04-26
+- Area: Stripe billing
+- Item: `/settings/billing` supports Checkout and Customer Portal when `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_LAUNCH_PRICE_ID`, and `STRIPE_GROWTH_PRICE_ID` are configured, but final Stripe products/prices are not committed in the repo.
+- Current implication: Local and production environments can wire real Stripe prices through environment variables; missing prices leave checkout buttons disabled.
+- Follow-up trigger: Before public launch or any paid user testing.
+- Safe current behavior: Create Checkout and Portal sessions server-side only, verify webhook signatures, and update `users.plan_tier` only from signed Stripe events.
