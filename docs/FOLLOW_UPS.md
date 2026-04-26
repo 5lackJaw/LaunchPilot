@@ -123,3 +123,10 @@ Format:
 - Current implication: LaunchPilot blocks suppressed contacts from app-level draft generation, sending, and follow-up scheduling for the current product, but production email delivery will need provider-level suppression and unsubscribe handling.
 - Follow-up trigger: Before enabling live email sending or adding encrypted email provider connections.
 - Safe current behavior: Keep suppression server-authoritative, store suppression provenance, and reject all outreach actions for suppressed contacts.
+
+- Date: 2026-04-26
+- Area: Connection management
+- Item: `/settings/connections` stores setup/revocation status and shows server-env configured providers, but does not yet collect encrypted credentials or run provider OAuth callbacks.
+- Current implication: Users can see provider readiness and mark setup intent, while live integrations still rely on server environment variables or simulated adapters.
+- Follow-up trigger: When implementing each production provider connection flow.
+- Safe current behavior: Never accept raw secrets in the browser, never expose server environment values, and clear stored credentials on revocation.

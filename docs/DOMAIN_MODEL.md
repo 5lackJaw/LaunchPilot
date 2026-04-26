@@ -298,6 +298,11 @@ Fields:
 - created_at
 - updated_at
 
+Rules:
+- raw credentials must never be returned to the client
+- connection management UI may show provider status, scopes, and timestamps only
+- revoking a connection clears encrypted credentials and disables provider use
+
 ### automation_preferences
 Purpose: product-scoped trust-level and review-window settings for automation channels.
 Fields:
