@@ -26,6 +26,23 @@ export async function requestProspectIdentificationAction() {
   redirect("/outreach?prospectRequested=1");
 }
 
+export async function requestOutreachDraftAction(formData: FormData) {
+  const contactId = String(formData.get("contactId") ?? "");
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    await new OutreachService(supabase).requestDraftGeneration({ contactId });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirect("/outreach?draftError=1");
+  }
+
+  redirect("/outreach?draftRequested=1");
+}
+
 function isRedirectError(error: unknown) {
   return error instanceof Error && "digest" in error && String(error.digest).startsWith("NEXT_REDIRECT");
 }

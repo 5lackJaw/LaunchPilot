@@ -72,8 +72,8 @@ Use this as the execution checklist. Check items only when fully implemented.
 ## Phase 7 — outreach composer
 - [x] Prospect identification flow
 - [x] Outreach contact model
-- [ ] Outreach draft generation
-- [ ] Outreach tracker page
+- [x] Outreach draft generation
+- [x] Outreach tracker page
 - [ ] Approve-and-send flow
 - [ ] Follow-up scheduling
 - [ ] Suppression logic

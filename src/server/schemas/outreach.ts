@@ -36,4 +36,8 @@ export const requestProspectIdentificationSchema = z.object({
   productId: z.string().uuid(),
 });
 
+export const requestOutreachDraftGenerationSchema = z.object({
+  contactId: z.string().uuid(),
+});
+
 export type OutreachContact = z.infer<typeof outreachContactSchema>;

@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { inngest } from "@/inngest/client";
-import { listOutreachContactsSchema, outreachContactSchema, requestProspectIdentificationSchema } from "@/server/schemas/outreach";
+import {
+  listOutreachContactsSchema,
+  outreachContactSchema,
+  requestOutreachDraftGenerationSchema,
+  requestProspectIdentificationSchema,
+} from "@/server/schemas/outreach";
 import type { OutreachContact } from "@/server/schemas/outreach";
 import { ProductService } from "@/server/services/product-service";
 
@@ -44,6 +49,38 @@ export class OutreachService {
       },
     });
   }
+
+  async requestDraftGeneration(input: unknown) {
+    const parsed = requestOutreachDraftGenerationSchema.parse(input);
+    const contact = await this.getContact({ contactId: parsed.contactId });
+    await new ProductService(this.supabase).getProduct({ productId: contact.productId });
+
+    if (!["identified", "drafted", "failed"].includes(contact.status)) {
+      throw new OutreachDraftRequestError("Only identified, drafted, or failed contacts can request outreach drafts.");
+    }
+
+    await inngest.send({
+      name: "outreach/draft_generation.requested",
+      data: {
+        contactId: contact.id,
+        productId: contact.productId,
+      },
+    });
+  }
+
+  private async getContact(input: { contactId: string }): Promise<OutreachContact> {
+    const { data, error } = await this.supabase
+      .from("outreach_contacts")
+      .select(outreachContactSelect)
+      .eq("id", input.contactId)
+      .single();
+
+    if (error) {
+      throw new OutreachContactReadError(error.message);
+    }
+
+    return mapOutreachContact(data);
+  }
 }
 
 export class OutreachContactReadError extends Error {
@@ -57,6 +94,13 @@ export class OutreachProspectRequestError extends Error {
   constructor(message: string) {
     super(`Prospect identification could not be requested: ${message}`);
     this.name = "OutreachProspectRequestError";
+  }
+}
+
+export class OutreachDraftRequestError extends Error {
+  constructor(message: string) {
+    super(`Outreach draft could not be requested: ${message}`);
+    this.name = "OutreachDraftRequestError";
   }
 }
 

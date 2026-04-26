@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requestProspectIdentificationAction } from "@/app/(app)/outreach/actions";
+import { requestOutreachDraftAction, requestProspectIdentificationAction } from "@/app/(app)/outreach/actions";
 import type { OutreachContact } from "@/server/schemas/outreach";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
@@ -17,6 +17,8 @@ type PageProps = {
   searchParams: Promise<{
     prospectRequested?: string;
     prospectError?: string;
+    draftRequested?: string;
+    draftError?: string;
   }>;
 };
 
@@ -57,6 +59,18 @@ export default async function OutreachPage({ searchParams }: PageProps) {
             <AlertDescription>{data.error ?? "Try again after confirming the product and workflow configuration."}</AlertDescription>
           </Alert>
         ) : null}
+        {params.draftRequested ? (
+          <Alert className="xl:col-span-2">
+            <AlertTitle>Outreach draft requested</AlertTitle>
+            <AlertDescription>The email draft will appear here and in the approval inbox after the workflow runs.</AlertDescription>
+          </Alert>
+        ) : null}
+        {params.draftError ? (
+          <Alert variant="destructive" className="xl:col-span-2">
+            <AlertTitle>Outreach draft request failed</AlertTitle>
+            <AlertDescription>Only identified, drafted, or failed contacts can request draft generation.</AlertDescription>
+          </Alert>
+        ) : null}
 
         <div className="overflow-hidden rounded-lg border bg-card">
           <div className="grid grid-cols-[minmax(0,1fr)_160px_100px_120px_120px] border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
@@ -94,7 +108,7 @@ export default async function OutreachPage({ searchParams }: PageProps) {
           <Card>
             <CardHeader>
               <CardTitle>Next step</CardTitle>
-              <CardDescription>Draft generation, send approval, follow-ups, and suppression are later Phase 7 slices.</CardDescription>
+              <CardDescription>Approved sending, follow-ups, and suppression are later Phase 7 slices.</CardDescription>
             </CardHeader>
           </Card>
         </aside>
@@ -118,7 +132,15 @@ function ContactRow({ contact }: { contact: OutreachContact }) {
       <Badge variant={contact.status === "failed" || contact.status === "suppressed" ? "danger" : contact.status === "sent" ? "success" : "secondary"}>
         {contact.status.replace("_", " ")}
       </Badge>
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-1.5">
+        {["identified", "drafted", "failed"].includes(contact.status) ? (
+          <form action={requestOutreachDraftAction}>
+            <input type="hidden" name="contactId" value={contact.id} />
+            <Button type="submit" variant="secondary" size="sm">
+              Draft
+            </Button>
+          </form>
+        ) : null}
         {contact.url ? (
           <Button variant="ghost" size="sm" asChild>
             <Link href={contact.url} target="_blank" rel="noreferrer">
