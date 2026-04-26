@@ -11,6 +11,7 @@ import {
 } from "@/server/schemas/outreach";
 import type { OutreachContact } from "@/server/schemas/outreach";
 import { ProductService } from "@/server/services/product-service";
+import { PlanService } from "@/server/services/plan-service";
 
 const outreachContactSelect =
   "id,product_id,name,email,publication,url,score,status,last_contact_at,provenance,created_at,updated_at";
@@ -49,6 +50,10 @@ export class OutreachService {
     await new ProductService(this.supabase).getProduct({
       productId: parsed.productId,
     });
+    await new PlanService(this.supabase).assertCanUseGeneratedAction({
+      productId: parsed.productId,
+      actionLabel: "outreach prospect identification",
+    });
 
     await inngest.send({
       name: "outreach/prospect_identification.requested",
@@ -63,6 +68,10 @@ export class OutreachService {
     const contact = await this.getContact({ contactId: parsed.contactId });
     await new ProductService(this.supabase).getProduct({
       productId: contact.productId,
+    });
+    await new PlanService(this.supabase).assertCanUseGeneratedAction({
+      productId: contact.productId,
+      actionLabel: "outreach draft generation",
     });
 
     if (contact.status === "suppressed") {
@@ -91,6 +100,10 @@ export class OutreachService {
     const contact = await this.getContact({ contactId: parsed.contactId });
     await new ProductService(this.supabase).getProduct({
       productId: contact.productId,
+    });
+    await new PlanService(this.supabase).assertCanExecuteAction({
+      productId: contact.productId,
+      actionLabel: "outreach sending",
     });
 
     if (contact.status === "suppressed") {

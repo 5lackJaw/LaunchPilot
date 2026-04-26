@@ -79,7 +79,7 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Suppression logic
 
 ## Phase 8 — hardening
-- [ ] Plan and quota enforcement
+- [x] Plan and quota enforcement
 - [ ] Connection management page
 - [ ] Billing page / portal access
 - [ ] Mobile polish for primary routes

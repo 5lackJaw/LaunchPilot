@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { inngest } from "@/inngest/client";
-import { dashboardSummarySchema, listAnalyticsSchema, weeklyBriefSchema } from "@/server/schemas/analytics";
+import {
+  dashboardSummarySchema,
+  listAnalyticsSchema,
+  weeklyBriefSchema,
+} from "@/server/schemas/analytics";
 import type {
   ContentPerformance,
   DashboardSummary,
@@ -10,6 +14,7 @@ import type {
   WeeklyRecommendation,
 } from "@/server/schemas/analytics";
 import { ProductService } from "@/server/services/product-service";
+import { PlanService } from "@/server/services/plan-service";
 
 const dayMs = 24 * 60 * 60 * 1000;
 
@@ -47,12 +52,20 @@ export class AnalyticsService {
 
   async getDashboardSummary(input: unknown): Promise<DashboardSummary> {
     const parsed = listAnalyticsSchema.parse(input);
-    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: parsed.productId,
+    });
     return this.buildDashboardSummary(parsed.productId);
   }
 
-  async getDashboardSummaryForWorkflow(productId: string): Promise<DashboardSummary> {
-    const { error } = await this.supabase.from("products").select("id").eq("id", productId).single();
+  async getDashboardSummaryForWorkflow(
+    productId: string,
+  ): Promise<DashboardSummary> {
+    const { error } = await this.supabase
+      .from("products")
+      .select("id")
+      .eq("id", productId)
+      .single();
 
     if (error) {
       throw new AnalyticsReadError(error.message);
@@ -63,7 +76,13 @@ export class AnalyticsService {
 
   async requestWeeklyDigest(input: unknown) {
     const parsed = listAnalyticsSchema.parse(input);
-    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: parsed.productId,
+    });
+    await new PlanService(this.supabase).assertCanUseGeneratedAction({
+      productId: parsed.productId,
+      actionLabel: "weekly digest generation",
+    });
 
     await inngest.send({
       name: "weekly_digest/generation.requested",
@@ -73,11 +92,15 @@ export class AnalyticsService {
 
   async getLatestWeeklyBrief(input: unknown): Promise<WeeklyBrief | null> {
     const parsed = listAnalyticsSchema.parse(input);
-    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: parsed.productId,
+    });
 
     const { data, error } = await this.supabase
       .from("weekly_briefs")
-      .select("id,product_id,week_start,summary_md,recommendations,sent_at,created_at")
+      .select(
+        "id,product_id,week_start,summary_md,recommendations,sent_at,created_at",
+      )
       .eq("product_id", parsed.productId)
       .order("week_start", { ascending: false })
       .limit(1)
@@ -109,7 +132,9 @@ export class AnalyticsService {
         },
         { onConflict: "product_id,week_start" },
       )
-      .select("id,product_id,week_start,summary_md,recommendations,sent_at,created_at")
+      .select(
+        "id,product_id,week_start,summary_md,recommendations,sent_at,created_at",
+      )
       .single();
 
     if (error) {
@@ -119,14 +144,29 @@ export class AnalyticsService {
     return mapWeeklyBrief(data);
   }
 
-  private async buildDashboardSummary(productId: string): Promise<DashboardSummary> {
-
+  private async buildDashboardSummary(
+    productId: string,
+  ): Promise<DashboardSummary> {
     const periods = getRollingPeriods(new Date());
 
-    const [currentTraffic, previousTraffic, traffic30d, rankRows, contentRows, pendingInboxRows] = await Promise.all([
+    const [
+      currentTraffic,
+      previousTraffic,
+      traffic30d,
+      rankRows,
+      contentRows,
+      pendingInboxRows,
+    ] = await Promise.all([
       this.listTrafficRows(productId, periods.current.startsAt),
-      this.listTrafficRows(productId, periods.previous.startsAt, periods.current.startsAt),
-      this.listTrafficRows(productId, new Date(Date.now() - 30 * dayMs).toISOString()),
+      this.listTrafficRows(
+        productId,
+        periods.previous.startsAt,
+        periods.current.startsAt,
+      ),
+      this.listTrafficRows(
+        productId,
+        new Date(Date.now() - 30 * dayMs).toISOString(),
+      ),
       this.listKeywordRows(productId),
       this.listContentRows(productId),
       this.listPendingInboxRows(productId),
@@ -137,9 +177,19 @@ export class AnalyticsService {
     const conversions = sumTraffic(currentTraffic, "conversions");
     const previousConversions = sumTraffic(previousTraffic, "conversions");
     const keywordMovement = deriveKeywordMovement(rankRows);
-    const contentPerformance = deriveContentPerformance(contentRows, keywordMovement);
-    const publishedAssets = countPublishedAssets(contentRows, periods.current.startsAt);
-    const previousPublishedAssets = countPublishedAssets(contentRows, periods.previous.startsAt, periods.current.startsAt);
+    const contentPerformance = deriveContentPerformance(
+      contentRows,
+      keywordMovement,
+    );
+    const publishedAssets = countPublishedAssets(
+      contentRows,
+      periods.current.startsAt,
+    );
+    const previousPublishedAssets = countPublishedAssets(
+      contentRows,
+      periods.previous.startsAt,
+      periods.current.startsAt,
+    );
 
     return dashboardSummarySchema.parse({
       productId,
@@ -153,7 +203,10 @@ export class AnalyticsService {
       publishedAssetDelta: publishedAssets - previousPublishedAssets,
       pendingInboxItems: pendingInboxRows.length,
       estimatedReviewMinutes: Math.ceil(
-        pendingInboxRows.reduce((total, row) => total + (row.review_time_estimate_seconds ?? 0), 0) / 60,
+        pendingInboxRows.reduce(
+          (total, row) => total + (row.review_time_estimate_seconds ?? 0),
+          0,
+        ) / 60,
       ),
       sourceBreakdown: deriveSourceBreakdown(traffic30d),
       keywordMovement,
@@ -168,7 +221,11 @@ export class AnalyticsService {
     });
   }
 
-  private async listTrafficRows(productId: string, startsAt: string, endsBefore?: string) {
+  private async listTrafficRows(
+    productId: string,
+    startsAt: string,
+    endsBefore?: string,
+  ) {
     let query = this.supabase
       .from("traffic_snapshots")
       .select("source_type,visits,conversions,recorded_at")
@@ -207,7 +264,9 @@ export class AnalyticsService {
   private async listContentRows(productId: string) {
     const { data, error } = await this.supabase
       .from("content_assets")
-      .select("id,title,type,status,target_keyword,published_url,created_at,updated_at")
+      .select(
+        "id,title,type,status,target_keyword,published_url,created_at,updated_at",
+      )
       .eq("product_id", productId)
       .order("updated_at", { ascending: false })
       .limit(50);
@@ -241,7 +300,10 @@ export class AnalyticsReadError extends Error {
   }
 }
 
-export function buildWeeklyDigest(input: { productName: string; summary: DashboardSummary }) {
+export function buildWeeklyDigest(input: {
+  productName: string;
+  summary: DashboardSummary;
+}) {
   const recommendations = buildWeeklyRecommendations(input.summary);
   const lines = [
     `# ${input.productName} weekly digest`,
@@ -264,11 +326,17 @@ export function buildWeeklyDigest(input: { productName: string; summary: Dashboa
   };
 }
 
-function buildWeeklyRecommendations(summary: DashboardSummary): WeeklyRecommendation[] {
+function buildWeeklyRecommendations(
+  summary: DashboardSummary,
+): WeeklyRecommendation[] {
   const recommendations: WeeklyRecommendation[] = [];
   const leadingSource = summary.sourceBreakdown[0];
-  const risingKeyword = summary.keywordMovement.find((keyword) => keyword.trend === "up");
-  const pendingContent = summary.contentPerformance.find((asset) => asset.status === "pending_review");
+  const risingKeyword = summary.keywordMovement.find(
+    (keyword) => keyword.trend === "up",
+  );
+  const pendingContent = summary.contentPerformance.find(
+    (asset) => asset.status === "pending_review",
+  );
 
   if (pendingContent) {
     recommendations.push({
@@ -300,7 +368,8 @@ function buildWeeklyRecommendations(summary: DashboardSummary): WeeklyRecommenda
   if (!recommendations.length) {
     recommendations.push({
       title: "Connect analytics inputs",
-      rationale: "Traffic and keyword ingestion are ready, but this product has no measured performance signals yet.",
+      rationale:
+        "Traffic and keyword ingestion are ready, but this product has no measured performance signals yet.",
       actionLabel: "Open analytics",
       priority: "low",
     });
@@ -330,7 +399,9 @@ function mapWeeklyBrief(data: {
 }
 
 function weekStartDate(now: Date) {
-  const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const date = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
   const day = date.getUTCDay() || 7;
   date.setUTCDate(date.getUTCDate() - day + 1);
   return date.toISOString().slice(0, 10);
@@ -363,10 +434,13 @@ function getRollingPeriods(now: Date) {
 }
 
 function formatPeriodLabel(startsAt: Date, endsAt: Date) {
-  return `${startsAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}-${endsAt.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  })}`;
+  return `${startsAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}-${endsAt.toLocaleDateString(
+    "en-US",
+    {
+      month: "short",
+      day: "numeric",
+    },
+  )}`;
 }
 
 function sumTraffic(rows: TrafficRow[], field: "visits" | "conversions") {
@@ -385,20 +459,27 @@ function deriveSourceBreakdown(rows: TrafficRow[]): TrafficSourceBreakdown[] {
   const bySource = new Map<string, { visits: number; conversions: number }>();
 
   rows.forEach((row) => {
-    const current = bySource.get(row.source_type) ?? { visits: 0, conversions: 0 };
+    const current = bySource.get(row.source_type) ?? {
+      visits: 0,
+      conversions: 0,
+    };
     current.visits += Number(row.visits);
     current.conversions += Number(row.conversions);
     bySource.set(row.source_type, current);
   });
 
-  const totalVisits = Array.from(bySource.values()).reduce((total, source) => total + source.visits, 0);
+  const totalVisits = Array.from(bySource.values()).reduce(
+    (total, source) => total + source.visits,
+    0,
+  );
 
   return Array.from(bySource.entries())
     .map(([sourceType, source]) => ({
       sourceType,
       visits: source.visits,
       conversions: source.conversions,
-      sharePercent: totalVisits === 0 ? 0 : Math.round((source.visits / totalVisits) * 100),
+      sharePercent:
+        totalVisits === 0 ? 0 : Math.round((source.visits / totalVisits) * 100),
     }))
     .sort((a, b) => b.visits - a.visits);
 }
@@ -418,9 +499,17 @@ function deriveKeywordMovement(rows: KeywordRankRow[]): KeywordMovement[] {
       const [current, previous] = keywordRows;
       const currentPosition = Number(current.rank_position);
       const previousPosition = previous ? Number(previous.rank_position) : null;
-      const change = previousPosition === null ? null : previousPosition - currentPosition;
+      const change =
+        previousPosition === null ? null : previousPosition - currentPosition;
 
-      const trend: KeywordMovement["trend"] = change === null ? "new" : change > 0 ? "up" : change < 0 ? "down" : "flat";
+      const trend: KeywordMovement["trend"] =
+        change === null
+          ? "new"
+          : change > 0
+            ? "up"
+            : change < 0
+              ? "down"
+              : "flat";
 
       return {
         keyword: current.keyword,
@@ -436,11 +525,21 @@ function deriveKeywordMovement(rows: KeywordRankRow[]): KeywordMovement[] {
     .slice(0, 12);
 }
 
-function deriveContentPerformance(rows: ContentAssetRow[], keywordMovement: KeywordMovement[]): ContentPerformance[] {
-  const movementByKeyword = new Map(keywordMovement.map((movement) => [normalizeKeyword(movement.keyword), movement]));
+function deriveContentPerformance(
+  rows: ContentAssetRow[],
+  keywordMovement: KeywordMovement[],
+): ContentPerformance[] {
+  const movementByKeyword = new Map(
+    keywordMovement.map((movement) => [
+      normalizeKeyword(movement.keyword),
+      movement,
+    ]),
+  );
 
   return rows.slice(0, 12).map((row) => {
-    const movement = row.target_keyword ? movementByKeyword.get(normalizeKeyword(row.target_keyword)) : undefined;
+    const movement = row.target_keyword
+      ? movementByKeyword.get(normalizeKeyword(row.target_keyword))
+      : undefined;
 
     return {
       id: row.id,
@@ -458,9 +557,15 @@ function deriveContentPerformance(rows: ContentAssetRow[], keywordMovement: Keyw
   });
 }
 
-function countPublishedAssets(rows: ContentAssetRow[], startsAt: string, endsBefore?: string) {
+function countPublishedAssets(
+  rows: ContentAssetRow[],
+  startsAt: string,
+  endsBefore?: string,
+) {
   const start = new Date(startsAt).getTime();
-  const end = endsBefore ? new Date(endsBefore).getTime() : Number.POSITIVE_INFINITY;
+  const end = endsBefore
+    ? new Date(endsBefore).getTime()
+    : Number.POSITIVE_INFINITY;
 
   return rows.filter((row) => {
     const updatedAt = new Date(row.updated_at).getTime();
@@ -484,7 +589,9 @@ function deriveWeeklyInsight(input: {
   }
 
   const leadingSource = input.sourceBreakdown[0];
-  const leadingKeyword = input.keywordMovement.find((movement) => movement.trend === "up") ?? input.keywordMovement[0];
+  const leadingKeyword =
+    input.keywordMovement.find((movement) => movement.trend === "up") ??
+    input.keywordMovement[0];
 
   if (leadingSource) {
     return {
@@ -494,7 +601,8 @@ function deriveWeeklyInsight(input: {
           ? `${leadingKeyword.keyword} is currently at position #${leadingKeyword.currentPosition}; use it to choose the next content update.`
           : "Add keyword snapshots to connect traffic movement with SEO changes."
       }`,
-      actionLabel: input.pendingInboxItems > 0 ? "Review pending actions" : null,
+      actionLabel:
+        input.pendingInboxItems > 0 ? "Review pending actions" : null,
     };
   }
 

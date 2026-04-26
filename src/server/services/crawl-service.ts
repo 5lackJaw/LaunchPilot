@@ -3,6 +3,8 @@ import { inngest } from "@/inngest/client";
 import { AuthService } from "@/server/services/auth-service";
 import { crawlJobSchema, crawlResultSchema } from "@/server/schemas/crawl";
 import { productIdSchema } from "@/server/schemas/product";
+import { PlanService } from "@/server/services/plan-service";
+import { ProductService } from "@/server/services/product-service";
 
 const initialSteps = [
   { label: "Fetch product URL", status: "pending" },
@@ -15,7 +17,8 @@ export class CrawlService {
 
   async startCrawl(input: unknown) {
     const { productId } = productIdSchema.parse(input);
-    await new AuthService(this.supabase).requireUser();
+    await new ProductService(this.supabase).getProduct({ productId });
+    await new PlanService(this.supabase).assertCanStartCrawl({ productId });
 
     const { data, error } = await this.supabase
       .from("crawl_jobs")
@@ -25,7 +28,9 @@ export class CrawlService {
         progress_percent: 0,
         steps: initialSteps,
       })
-      .select("id,product_id,status,progress_percent,steps,error_message,created_at,updated_at,completed_at")
+      .select(
+        "id,product_id,status,progress_percent,steps,error_message,created_at,updated_at,completed_at",
+      )
       .single();
 
     if (error) {
@@ -64,7 +69,9 @@ export class CrawlService {
 
     const { data, error } = await this.supabase
       .from("crawl_jobs")
-      .select("id,product_id,status,progress_percent,steps,error_message,created_at,updated_at,completed_at")
+      .select(
+        "id,product_id,status,progress_percent,steps,error_message,created_at,updated_at,completed_at",
+      )
       .eq("product_id", productId)
       .order("created_at", { ascending: false })
       .limit(1)

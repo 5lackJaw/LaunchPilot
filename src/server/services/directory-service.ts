@@ -8,7 +8,12 @@ import {
   requestDirectoryPackageGenerationSchema,
   updateDirectorySubmissionStatusSchema,
 } from "@/server/schemas/directory";
-import type { Directory, DirectorySubmission, DirectoryTrackerItem } from "@/server/schemas/directory";
+import type {
+  Directory,
+  DirectorySubmission,
+  DirectoryTrackerItem,
+} from "@/server/schemas/directory";
+import { PlanService } from "@/server/services/plan-service";
 import { ProductService } from "@/server/services/product-service";
 
 const directorySelect =
@@ -21,11 +26,20 @@ export class DirectoryService {
 
   async listTracker(input: unknown): Promise<DirectoryTrackerItem[]> {
     const parsed = listDirectoryTrackerSchema.parse(input);
-    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: parsed.productId,
+    });
 
     const [directoriesResult, submissionsResult] = await Promise.all([
-      this.supabase.from("directories").select(directorySelect).eq("active", true).order("name", { ascending: true }),
-      this.supabase.from("directory_submissions").select(submissionSelect).eq("product_id", parsed.productId),
+      this.supabase
+        .from("directories")
+        .select(directorySelect)
+        .eq("active", true)
+        .order("name", { ascending: true }),
+      this.supabase
+        .from("directory_submissions")
+        .select(submissionSelect)
+        .eq("product_id", parsed.productId),
     ]);
 
     if (directoriesResult.error) {
@@ -37,7 +51,10 @@ export class DirectoryService {
     }
 
     const submissionsByDirectory = new Map(
-      (submissionsResult.data ?? []).map((submission) => [submission.directory_id, mapSubmission(submission)]),
+      (submissionsResult.data ?? []).map((submission) => [
+        submission.directory_id,
+        mapSubmission(submission),
+      ]),
     );
 
     return (directoriesResult.data ?? []).map((directory) => ({
@@ -48,7 +65,13 @@ export class DirectoryService {
 
   async requestPackageGeneration(input: unknown) {
     const parsed = requestDirectoryPackageGenerationSchema.parse(input);
-    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: parsed.productId,
+    });
+    await new PlanService(this.supabase).assertCanUseGeneratedAction({
+      productId: parsed.productId,
+      actionLabel: "directory package generation",
+    });
 
     await inngest.send({
       name: "directory_package/generation.requested",
@@ -60,11 +83,16 @@ export class DirectoryService {
 
   async updateSubmissionStatus(input: unknown): Promise<DirectorySubmission> {
     const parsed = updateDirectorySubmissionStatusSchema.parse(input);
-    const current = await this.getSubmission({ submissionId: parsed.submissionId });
-    await new ProductService(this.supabase).getProduct({ productId: current.productId });
+    const current = await this.getSubmission({
+      submissionId: parsed.submissionId,
+    });
+    await new ProductService(this.supabase).getProduct({
+      productId: current.productId,
+    });
     assertAllowedSubmissionTransition(current.status, parsed.status);
     const submittedAt =
-      parsed.status === "submitted" || (parsed.status === "live" && !current.submittedAt)
+      parsed.status === "submitted" ||
+      (parsed.status === "live" && !current.submittedAt)
         ? new Date().toISOString()
         : current.submittedAt;
 
@@ -88,20 +116,36 @@ export class DirectoryService {
 
   async autoSubmitSupported(input: unknown): Promise<DirectorySubmission> {
     const parsed = autoSubmitDirectorySubmissionSchema.parse(input);
-    const current = await this.getSubmission({ submissionId: parsed.submissionId });
-    await new ProductService(this.supabase).getProduct({ productId: current.productId });
-    const directory = await this.getDirectory({ directoryId: current.directoryId });
+    const current = await this.getSubmission({
+      submissionId: parsed.submissionId,
+    });
+    await new ProductService(this.supabase).getProduct({
+      productId: current.productId,
+    });
+    await new PlanService(this.supabase).assertCanExecuteAction({
+      productId: current.productId,
+      actionLabel: "directory auto-submit",
+    });
+    const directory = await this.getDirectory({
+      directoryId: current.directoryId,
+    });
 
     if (directory.submissionMethod !== "auto_supported") {
-      throw new DirectoryUpdateError("This directory does not support automatic submission.");
+      throw new DirectoryUpdateError(
+        "This directory does not support automatic submission.",
+      );
     }
 
     if (current.status !== "pending") {
-      throw new DirectoryUpdateError("Only pending directory submissions can be auto-submitted.");
+      throw new DirectoryUpdateError(
+        "Only pending directory submissions can be auto-submitted.",
+      );
     }
 
     if (!Object.keys(current.listingPayload).length) {
-      throw new DirectoryUpdateError("Generate a listing package before auto-submitting.");
+      throw new DirectoryUpdateError(
+        "Generate a listing package before auto-submitting.",
+      );
     }
 
     const submittedAt = new Date().toISOString();
@@ -133,7 +177,9 @@ export class DirectoryService {
     return mapSubmission(data);
   }
 
-  private async getSubmission(input: { submissionId: string }): Promise<DirectorySubmission> {
+  private async getSubmission(input: {
+    submissionId: string;
+  }): Promise<DirectorySubmission> {
     const { data, error } = await this.supabase
       .from("directory_submissions")
       .select(submissionSelect)
@@ -147,8 +193,14 @@ export class DirectoryService {
     return mapSubmission(data);
   }
 
-  private async getDirectory(input: { directoryId: string }): Promise<Directory> {
-    const { data, error } = await this.supabase.from("directories").select(directorySelect).eq("id", input.directoryId).single();
+  private async getDirectory(input: {
+    directoryId: string;
+  }): Promise<Directory> {
+    const { data, error } = await this.supabase
+      .from("directories")
+      .select(directorySelect)
+      .eq("id", input.directoryId)
+      .single();
 
     if (error) {
       throw new DirectoryReadError(error.message);
@@ -228,8 +280,14 @@ function mapSubmission(data: {
   });
 }
 
-function assertAllowedSubmissionTransition(current: DirectorySubmission["status"], next: DirectorySubmission["status"]) {
-  const allowed: Record<DirectorySubmission["status"], DirectorySubmission["status"][]> = {
+function assertAllowedSubmissionTransition(
+  current: DirectorySubmission["status"],
+  next: DirectorySubmission["status"],
+) {
+  const allowed: Record<
+    DirectorySubmission["status"],
+    DirectorySubmission["status"][]
+  > = {
     pending: ["submitted", "skipped", "failed"],
     submitted: ["live", "rejected", "failed"],
     live: [],
@@ -239,6 +297,8 @@ function assertAllowedSubmissionTransition(current: DirectorySubmission["status"
   };
 
   if (!allowed[current].includes(next)) {
-    throw new DirectoryUpdateError(`Cannot move a directory submission from ${current} to ${next}.`);
+    throw new DirectoryUpdateError(
+      `Cannot move a directory submission from ${current} to ${next}.`,
+    );
   }
 }

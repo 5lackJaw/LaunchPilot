@@ -8,12 +8,26 @@ import {
   selectKeywordOpportunitySchema,
   updateContentAssetSchema,
 } from "@/server/schemas/content";
-import type { ContentAsset, ContentAssetType, KeywordOpportunity } from "@/server/schemas/content";
+import type {
+  ContentAsset,
+  ContentAssetType,
+  KeywordOpportunity,
+} from "@/server/schemas/content";
 import type { MarketingBrief } from "@/server/schemas/brief";
-import { isGhostPublishingConfigured, publishContentAssetToGhost } from "@/server/publishing/ghost-adapter";
-import { isWebflowPublishingConfigured, publishContentAssetToWebflow } from "@/server/publishing/webflow-adapter";
-import { isWordPressPublishingConfigured, publishContentAssetToWordPress } from "@/server/publishing/wordpress-adapter";
+import {
+  isGhostPublishingConfigured,
+  publishContentAssetToGhost,
+} from "@/server/publishing/ghost-adapter";
+import {
+  isWebflowPublishingConfigured,
+  publishContentAssetToWebflow,
+} from "@/server/publishing/webflow-adapter";
+import {
+  isWordPressPublishingConfigured,
+  publishContentAssetToWordPress,
+} from "@/server/publishing/wordpress-adapter";
 import { BriefService } from "@/server/services/brief-service";
+import { PlanService } from "@/server/services/plan-service";
 import { ProductService } from "@/server/services/product-service";
 
 const contentAssetSelect =
@@ -22,11 +36,17 @@ const contentAssetSelect =
 export class ContentService {
   constructor(private readonly supabase: SupabaseClient) {}
 
-  async listKeywordOpportunities(input: unknown): Promise<KeywordOpportunity[]> {
+  async listKeywordOpportunities(
+    input: unknown,
+  ): Promise<KeywordOpportunity[]> {
     const parsed = listKeywordOpportunitiesSchema.parse(input);
-    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: parsed.productId,
+    });
 
-    const brief = await new BriefService(this.supabase).getCurrentBrief({ productId: parsed.productId });
+    const brief = await new BriefService(this.supabase).getCurrentBrief({
+      productId: parsed.productId,
+    });
     if (!brief) {
       return [];
     }
@@ -36,16 +56,26 @@ export class ContentService {
 
   async selectKeywordOpportunity(input: unknown): Promise<ContentAsset> {
     const parsed = selectKeywordOpportunitySchema.parse(input);
-    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: parsed.productId,
+    });
 
-    const brief = await new BriefService(this.supabase).getCurrentBrief({ productId: parsed.productId });
+    const brief = await new BriefService(this.supabase).getCurrentBrief({
+      productId: parsed.productId,
+    });
     if (!brief) {
-      throw new ContentAssetCreateError("A Marketing Brief is required before selecting content opportunities.");
+      throw new ContentAssetCreateError(
+        "A Marketing Brief is required before selecting content opportunities.",
+      );
     }
 
-    const opportunity = deriveKeywordOpportunities(brief).find((item) => item.id === parsed.opportunityId);
+    const opportunity = deriveKeywordOpportunities(brief).find(
+      (item) => item.id === parsed.opportunityId,
+    );
     if (!opportunity) {
-      throw new ContentAssetCreateError("Selected keyword opportunity is no longer available.");
+      throw new ContentAssetCreateError(
+        "Selected keyword opportunity is no longer available.",
+      );
     }
 
     const existing = await this.findActiveAssetForKeyword({
@@ -56,6 +86,11 @@ export class ContentService {
     if (existing) {
       return existing;
     }
+
+    await new PlanService(this.supabase).assertCanUseGeneratedAction({
+      productId: parsed.productId,
+      actionLabel: "content asset creation",
+    });
 
     const { data, error } = await this.supabase
       .from("content_assets")
@@ -89,7 +124,9 @@ export class ContentService {
 
   async listContentAssets(input: unknown): Promise<ContentAsset[]> {
     const parsed = listContentAssetsSchema.parse(input);
-    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: parsed.productId,
+    });
 
     let query = this.supabase
       .from("content_assets")
@@ -131,7 +168,9 @@ export class ContentService {
     const current = await this.getContentAsset({ assetId: parsed.assetId });
 
     if (!["draft", "pending_review", "rejected"].includes(current.status)) {
-      throw new ContentAssetUpdateError("Only draft, pending review, or rejected content assets can be edited.");
+      throw new ContentAssetUpdateError(
+        "Only draft, pending review, or rejected content assets can be edited.",
+      );
     }
 
     const { data, error } = await this.supabase
@@ -156,10 +195,20 @@ export class ContentService {
   async requestArticleGeneration(input: unknown): Promise<ContentAsset> {
     const parsed = contentAssetIdSchema.parse(input);
     const asset = await this.getContentAsset({ assetId: parsed.assetId });
-    await new ProductService(this.supabase).getProduct({ productId: asset.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: asset.productId,
+    });
+    await new PlanService(this.supabase).assertCanUseGeneratedAction({
+      productId: asset.productId,
+      actionLabel: "article generation",
+    });
 
-    if (!["draft", "pending_review", "rejected", "failed"].includes(asset.status)) {
-      throw new ContentGenerationRequestError("Only draft, pending review, rejected, or failed content assets can be regenerated.");
+    if (
+      !["draft", "pending_review", "rejected", "failed"].includes(asset.status)
+    ) {
+      throw new ContentGenerationRequestError(
+        "Only draft, pending review, rejected, or failed content assets can be regenerated.",
+      );
     }
 
     await inngest.send({
@@ -176,14 +225,22 @@ export class ContentService {
   async publishToGhost(input: unknown): Promise<ContentAsset> {
     const parsed = contentAssetIdSchema.parse(input);
     const asset = await this.getContentAsset({ assetId: parsed.assetId });
-    await new ProductService(this.supabase).getProduct({ productId: asset.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: asset.productId,
+    });
+    await new PlanService(this.supabase).assertCanExecuteAction({
+      productId: asset.productId,
+      actionLabel: "content publishing",
+    });
 
     if (!isGhostPublishingConfigured()) {
       throw new ContentPublishError("Ghost publishing is not configured.");
     }
 
     if (!["approved", "pending_review"].includes(asset.status)) {
-      throw new ContentPublishError("Only approved or pending review content assets can be sent to Ghost as drafts.");
+      throw new ContentPublishError(
+        "Only approved or pending review content assets can be sent to Ghost as drafts.",
+      );
     }
 
     const published = await publishContentAssetToGhost(asset);
@@ -217,14 +274,22 @@ export class ContentService {
   async publishToWordPress(input: unknown): Promise<ContentAsset> {
     const parsed = contentAssetIdSchema.parse(input);
     const asset = await this.getContentAsset({ assetId: parsed.assetId });
-    await new ProductService(this.supabase).getProduct({ productId: asset.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: asset.productId,
+    });
+    await new PlanService(this.supabase).assertCanExecuteAction({
+      productId: asset.productId,
+      actionLabel: "content publishing",
+    });
 
     if (!isWordPressPublishingConfigured()) {
       throw new ContentPublishError("WordPress publishing is not configured.");
     }
 
     if (!["approved", "pending_review"].includes(asset.status)) {
-      throw new ContentPublishError("Only approved or pending review content assets can be sent to WordPress as drafts.");
+      throw new ContentPublishError(
+        "Only approved or pending review content assets can be sent to WordPress as drafts.",
+      );
     }
 
     const published = await publishContentAssetToWordPress(asset);
@@ -258,14 +323,22 @@ export class ContentService {
   async publishToWebflow(input: unknown): Promise<ContentAsset> {
     const parsed = contentAssetIdSchema.parse(input);
     const asset = await this.getContentAsset({ assetId: parsed.assetId });
-    await new ProductService(this.supabase).getProduct({ productId: asset.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: asset.productId,
+    });
+    await new PlanService(this.supabase).assertCanExecuteAction({
+      productId: asset.productId,
+      actionLabel: "content publishing",
+    });
 
     if (!isWebflowPublishingConfigured()) {
       throw new ContentPublishError("Webflow publishing is not configured.");
     }
 
     if (!["approved", "pending_review"].includes(asset.status)) {
-      throw new ContentPublishError("Only approved or pending review content assets can be sent to Webflow as drafts.");
+      throw new ContentPublishError(
+        "Only approved or pending review content assets can be sent to Webflow as drafts.",
+      );
     }
 
     const published = await publishContentAssetToWebflow(asset);
@@ -296,7 +369,10 @@ export class ContentService {
     return mapContentAsset(data);
   }
 
-  private async findActiveAssetForKeyword(input: { productId: string; targetKeyword: string }) {
+  private async findActiveAssetForKeyword(input: {
+    productId: string;
+    targetKeyword: string;
+  }) {
     const { data, error } = await this.supabase
       .from("content_assets")
       .select(contentAssetSelect)
@@ -350,7 +426,9 @@ export class ContentPublishError extends Error {
   }
 }
 
-function deriveKeywordOpportunities(brief: MarketingBrief): KeywordOpportunity[] {
+function deriveKeywordOpportunities(
+  brief: MarketingBrief,
+): KeywordOpportunity[] {
   const opportunities: KeywordOpportunity[] = [];
 
   brief.keywordClusters.forEach((cluster, clusterIndex) => {
@@ -361,7 +439,12 @@ function deriveKeywordOpportunities(brief: MarketingBrief): KeywordOpportunity[]
       }
 
       opportunities.push({
-        id: createOpportunityId("keyword_cluster", clusterIndex, keywordIndex, normalizedKeyword),
+        id: createOpportunityId(
+          "keyword_cluster",
+          clusterIndex,
+          keywordIndex,
+          normalizedKeyword,
+        ),
         productId: brief.productId,
         briefVersion: brief.version,
         source: "keyword_cluster",
@@ -382,7 +465,12 @@ function deriveKeywordOpportunities(brief: MarketingBrief): KeywordOpportunity[]
     }
 
     opportunities.push({
-      id: createOpportunityId("content_calendar_seed", seedIndex, 0, targetKeyword),
+      id: createOpportunityId(
+        "content_calendar_seed",
+        seedIndex,
+        0,
+        targetKeyword,
+      ),
       productId: brief.productId,
       briefVersion: brief.version,
       source: "content_calendar_seed",
@@ -395,7 +483,9 @@ function deriveKeywordOpportunities(brief: MarketingBrief): KeywordOpportunity[]
     });
   });
 
-  return dedupeByKeyword(opportunities).sort((a, b) => b.priorityScore - a.priorityScore);
+  return dedupeByKeyword(opportunities).sort(
+    (a, b) => b.priorityScore - a.priorityScore,
+  );
 }
 
 function mapContentAsset(data: {
@@ -427,7 +517,8 @@ function mapContentAsset(data: {
     metaDescription: data.meta_description,
     status: data.status,
     publishedUrl: data.published_url,
-    aiConfidence: data.ai_confidence === null ? null : Number(data.ai_confidence),
+    aiConfidence:
+      data.ai_confidence === null ? null : Number(data.ai_confidence),
     provenance: data.provenance,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
@@ -447,7 +538,12 @@ function dedupeByKeyword(opportunities: KeywordOpportunity[]) {
   });
 }
 
-function createOpportunityId(source: string, primaryIndex: number, secondaryIndex: number, keyword: string) {
+function createOpportunityId(
+  source: string,
+  primaryIndex: number,
+  secondaryIndex: number,
+  keyword: string,
+) {
   return `${source}-${primaryIndex}-${secondaryIndex}-${slugify(keyword)}`;
 }
 

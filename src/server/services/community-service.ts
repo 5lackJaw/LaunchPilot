@@ -9,6 +9,7 @@ import {
 } from "@/server/schemas/community";
 import type { CommunityThread } from "@/server/schemas/community";
 import { ProductService } from "@/server/services/product-service";
+import { PlanService } from "@/server/services/plan-service";
 
 const communityThreadSelect =
   "id,product_id,platform,thread_url,thread_title,thread_author_handle,relevance_score,pain_signal_score,audience_fit_score,recency_score,reply_draft,promotional_score,status,posted_at,provenance,created_at,updated_at";
@@ -18,7 +19,9 @@ export class CommunityService {
 
   async listThreads(input: unknown): Promise<CommunityThread[]> {
     const parsed = listCommunityThreadsSchema.parse(input);
-    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: parsed.productId,
+    });
 
     let query = this.supabase
       .from("community_threads")
@@ -42,7 +45,13 @@ export class CommunityService {
 
   async requestThreadIngestion(input: unknown) {
     const parsed = requestCommunityThreadIngestionSchema.parse(input);
-    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: parsed.productId,
+    });
+    await new PlanService(this.supabase).assertCanUseGeneratedAction({
+      productId: parsed.productId,
+      actionLabel: "community thread ingestion",
+    });
 
     await inngest.send({
       name: "community_threads/ingestion.requested",
@@ -55,10 +64,18 @@ export class CommunityService {
   async requestReplyGeneration(input: unknown) {
     const parsed = requestCommunityReplyGenerationSchema.parse(input);
     const thread = await this.getThread({ threadId: parsed.threadId });
-    await new ProductService(this.supabase).getProduct({ productId: thread.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: thread.productId,
+    });
+    await new PlanService(this.supabase).assertCanUseGeneratedAction({
+      productId: thread.productId,
+      actionLabel: "community reply generation",
+    });
 
     if (!["observed", "drafted", "failed"].includes(thread.status)) {
-      throw new CommunityReplyGenerationRequestError("Only observed, drafted, or failed threads can request reply generation.");
+      throw new CommunityReplyGenerationRequestError(
+        "Only observed, drafted, or failed threads can request reply generation.",
+      );
     }
 
     await inngest.send({
@@ -73,18 +90,30 @@ export class CommunityService {
   async postApprovedReply(input: unknown): Promise<CommunityThread> {
     const parsed = postCommunityReplySchema.parse(input);
     const thread = await this.getThread({ threadId: parsed.threadId });
-    await new ProductService(this.supabase).getProduct({ productId: thread.productId });
+    await new ProductService(this.supabase).getProduct({
+      productId: thread.productId,
+    });
+    await new PlanService(this.supabase).assertCanExecuteAction({
+      productId: thread.productId,
+      actionLabel: "community posting",
+    });
 
     if (thread.status !== "pending_review" && thread.status !== "approved") {
-      throw new CommunityReplyPostError("Only reviewed community reply drafts can be posted.");
+      throw new CommunityReplyPostError(
+        "Only reviewed community reply drafts can be posted.",
+      );
     }
 
     if (!thread.replyDraft?.trim()) {
-      throw new CommunityReplyPostError("A reply draft is required before posting.");
+      throw new CommunityReplyPostError(
+        "A reply draft is required before posting.",
+      );
     }
 
     if ((thread.promotionalScore ?? 1) > 0.45) {
-      throw new CommunityReplyPostError("Reply promotional risk is too high to post.");
+      throw new CommunityReplyPostError(
+        "Reply promotional risk is too high to post.",
+      );
     }
 
     const postedAt = new Date().toISOString();
@@ -113,7 +142,9 @@ export class CommunityService {
     return mapCommunityThread(data);
   }
 
-  private async getThread(input: { threadId: string }): Promise<CommunityThread> {
+  private async getThread(input: {
+    threadId: string;
+  }): Promise<CommunityThread> {
     const { data, error } = await this.supabase
       .from("community_threads")
       .select(communityThreadSelect)
@@ -187,7 +218,8 @@ function mapCommunityThread(data: {
     audienceFitScore: Number(data.audience_fit_score),
     recencyScore: Number(data.recency_score),
     replyDraft: data.reply_draft,
-    promotionalScore: data.promotional_score === null ? null : Number(data.promotional_score),
+    promotionalScore:
+      data.promotional_score === null ? null : Number(data.promotional_score),
     status: data.status,
     postedAt: data.posted_at,
     provenance: data.provenance,

@@ -16,6 +16,11 @@ Fields:
 - stripe_customer_id
 - created_at
 
+Rules:
+- plan tier limits are enforced server-side before creating products, starting crawls, requesting generated actions, or executing publish/post/send/submit actions
+- quota usage is counted from durable product-scoped records, not client state
+- exact commercial limits are provisional until pricing and packaging are finalized
+
 ### products
 Purpose: root business object for a user's marketed product.
 Fields:

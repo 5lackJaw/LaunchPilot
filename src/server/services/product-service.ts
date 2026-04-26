@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AuthService } from "@/server/services/auth-service";
-import { createProductSchema, productIdSchema, productSchema } from "@/server/schemas/product";
+import {
+  createProductSchema,
+  productIdSchema,
+  productSchema,
+} from "@/server/schemas/product";
+import { PlanService } from "@/server/services/plan-service";
 
 export class ProductService {
   constructor(private readonly supabase: SupabaseClient) {}
@@ -8,6 +13,7 @@ export class ProductService {
   async createProduct(input: unknown) {
     const parsed = createProductSchema.parse(input);
     const user = await new AuthService(this.supabase).requireUser();
+    await new PlanService(this.supabase).assertCanCreateProduct();
 
     const { data, error } = await this.supabase
       .from("products")
@@ -17,7 +23,9 @@ export class ProductService {
         url: parsed.url,
         status: "onboarding",
       })
-      .select("id,user_id,name,url,status,current_marketing_brief_id,created_at")
+      .select(
+        "id,user_id,name,url,status,current_marketing_brief_id,created_at",
+      )
       .single();
 
     if (error) {
@@ -41,7 +49,9 @@ export class ProductService {
 
     const { data, error } = await this.supabase
       .from("products")
-      .select("id,user_id,name,url,status,current_marketing_brief_id,created_at")
+      .select(
+        "id,user_id,name,url,status,current_marketing_brief_id,created_at",
+      )
       .eq("id", productId)
       .single();
 
@@ -65,7 +75,9 @@ export class ProductService {
 
     const { data, error } = await this.supabase
       .from("products")
-      .select("id,user_id,name,url,status,current_marketing_brief_id,created_at")
+      .select(
+        "id,user_id,name,url,status,current_marketing_brief_id,created_at",
+      )
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
