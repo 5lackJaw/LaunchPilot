@@ -4,14 +4,18 @@ import { buildOutreachDraft } from "@/server/outreach/build-outreach-draft";
 import { buildProspectCandidates } from "@/server/outreach/build-prospect-candidates";
 import { marketingBriefSchema } from "@/server/schemas/brief";
 import { outreachContactSchema } from "@/server/schemas/outreach";
+import { captureWorkflowException, logWorkflowEvent } from "@/server/observability/workflow-logger";
 
 export const prospectIdentificationWorkflow = inngest.createFunction(
   { id: "prospect-identification-workflow", triggers: [{ event: "outreach/prospect_identification.requested" }] },
   async ({ event, step }) => {
+    const workflow = "prospect_identification";
     const productId = event.data.productId as string;
     const supabase = createSupabaseAdminClient();
+    logWorkflowEvent({ workflow, status: "started", eventName: event.name, productId });
 
-    const inputs = await step.run("load-outreach-inputs", async () => {
+    try {
+      const inputs = await step.run("load-outreach-inputs", async () => {
       const productResult = await supabase.from("products").select("id,name,url,current_marketing_brief_id").eq("id", productId).single();
 
       if (productResult.error) {
@@ -56,15 +60,15 @@ export const prospectIdentificationWorkflow = inngest.createFunction(
       };
     });
 
-    const candidates = await step.run("identify-prospect-candidates", async () =>
+      const candidates = await step.run("identify-prospect-candidates", async () =>
       buildProspectCandidates({
         productName: inputs.product.name,
         productUrl: inputs.product.url,
         brief: inputs.brief,
       }),
-    );
+      );
 
-    await step.run("persist-identified-prospects", async () => {
+      await step.run("persist-identified-prospects", async () => {
       const rows = candidates.map((candidate) => ({
         product_id: productId,
         name: candidate.name,
@@ -82,18 +86,27 @@ export const prospectIdentificationWorkflow = inngest.createFunction(
         throw error;
       }
 
-      return rows.length;
-    });
+        return rows.length;
+      });
+
+      logWorkflowEvent({ workflow, status: "succeeded", eventName: event.name, productId, metadata: { candidateCount: candidates.length } });
+    } catch (error) {
+      captureWorkflowException(error, { workflow, eventName: event.name, productId });
+      throw error;
+    }
   },
 );
 
 export const outreachDraftGenerationWorkflow = inngest.createFunction(
   { id: "outreach-draft-generation-workflow", triggers: [{ event: "outreach/draft_generation.requested" }] },
   async ({ event, step }) => {
+    const workflow = "outreach_draft_generation";
     const contactId = event.data.contactId as string;
     const supabase = createSupabaseAdminClient();
+    logWorkflowEvent({ workflow, status: "started", eventName: event.name, entityId: contactId });
 
-    const inputs = await step.run("load-draft-inputs", async () => {
+    try {
+      const inputs = await step.run("load-draft-inputs", async () => {
       const contactResult = await supabase
         .from("outreach_contacts")
         .select("id,product_id,name,email,publication,url,score,status,last_contact_at,provenance,created_at,updated_at")
@@ -168,16 +181,16 @@ export const outreachDraftGenerationWorkflow = inngest.createFunction(
       };
     });
 
-    const draft = await step.run("compose-outreach-draft", async () =>
+      const draft = await step.run("compose-outreach-draft", async () =>
       buildOutreachDraft({
         productName: inputs.product.name,
         productUrl: inputs.product.url,
         brief: inputs.brief,
         contact: inputs.contact,
       }),
-    );
+      );
 
-    const updated = await step.run("mark-contact-pending-review", async () => {
+      const updated = await step.run("mark-contact-pending-review", async () => {
       const { data, error } = await supabase
         .from("outreach_contacts")
         .update({
@@ -203,7 +216,7 @@ export const outreachDraftGenerationWorkflow = inngest.createFunction(
       return data;
     });
 
-    await step.run("create-outreach-inbox-item", async () => {
+      await step.run("create-outreach-inbox-item", async () => {
       const existing = await supabase
         .from("inbox_items")
         .select("id")
@@ -264,7 +277,13 @@ export const outreachDraftGenerationWorkflow = inngest.createFunction(
         throw eventResult.error;
       }
 
-      return itemResult.data;
-    });
+        return itemResult.data;
+      });
+
+      logWorkflowEvent({ workflow, status: "succeeded", eventName: event.name, productId: updated.product_id, entityId: contactId });
+    } catch (error) {
+      captureWorkflowException(error, { workflow, eventName: event.name, entityId: contactId });
+      throw error;
+    }
   },
 );

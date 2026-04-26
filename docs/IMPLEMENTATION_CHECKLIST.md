@@ -84,5 +84,5 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Billing page / portal access
 - [x] Mobile polish for primary routes
 - [x] Empty and error states
-- [ ] Logging and observability improvements
+- [x] Logging and observability improvements
 - [ ] Data export and deletion paths

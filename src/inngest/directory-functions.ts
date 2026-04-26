@@ -3,14 +3,18 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { buildDirectoryListingPackage } from "@/server/directory/build-listing-package";
 import { directorySchema } from "@/server/schemas/directory";
 import { marketingBriefSchema } from "@/server/schemas/brief";
+import { captureWorkflowException, logWorkflowEvent } from "@/server/observability/workflow-logger";
 
 export const directoryPackageGenerationWorkflow = inngest.createFunction(
   { id: "directory-package-generation-workflow", triggers: [{ event: "directory_package/generation.requested" }] },
   async ({ event, step }) => {
+    const workflow = "directory_package_generation";
     const productId = event.data.productId as string;
     const supabase = createSupabaseAdminClient();
+    logWorkflowEvent({ workflow, status: "started", eventName: event.name, productId });
 
-    const inputs = await step.run("load-directory-package-inputs", async () => {
+    try {
+      const inputs = await step.run("load-directory-package-inputs", async () => {
       const [productResult, directoriesResult, briefResult] = await Promise.all([
         supabase.from("products").select("id,name,url,current_marketing_brief_id").eq("id", productId).single(),
         supabase
@@ -80,7 +84,7 @@ export const directoryPackageGenerationWorkflow = inngest.createFunction(
       };
     });
 
-    const submissions = await step.run("persist-listing-packages", async () => {
+      const submissions = await step.run("persist-listing-packages", async () => {
       const rows = inputs.directories.map((directory) => ({
         product_id: productId,
         directory_id: directory.id,
@@ -110,7 +114,7 @@ export const directoryPackageGenerationWorkflow = inngest.createFunction(
       return data;
     });
 
-    await step.run("create-directory-review-items", async () => {
+      await step.run("create-directory-review-items", async () => {
       for (const submission of submissions) {
         const directory = inputs.directories.find((item) => item.id === submission.directory_id);
         const payload = submission.listing_payload as { productName?: string; tagline?: string; shortDescription?: string };
@@ -173,7 +177,13 @@ export const directoryPackageGenerationWorkflow = inngest.createFunction(
         }
       }
 
-      return { createdFor: submissions.length };
-    });
+        return { createdFor: submissions.length };
+      });
+
+      logWorkflowEvent({ workflow, status: "succeeded", eventName: event.name, productId, metadata: { submissionCount: submissions.length } });
+    } catch (error) {
+      captureWorkflowException(error, { workflow, eventName: event.name, productId });
+      throw error;
+    }
   },
 );

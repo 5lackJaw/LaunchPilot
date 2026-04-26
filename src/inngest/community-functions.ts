@@ -4,14 +4,18 @@ import { buildCommunityReplyDraft } from "@/server/community/build-reply-draft";
 import { buildThreadCandidates } from "@/server/community/build-thread-candidates";
 import { marketingBriefSchema } from "@/server/schemas/brief";
 import { communityThreadSchema } from "@/server/schemas/community";
+import { captureWorkflowException, logWorkflowEvent } from "@/server/observability/workflow-logger";
 
 export const communityThreadIngestionWorkflow = inngest.createFunction(
   { id: "community-thread-ingestion-workflow", triggers: [{ event: "community_threads/ingestion.requested" }] },
   async ({ event, step }) => {
+    const workflow = "community_thread_ingestion";
     const productId = event.data.productId as string;
     const supabase = createSupabaseAdminClient();
+    logWorkflowEvent({ workflow, status: "started", eventName: event.name, productId });
 
-    const inputs = await step.run("load-community-inputs", async () => {
+    try {
+      const inputs = await step.run("load-community-inputs", async () => {
       const productResult = await supabase.from("products").select("id,name,current_marketing_brief_id").eq("id", productId).single();
 
       if (productResult.error) {
@@ -56,14 +60,14 @@ export const communityThreadIngestionWorkflow = inngest.createFunction(
       };
     });
 
-    const candidates = await step.run("score-thread-candidates", async () =>
+      const candidates = await step.run("score-thread-candidates", async () =>
       buildThreadCandidates({
         productName: inputs.product.name,
         brief: inputs.brief,
       }),
-    );
+      );
 
-    await step.run("persist-observed-threads", async () => {
+      await step.run("persist-observed-threads", async () => {
       const rows = candidates.map((candidate) => ({
         product_id: productId,
         platform: candidate.platform,
@@ -85,18 +89,27 @@ export const communityThreadIngestionWorkflow = inngest.createFunction(
         throw error;
       }
 
-      return rows.length;
-    });
+        return rows.length;
+      });
+
+      logWorkflowEvent({ workflow, status: "succeeded", eventName: event.name, productId, metadata: { candidateCount: candidates.length } });
+    } catch (error) {
+      captureWorkflowException(error, { workflow, eventName: event.name, productId });
+      throw error;
+    }
   },
 );
 
 export const communityReplyGenerationWorkflow = inngest.createFunction(
   { id: "community-reply-generation-workflow", triggers: [{ event: "community_reply/generation.requested" }] },
   async ({ event, step }) => {
+    const workflow = "community_reply_generation";
     const threadId = event.data.threadId as string;
     const supabase = createSupabaseAdminClient();
+    logWorkflowEvent({ workflow, status: "started", eventName: event.name, entityId: threadId });
 
-    const inputs = await step.run("load-reply-inputs", async () => {
+    try {
+      const inputs = await step.run("load-reply-inputs", async () => {
       const threadResult = await supabase
         .from("community_threads")
         .select(
@@ -178,15 +191,15 @@ export const communityReplyGenerationWorkflow = inngest.createFunction(
       };
     });
 
-    const draft = await step.run("draft-reply-and-score-guardrails", async () =>
+      const draft = await step.run("draft-reply-and-score-guardrails", async () =>
       buildCommunityReplyDraft({
         productName: inputs.product.name,
         brief: inputs.brief,
         thread: inputs.thread,
       }),
-    );
+      );
 
-    const updated = await step.run("persist-reply-draft", async () => {
+      const updated = await step.run("persist-reply-draft", async () => {
       const blocked = draft.promotionalScore > 0.45;
       const { data, error } = await supabase
         .from("community_threads")
@@ -216,11 +229,12 @@ export const communityReplyGenerationWorkflow = inngest.createFunction(
       return data;
     });
 
-    if (updated.status === "blocked") {
-      return updated;
-    }
+      if (updated.status === "blocked") {
+        logWorkflowEvent({ workflow, status: "succeeded", eventName: event.name, productId: updated.product_id, entityId: threadId, metadata: { result: "blocked" } });
+        return updated;
+      }
 
-    const executionMode = await step.run("resolve-trust-level-eligibility", async () => {
+      const executionMode = await step.run("resolve-trust-level-eligibility", async () => {
       const { data, error } = await supabase
         .from("automation_preferences")
         .select("trust_level,daily_auto_action_limit")
@@ -256,8 +270,8 @@ export const communityReplyGenerationWorkflow = inngest.createFunction(
       return canAutoExecute ? "auto_executed" : "pending_review";
     });
 
-    if (executionMode === "auto_executed") {
-      await step.run("auto-execute-community-reply", async () => {
+      if (executionMode === "auto_executed") {
+        await step.run("auto-execute-community-reply", async () => {
         const postedAt = new Date().toISOString();
         const { error } = await supabase
           .from("community_threads")
@@ -286,10 +300,10 @@ export const communityReplyGenerationWorkflow = inngest.createFunction(
         if (error) {
           throw error;
         }
-      });
-    }
+        });
+      }
 
-    await step.run("create-community-reply-inbox-item", async () => {
+      await step.run("create-community-reply-inbox-item", async () => {
       const existing = await supabase
         .from("inbox_items")
         .select("id")
@@ -352,9 +366,14 @@ export const communityReplyGenerationWorkflow = inngest.createFunction(
         throw eventResult.error;
       }
 
-      return itemResult.data;
-    });
+        return itemResult.data;
+      });
 
-    return updated;
+      logWorkflowEvent({ workflow, status: "succeeded", eventName: event.name, productId: updated.product_id, entityId: threadId, metadata: { executionMode } });
+      return updated;
+    } catch (error) {
+      captureWorkflowException(error, { workflow, eventName: event.name, entityId: threadId });
+      throw error;
+    }
   },
 );

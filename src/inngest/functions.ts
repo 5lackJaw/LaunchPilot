@@ -7,14 +7,18 @@ import { isWeeklyDigestEmailConfigured, sendWeeklyDigestEmail } from "@/server/e
 import { contentAssetSchema } from "@/server/schemas/content";
 import { marketingBriefSchema } from "@/server/schemas/brief";
 import { AnalyticsService, buildWeeklyDigest } from "@/server/services/analytics-service";
+import { captureWorkflowException, logWorkflowEvent } from "@/server/observability/workflow-logger";
 
 export const briefGenerationWorkflow = inngest.createFunction(
   { id: "brief-generation-workflow", triggers: [{ event: "brief/generation.requested" }] },
   async ({ event, step }) => {
+    const workflow = "brief_generation";
     const productId = event.data.productId as string;
     const supabase = createSupabaseAdminClient();
+    logWorkflowEvent({ workflow, status: "started", eventName: event.name, productId });
 
-    const inputs = await step.run("load-brief-inputs", async () => {
+    try {
+      const inputs = await step.run("load-brief-inputs", async () => {
       const [productResult, crawlResult, answersResult, versionResult] = await Promise.all([
         supabase.from("products").select("id,name,url").eq("id", productId).single(),
         supabase
@@ -52,9 +56,9 @@ export const briefGenerationWorkflow = inngest.createFunction(
       };
     });
 
-    const brief = await step.run("compose-brief", async () => buildInitialBrief(inputs));
+      const brief = await step.run("compose-brief", async () => buildInitialBrief(inputs));
 
-    const inserted = await step.run("persist-brief-version", async () => {
+      const inserted = await step.run("persist-brief-version", async () => {
       const { data, error } = await supabase
         .from("marketing_briefs")
         .insert({
@@ -80,7 +84,7 @@ export const briefGenerationWorkflow = inngest.createFunction(
       return data;
     });
 
-    await step.run("mark-current-brief", async () => {
+      await step.run("mark-current-brief", async () => {
       const { error } = await supabase
         .from("products")
         .update({
@@ -93,17 +97,25 @@ export const briefGenerationWorkflow = inngest.createFunction(
         throw error;
       }
 
-      return inserted;
-    });
+        return inserted;
+      });
+
+      logWorkflowEvent({ workflow, status: "succeeded", eventName: event.name, productId, metadata: { briefVersion: inserted.version } });
+    } catch (error) {
+      captureWorkflowException(error, { workflow, eventName: event.name, productId });
+      throw error;
+    }
   },
 );
 
 export const productCrawlPlaceholder = inngest.createFunction(
   { id: "product-crawl-placeholder", triggers: [{ event: "product/crawl.requested" }] },
   async ({ event, step }) => {
+    const workflow = "product_crawl";
     const crawlJobId = event.data.crawlJobId as string;
     const productId = event.data.productId as string;
     const supabase = createSupabaseAdminClient();
+    logWorkflowEvent({ workflow, status: "started", eventName: event.name, productId, entityId: crawlJobId });
 
     await step.run("mark-running", async () => {
       const { error } = await supabase
@@ -230,6 +242,7 @@ export const productCrawlPlaceholder = inngest.createFunction(
           },
         });
       });
+      logWorkflowEvent({ workflow, status: "succeeded", eventName: event.name, productId, entityId: crawlJobId });
     } catch (error) {
       await step.run("mark-failed", async () => {
         const message = error instanceof Error ? error.message : "Unknown crawl failure.";
@@ -252,6 +265,7 @@ export const productCrawlPlaceholder = inngest.createFunction(
         }
       });
 
+      captureWorkflowException(error, { workflow, eventName: event.name, productId, entityId: crawlJobId });
       throw error;
     }
   },
@@ -260,10 +274,13 @@ export const productCrawlPlaceholder = inngest.createFunction(
 export const contentGenerationWorkflow = inngest.createFunction(
   { id: "content-generation-workflow", triggers: [{ event: "content/generation.requested" }] },
   async ({ event, step }) => {
+    const workflow = "content_generation";
     const contentAssetId = event.data.contentAssetId as string;
     const supabase = createSupabaseAdminClient();
+    logWorkflowEvent({ workflow, status: "started", eventName: event.name, entityId: contentAssetId });
 
-    const inputs = await step.run("load-content-inputs", async () => {
+    try {
+      const inputs = await step.run("load-content-inputs", async () => {
       const assetResult = await supabase
         .from("content_assets")
         .select("id,product_id,brief_version,type,title,body_md,target_keyword,meta_title,meta_description,status,published_url,ai_confidence,provenance,created_at,updated_at")
@@ -337,15 +354,15 @@ export const contentGenerationWorkflow = inngest.createFunction(
       return { asset, brief, product: productResult.data };
     });
 
-    const draft = await step.run("compose-article-draft", async () =>
+      const draft = await step.run("compose-article-draft", async () =>
       buildArticleDraft({
         asset: inputs.asset,
         brief: inputs.brief,
         productName: inputs.product.name,
       }),
-    );
+      );
 
-    const updated = await step.run("persist-content-asset", async () => {
+      const updated = await step.run("persist-content-asset", async () => {
       const { data, error } = await supabase
         .from("content_assets")
         .update({
@@ -373,7 +390,7 @@ export const contentGenerationWorkflow = inngest.createFunction(
       return data;
     });
 
-    await step.run("create-review-inbox-item", async () => {
+      await step.run("create-review-inbox-item", async () => {
       const existing = await supabase
         .from("inbox_items")
         .select("id")
@@ -433,19 +450,28 @@ export const contentGenerationWorkflow = inngest.createFunction(
         throw eventResult.error;
       }
 
-      return data;
-    });
+        return data;
+      });
+
+      logWorkflowEvent({ workflow, status: "succeeded", eventName: event.name, productId: updated.product_id, entityId: contentAssetId });
+    } catch (error) {
+      captureWorkflowException(error, { workflow, eventName: event.name, entityId: contentAssetId });
+      throw error;
+    }
   },
 );
 
 export const weeklyDigestGenerationWorkflow = inngest.createFunction(
   { id: "weekly-digest-generation-workflow", triggers: [{ event: "weekly_digest/generation.requested" }] },
   async ({ event, step }) => {
+    const workflow = "weekly_digest_generation";
     const productId = event.data.productId as string;
     const supabase = createSupabaseAdminClient();
     const analyticsService = new AnalyticsService(supabase);
+    logWorkflowEvent({ workflow, status: "started", eventName: event.name, productId });
 
-    const inputs = await step.run("load-weekly-digest-inputs", async () => {
+    try {
+      const inputs = await step.run("load-weekly-digest-inputs", async () => {
       const productResult = await supabase.from("products").select("id,name,user_id").eq("id", productId).single();
 
       if (productResult.error) {
@@ -467,23 +493,23 @@ export const weeklyDigestGenerationWorkflow = inngest.createFunction(
       };
     });
 
-    const digest = await step.run("compose-weekly-digest", async () =>
+      const digest = await step.run("compose-weekly-digest", async () =>
       buildWeeklyDigest({
         productName: inputs.product.name,
         summary: inputs.summary,
       }),
-    );
+      );
 
-    const persisted = await step.run("persist-weekly-brief", async () =>
+      const persisted = await step.run("persist-weekly-brief", async () =>
       analyticsService.upsertWeeklyBrief({
         productId,
         weekStart: digest.weekStart,
         summaryMd: digest.summaryMd,
         recommendations: digest.recommendations,
       }),
-    );
+      );
 
-    await step.run("create-weekly-recommendation-inbox-item", async () => {
+      await step.run("create-weekly-recommendation-inbox-item", async () => {
       const existing = await supabase
         .from("inbox_items")
         .select("id")
@@ -538,14 +564,15 @@ export const weeklyDigestGenerationWorkflow = inngest.createFunction(
         throw eventResult.error;
       }
 
-      return itemResult.data;
-    });
+        return itemResult.data;
+      });
 
-    if (!isWeeklyDigestEmailConfigured()) {
-      return persisted;
-    }
+      if (!isWeeklyDigestEmailConfigured()) {
+        logWorkflowEvent({ workflow, status: "succeeded", eventName: event.name, productId, entityId: persisted.id, metadata: { emailConfigured: false } });
+        return persisted;
+      }
 
-    await step.run("send-weekly-digest-email", async () => {
+      await step.run("send-weekly-digest-email", async () => {
       await sendWeeklyDigestEmail({
         to: inputs.userEmail,
         productName: inputs.product.name,
@@ -560,7 +587,14 @@ export const weeklyDigestGenerationWorkflow = inngest.createFunction(
         recommendations: persisted.recommendations,
         sentAt,
       });
-    });
+      });
+
+      logWorkflowEvent({ workflow, status: "succeeded", eventName: event.name, productId, entityId: persisted.id, metadata: { emailConfigured: true } });
+      return persisted;
+    } catch (error) {
+      captureWorkflowException(error, { workflow, eventName: event.name, productId });
+      throw error;
+    }
   },
 );
 
