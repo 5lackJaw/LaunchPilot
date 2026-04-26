@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+.env.example
+.next
+node_modules
+*.tsbuildinfo
+.next-dev.log
+.next-dev.err.log
+mockup_html
