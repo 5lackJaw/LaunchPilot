@@ -3,6 +3,7 @@ import { inngest } from "@/inngest/client";
 import {
   communityThreadSchema,
   listCommunityThreadsSchema,
+  postCommunityReplySchema,
   requestCommunityReplyGenerationSchema,
   requestCommunityThreadIngestionSchema,
 } from "@/server/schemas/community";
@@ -69,6 +70,49 @@ export class CommunityService {
     });
   }
 
+  async postApprovedReply(input: unknown): Promise<CommunityThread> {
+    const parsed = postCommunityReplySchema.parse(input);
+    const thread = await this.getThread({ threadId: parsed.threadId });
+    await new ProductService(this.supabase).getProduct({ productId: thread.productId });
+
+    if (thread.status !== "pending_review" && thread.status !== "approved") {
+      throw new CommunityReplyPostError("Only reviewed community reply drafts can be posted.");
+    }
+
+    if (!thread.replyDraft?.trim()) {
+      throw new CommunityReplyPostError("A reply draft is required before posting.");
+    }
+
+    if ((thread.promotionalScore ?? 1) > 0.45) {
+      throw new CommunityReplyPostError("Reply promotional risk is too high to post.");
+    }
+
+    const postedAt = new Date().toISOString();
+    const { data, error } = await this.supabase
+      .from("community_threads")
+      .update({
+        status: "posted",
+        posted_at: postedAt,
+        provenance: {
+          ...thread.provenance,
+          posting: {
+            adapter: "community-posting-simulated-v0",
+            postedAt,
+            platform: thread.platform,
+          },
+        },
+      })
+      .eq("id", thread.id)
+      .select(communityThreadSelect)
+      .single();
+
+    if (error) {
+      throw new CommunityReplyPostError(error.message);
+    }
+
+    return mapCommunityThread(data);
+  }
+
   private async getThread(input: { threadId: string }): Promise<CommunityThread> {
     const { data, error } = await this.supabase
       .from("community_threads")
@@ -102,6 +146,13 @@ export class CommunityReplyGenerationRequestError extends Error {
   constructor(message: string) {
     super(`Community reply generation could not be requested: ${message}`);
     this.name = "CommunityReplyGenerationRequestError";
+  }
+}
+
+export class CommunityReplyPostError extends Error {
+  constructor(message: string) {
+    super(`Community reply could not be posted: ${message}`);
+    this.name = "CommunityReplyPostError";
   }
 }
 

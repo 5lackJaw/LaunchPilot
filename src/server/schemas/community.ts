@@ -35,4 +35,8 @@ export const requestCommunityReplyGenerationSchema = z.object({
   threadId: z.string().uuid(),
 });
 
+export const postCommunityReplySchema = z.object({
+  threadId: z.string().uuid(),
+});
+
 export type CommunityThread = z.infer<typeof communityThreadSchema>;

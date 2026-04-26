@@ -108,7 +108,7 @@ export default async function CommunityPage({ searchParams }: PageProps) {
           <Card>
             <CardHeader>
               <CardTitle>Next step</CardTitle>
-              <CardDescription>Approved reply posting and trust-level automation remain review-gated future slices.</CardDescription>
+              <CardDescription>Approved reply drafts are posted through the server-side execution path. Trust-level automation remains a future slice.</CardDescription>
             </CardHeader>
           </Card>
         </aside>

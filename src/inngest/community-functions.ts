@@ -249,6 +249,9 @@ export const communityReplyGenerationWorkflow = inngest.createFunction(
             title: updated.thread_title,
             preview: `Helpful ${updated.platform.replace("_", " ")} reply draft. Promotional score ${Math.round(Number(updated.promotional_score) * 100)}%.`,
             body: updated.reply_draft,
+            platform: updated.platform,
+            threadUrl: updated.thread_url,
+            promotionalScore: Number(updated.promotional_score),
             suggestedAction: "Review the reply before posting.",
             metadata: {
               platform: updated.platform,

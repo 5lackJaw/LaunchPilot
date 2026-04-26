@@ -95,3 +95,10 @@ Format:
 - Current implication: The Phase 6 pipeline can persist and score observed community threads, but it should not be treated as live monitoring yet.
 - Follow-up trigger: When external community connections, polling, OAuth, or provider-specific API limits are implemented.
 - Safe current behavior: Store provenance on every observed thread, keep replies ungenerated, and require later review-gated workflows before any posting action exists.
+
+- Date: 2026-04-26
+- Area: Community posting
+- Item: Approved community replies currently use a simulated server-side posting adapter instead of live Reddit, Hacker News, or social credentials.
+- Current implication: Approving a community reply can transition the LaunchPilot thread record to `posted` with audit provenance, but no external community platform receives the reply yet.
+- Follow-up trigger: When encrypted community connections and provider-specific posting adapters are implemented.
+- Safe current behavior: Keep the action server-authoritative, require an approved review path, require a draft, and block replies whose promotional score exceeds the guardrail threshold.

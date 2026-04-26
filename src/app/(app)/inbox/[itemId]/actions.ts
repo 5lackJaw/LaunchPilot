@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthRequiredError } from "@/server/services/auth-service";
+import { CommunityReplyPostError, CommunityService } from "@/server/services/community-service";
 import { InboxItemReadError, InboxItemReviewError, InboxService } from "@/server/services/inbox-service";
 
 export async function reviewInboxItemAction(formData: FormData) {
@@ -14,7 +15,23 @@ export async function reviewInboxItemAction(formData: FormData) {
 
   try {
     const supabase = await createSupabaseServerClient();
-    await new InboxService(supabase).reviewItem({
+    const inbox = new InboxService(supabase);
+    const currentItem = await inbox.getItem({ inboxItemId });
+
+    if (
+      status === "approved" &&
+      currentItem.itemType === "community_reply" &&
+      currentItem.sourceEntityType === "community_thread" &&
+      currentItem.sourceEntityId
+    ) {
+      if (currentItem.status !== "pending") {
+        throw new InboxItemReviewError("Only pending inbox items can be reviewed.");
+      }
+
+      await new CommunityService(supabase).postApprovedReply({ threadId: currentItem.sourceEntityId });
+    }
+
+    await inbox.reviewItem({
       inboxItemId,
       status,
       reason: reason || undefined,
@@ -39,6 +56,10 @@ function toReviewErrorMessage(error: unknown) {
   }
 
   if (error instanceof InboxItemReadError || error instanceof InboxItemReviewError) {
+    return error.message;
+  }
+
+  if (error instanceof CommunityReplyPostError) {
     return error.message;
   }
 

@@ -66,7 +66,7 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Reply draft generation
 - [x] Authenticity guardrail scoring
 - [x] Community page
-- [ ] Approve-and-post flow
+- [x] Approve-and-post flow
 - [ ] Trust-level configuration
 
 ## Phase 7 — outreach composer

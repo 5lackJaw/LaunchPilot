@@ -73,7 +73,7 @@ export default async function InboxItemPage({ params, searchParams }: PageProps)
         <div className="flex flex-wrap items-center gap-2">
           <ReviewActionForm item={data.item} status="skipped" label="Skip" variant="outline" />
           <ReviewActionForm item={data.item} status="rejected" label="Reject" variant="outline" includeReason />
-          <ReviewActionForm item={data.item} status="approved" label="Approve" />
+          <ReviewActionForm item={data.item} status="approved" label={data.item.itemType === "community_reply" ? "Approve + post" : "Approve"} />
         </div>
       </header>
 
@@ -161,9 +161,9 @@ function ReviewBody({ item }: { item: InboxItem }) {
             <CardDescription>Replies must stay helpful and non-promotional. Low-confidence replies remain review-gated.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Field label="Platform" value={getPayloadString(item, "platform")} />
-            <Field label="Thread URL" value={getPayloadString(item, "threadUrl")} />
-            <Field label="Promotional risk" value={getPayloadString(item, "promotionalRisk")} />
+            <Field label="Platform" value={getPayloadOrMetadataString(item, "platform")} />
+            <Field label="Thread URL" value={getPayloadOrMetadataString(item, "threadUrl")} />
+            <Field label="Promotional score" value={formatPayloadPercent(item, "promotionalScore")} />
             <MarkdownBlock value={item.payload.body ?? "No reply draft was included in this inbox payload."} />
           </CardContent>
         </Card>
@@ -320,6 +320,17 @@ function getPreview(item: InboxItem) {
 function getPayloadString(item: InboxItem, key: string) {
   const value = item.payload[key];
   return typeof value === "string" ? value : undefined;
+}
+
+function getPayloadOrMetadataString(item: InboxItem, key: string) {
+  const value = item.payload[key] ?? item.payload.metadata?.[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function formatPayloadPercent(item: InboxItem, key: string) {
+  const metadataValue = item.payload.metadata?.[key];
+  const value = item.payload[key] ?? metadataValue;
+  return typeof value === "number" ? `${Math.round(value * 100)}%` : undefined;
 }
 
 function humanizeItemType(itemType: InboxItem["itemType"]) {
