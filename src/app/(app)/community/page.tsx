@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   requestCommunityReplyGenerationAction,
@@ -117,14 +118,24 @@ export default async function CommunityPage({ searchParams }: PageProps) {
                 <ThreadRow key={thread.id} thread={thread} />
               ))
             ) : (
-              <p className="p-4 text-sm text-muted-foreground">
-                No community threads have been scanned yet.
-              </p>
+              <div className="min-w-[760px] p-4">
+                <EmptyState
+                  icon={MessageSquareText}
+                  title="No community threads scanned"
+                  description="Scan threads after the Marketing Brief is ready. Relevant conversations will appear here for scoring and reply drafting."
+                  className="border-dashed"
+                />
+              </div>
             )
           ) : (
-            <p className="p-4 text-sm text-muted-foreground">
-              Create a product before scanning community threads.
-            </p>
+            <div className="min-w-[760px] p-4">
+              <EmptyState
+                icon={MessageSquareText}
+                title="No product available"
+                description="Create a product during onboarding before LaunchPilot can scan and score community threads."
+                className="border-dashed"
+              />
+            </div>
           )}
         </div>
 

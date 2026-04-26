@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   requestOutreachDraftAction,
@@ -158,14 +159,24 @@ export default async function OutreachPage({ searchParams }: PageProps) {
                 <ContactRow key={contact.id} contact={contact} />
               ))
             ) : (
-              <p className="p-4 text-sm text-muted-foreground">
-                No outreach prospects have been identified yet.
-              </p>
+              <div className="min-w-[860px] p-4">
+                <EmptyState
+                  icon={Send}
+                  title="No outreach prospects identified"
+                  description="Find prospects after the Marketing Brief is ready. Ranked contacts will appear here before draft generation."
+                  className="border-dashed"
+                />
+              </div>
             )
           ) : (
-            <p className="p-4 text-sm text-muted-foreground">
-              Create a product before identifying outreach prospects.
-            </p>
+            <div className="min-w-[860px] p-4">
+              <EmptyState
+                icon={Send}
+                title="No product available"
+                description="Create a product during onboarding before LaunchPilot can identify outreach prospects."
+                className="border-dashed"
+              />
+            </div>
           )}
         </div>
 

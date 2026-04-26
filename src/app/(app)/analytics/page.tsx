@@ -2,9 +2,9 @@ import { Download, Plus } from "lucide-react";
 import Link from "next/link";
 import { AppTopbar, RangeTabs } from "@/components/layout/app-topbar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { DashboardSummary, KeywordMovement } from "@/server/schemas/analytics";
 import type { Product } from "@/server/schemas/product";
@@ -28,12 +28,11 @@ export default async function AnalyticsPage() {
       <main className="min-h-screen bg-background">
         <AppTopbar title="Analytics" />
         <div className="p-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>No product yet</CardTitle>
-              <CardDescription>Create a product during onboarding before analytics can be shown.</CardDescription>
-            </CardHeader>
-          </Card>
+          <EmptyState
+            icon={Download}
+            title="No product available"
+            description="Create a product during onboarding before analytics can be shown."
+          />
         </div>
       </main>
     );
@@ -185,7 +184,13 @@ function TrafficSources({ summary }: { summary: DashboardSummary }) {
             </tbody>
           </table>
         ) : (
-          <p className="p-4 text-sm text-muted-foreground">No traffic snapshots yet.</p>
+          <div className="p-4">
+            <EmptyState
+              title="No traffic snapshots yet"
+              description="Traffic source rows will appear after analytics snapshots are ingested for the current product."
+              className="border-dashed"
+            />
+          </div>
         )}
       </CardContent>
     </Card>
@@ -219,7 +224,13 @@ function TopContent({ summary }: { summary: DashboardSummary }) {
             </div>
           ))
         ) : (
-          <p className="p-4 text-sm text-muted-foreground">No content assets yet.</p>
+          <div className="p-4">
+            <EmptyState
+              title="No content assets yet"
+              description="Content performance will appear after generated assets have measurable activity."
+              className="border-dashed"
+            />
+          </div>
         )}
       </CardContent>
     </Card>
@@ -250,12 +261,11 @@ function KeywordMovementPanel({ keywords }: { keywords: KeywordMovement[] }) {
             </div>
           ))
         ) : (
-          <>
-            <Badge variant="secondary">No rank snapshots</Badge>
-            <p className="text-xs leading-5 text-muted-foreground">
-              Keyword movement will appear after rank snapshots are ingested for the current product.
-            </p>
-          </>
+          <EmptyState
+            title="No rank snapshots yet"
+            description="Keyword movement will appear after rank snapshots are ingested for the current product."
+            className="border-dashed"
+          />
         )}
       </CardContent>
     </Card>

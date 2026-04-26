@@ -3,6 +3,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { selectKeywordOpportunityAction } from "@/app/(app)/seo/actions";
@@ -28,12 +29,11 @@ export default async function SeoPage({ searchParams }: PageProps) {
       <main className="flex min-h-screen flex-col">
         <AppTopbar title="SEO Content" eyebrow="Keyword opportunities" />
         <div className="p-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Sign in required</CardTitle>
-              <CardDescription>Sign in before selecting keyword opportunities.</CardDescription>
-            </CardHeader>
-          </Card>
+          <EmptyState
+            icon={Search}
+            title="Sign in required"
+            description="Sign in before selecting keyword opportunities."
+          />
         </div>
       </main>
     );
@@ -82,22 +82,18 @@ export default async function SeoPage({ searchParams }: PageProps) {
                 <OpportunityCard key={opportunity.id} opportunity={opportunity} />
               ))
             ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>No keyword opportunities yet</CardTitle>
-                  <CardDescription>
-                    Complete the Marketing Brief first. Keyword clusters and content seeds from the brief will appear here.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+              <EmptyState
+                icon={Search}
+                title="No keyword opportunities yet"
+                description="Complete the Marketing Brief first. Keyword clusters and content seeds from the brief will appear here."
+              />
             )
           ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>No product yet</CardTitle>
-                <CardDescription>Create a product during onboarding before planning SEO content.</CardDescription>
-              </CardHeader>
-            </Card>
+            <EmptyState
+              icon={Search}
+              title="No product available"
+              description="Create a product during onboarding before planning SEO content."
+            />
           )}
         </div>
 

@@ -83,6 +83,6 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Connection management page
 - [x] Billing page / portal access
 - [x] Mobile polish for primary routes
-- [ ] Empty and error states
+- [x] Empty and error states
 - [ ] Logging and observability improvements
 - [ ] Data export and deletion paths

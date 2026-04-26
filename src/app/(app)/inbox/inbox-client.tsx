@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Clock3, MoreHorizontal } from "lucide-react";
+import { ArrowRight, Clock3, Inbox, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AppTopbar } from "@/components/layout/app-topbar";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
 import { batchApproveInboxItemsAction, clearDevInboxItemsAction, seedDevInboxItemsAction } from "@/app/(app)/inbox/actions";
 import type { InboxItem } from "@/server/schemas/inbox";
 import type { Product } from "@/server/schemas/product";
@@ -169,14 +170,15 @@ export function InboxClient({
               </CardContent>
             </Card>
           )) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>No pending items</CardTitle>
-                <CardDescription>
-                  Generated actions will appear here when content, community, directory, outreach, or positioning workflows create inbox items.
-                </CardDescription>
-              </CardHeader>
-            </Card>
+            <EmptyState
+              icon={Inbox}
+              title={items.length ? "No items match this filter" : "No pending items"}
+              description={
+                items.length
+                  ? "Switch filters to review the remaining generated actions."
+                  : "Generated actions will appear here when content, community, directory, outreach, or positioning workflows create inbox items."
+              }
+            />
           )}
         </div>
 

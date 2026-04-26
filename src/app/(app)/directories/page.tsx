@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   autoSubmitDirectorySubmissionAction,
@@ -147,14 +148,24 @@ export default async function DirectoriesPage({ searchParams }: PageProps) {
                 <DirectoryRow key={item.directory.id} item={item} />
               ))
             ) : (
-              <p className="p-4 text-sm text-muted-foreground">
-                No active directories are configured.
-              </p>
+              <div className="min-w-[820px] p-4">
+                <EmptyState
+                  icon={FolderKanban}
+                  title="No active directories configured"
+                  description="Generate directory packages to create review-gated submission records for the current product."
+                  className="border-dashed"
+                />
+              </div>
             )
           ) : (
-            <p className="p-4 text-sm text-muted-foreground">
-              Create a product before tracking directory submissions.
-            </p>
+            <div className="min-w-[820px] p-4">
+              <EmptyState
+                icon={FolderKanban}
+                title="No product available"
+                description="Create a product during onboarding before LaunchPilot can track directory submissions."
+                className="border-dashed"
+              />
+            </div>
           )}
         </div>
 

@@ -4,6 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ContentAsset } from "@/server/schemas/content";
@@ -44,28 +45,26 @@ export default async function ContentPage() {
             data.assets.length ? (
               data.assets.map((asset) => <ContentAssetCard key={asset.id} asset={asset} />)
             ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>No content assets yet</CardTitle>
-                  <CardDescription>Select a keyword opportunity to create the first durable draft record.</CardDescription>
-                </CardHeader>
-                <CardContent>
+              <EmptyState
+                icon={FileText}
+                title="No content assets yet"
+                description="Select a keyword opportunity to create the first durable draft record."
+                action={
                   <Button size="sm" asChild>
                     <Link href="/seo">
                       Open SEO opportunities
                       <ArrowRight data-icon="inline-end" />
                     </Link>
                   </Button>
-                </CardContent>
-              </Card>
+                }
+              />
             )
           ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>No product yet</CardTitle>
-                <CardDescription>Create a product during onboarding before building content assets.</CardDescription>
-              </CardHeader>
-            </Card>
+            <EmptyState
+              icon={FileText}
+              title="No product available"
+              description="Create a product during onboarding before building content assets."
+            />
           )}
         </div>
 
