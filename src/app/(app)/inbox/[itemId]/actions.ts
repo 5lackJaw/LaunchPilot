@@ -7,6 +7,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { CommunityReplyPostError, CommunityService } from "@/server/services/community-service";
 import { InboxItemReadError, InboxItemReviewError, InboxService } from "@/server/services/inbox-service";
+import { OutreachSendError, OutreachService } from "@/server/services/outreach-service";
 
 export async function reviewInboxItemAction(formData: FormData) {
   const inboxItemId = String(formData.get("inboxItemId") ?? "");
@@ -29,6 +30,19 @@ export async function reviewInboxItemAction(formData: FormData) {
       }
 
       await new CommunityService(supabase).postApprovedReply({ threadId: currentItem.sourceEntityId });
+    }
+
+    if (
+      status === "approved" &&
+      currentItem.itemType === "outreach_email" &&
+      currentItem.sourceEntityType === "outreach_contact" &&
+      currentItem.sourceEntityId
+    ) {
+      if (currentItem.status !== "pending") {
+        throw new InboxItemReviewError("Only pending inbox items can be reviewed.");
+      }
+
+      await new OutreachService(supabase).sendApprovedEmail({ contactId: currentItem.sourceEntityId });
     }
 
     await inbox.reviewItem({
@@ -60,6 +74,10 @@ function toReviewErrorMessage(error: unknown) {
   }
 
   if (error instanceof CommunityReplyPostError) {
+    return error.message;
+  }
+
+  if (error instanceof OutreachSendError) {
     return error.message;
   }
 

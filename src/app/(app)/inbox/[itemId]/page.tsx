@@ -73,7 +73,7 @@ export default async function InboxItemPage({ params, searchParams }: PageProps)
         <div className="flex flex-wrap items-center gap-2">
           <ReviewActionForm item={data.item} status="skipped" label="Skip" variant="outline" />
           <ReviewActionForm item={data.item} status="rejected" label="Reject" variant="outline" includeReason />
-          <ReviewActionForm item={data.item} status="approved" label={data.item.itemType === "community_reply" ? "Approve + post" : "Approve"} />
+          <ReviewActionForm item={data.item} status="approved" label={getApproveLabel(data.item)} />
         </div>
       </header>
 
@@ -335,6 +335,18 @@ function formatPayloadPercent(item: InboxItem, key: string) {
 
 function humanizeItemType(itemType: InboxItem["itemType"]) {
   return itemType.replaceAll("_", " ");
+}
+
+function getApproveLabel(item: InboxItem) {
+  if (item.itemType === "community_reply") {
+    return "Approve + post";
+  }
+
+  if (item.itemType === "outreach_email") {
+    return "Approve + send";
+  }
+
+  return "Approve";
 }
 
 function formatReviewTime(seconds: number | null) {

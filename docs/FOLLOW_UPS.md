@@ -109,3 +109,10 @@ Format:
 - Current implication: The outreach pipeline can persist and rank contacts, but contacts should not be treated as verified real outreach targets yet.
 - Follow-up trigger: When external prospect data providers, enrichment, or email verification are implemented.
 - Safe current behavior: Store provenance for every prospect, keep email nullable, and require later review before any sending workflow exists.
+
+- Date: 2026-04-26
+- Area: Outreach sending
+- Item: Approved outreach emails currently use a simulated server-side sending adapter instead of live email provider credentials.
+- Current implication: Approving an outreach email can transition the contact to `sent` with audit provenance, but no external email is delivered yet.
+- Follow-up trigger: When encrypted email provider connections, sender identity, and unsubscribe/suppression enforcement are implemented.
+- Safe current behavior: Keep sending server-authoritative, require inbox approval, and record `last_contact_at` only after the simulated send path succeeds.

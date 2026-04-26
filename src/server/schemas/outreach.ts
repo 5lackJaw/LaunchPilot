@@ -40,4 +40,8 @@ export const requestOutreachDraftGenerationSchema = z.object({
   contactId: z.string().uuid(),
 });
 
+export const sendOutreachEmailSchema = z.object({
+  contactId: z.string().uuid(),
+});
+
 export type OutreachContact = z.infer<typeof outreachContactSchema>;

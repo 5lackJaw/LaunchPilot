@@ -5,6 +5,7 @@ import {
   outreachContactSchema,
   requestOutreachDraftGenerationSchema,
   requestProspectIdentificationSchema,
+  sendOutreachEmailSchema,
 } from "@/server/schemas/outreach";
 import type { OutreachContact } from "@/server/schemas/outreach";
 import { ProductService } from "@/server/services/product-service";
@@ -68,6 +69,41 @@ export class OutreachService {
     });
   }
 
+  async sendApprovedEmail(input: unknown): Promise<OutreachContact> {
+    const parsed = sendOutreachEmailSchema.parse(input);
+    const contact = await this.getContact({ contactId: parsed.contactId });
+    await new ProductService(this.supabase).getProduct({ productId: contact.productId });
+
+    if (contact.status !== "pending_review" && contact.status !== "drafted") {
+      throw new OutreachSendError("Only reviewed outreach drafts can be sent.");
+    }
+
+    const sentAt = new Date().toISOString();
+    const { data, error } = await this.supabase
+      .from("outreach_contacts")
+      .update({
+        status: "sent",
+        last_contact_at: sentAt,
+        provenance: {
+          ...contact.provenance,
+          send: {
+            adapter: "outreach-email-simulated-v0",
+            sentAt,
+            recipient: contact.email,
+          },
+        },
+      })
+      .eq("id", contact.id)
+      .select(outreachContactSelect)
+      .single();
+
+    if (error) {
+      throw new OutreachSendError(error.message);
+    }
+
+    return mapOutreachContact(data);
+  }
+
   private async getContact(input: { contactId: string }): Promise<OutreachContact> {
     const { data, error } = await this.supabase
       .from("outreach_contacts")
@@ -101,6 +137,13 @@ export class OutreachDraftRequestError extends Error {
   constructor(message: string) {
     super(`Outreach draft could not be requested: ${message}`);
     this.name = "OutreachDraftRequestError";
+  }
+}
+
+export class OutreachSendError extends Error {
+  constructor(message: string) {
+    super(`Outreach email could not be sent: ${message}`);
+    this.name = "OutreachSendError";
   }
 }
 
