@@ -43,6 +43,24 @@ export async function requestOutreachDraftAction(formData: FormData) {
   redirect("/outreach?draftRequested=1");
 }
 
+export async function scheduleOutreachFollowUpAction(formData: FormData) {
+  const contactId = String(formData.get("contactId") ?? "");
+  const delayDays = String(formData.get("delayDays") ?? "5");
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    await new OutreachService(supabase).scheduleFollowUp({ contactId, delayDays });
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirect("/outreach?followUpError=1");
+  }
+
+  redirect("/outreach?followUpScheduled=1");
+}
+
 function isRedirectError(error: unknown) {
   return error instanceof Error && "digest" in error && String(error.digest).startsWith("NEXT_REDIRECT");
 }

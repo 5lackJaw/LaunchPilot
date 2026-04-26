@@ -44,4 +44,9 @@ export const sendOutreachEmailSchema = z.object({
   contactId: z.string().uuid(),
 });
 
+export const scheduleOutreachFollowUpSchema = z.object({
+  contactId: z.string().uuid(),
+  delayDays: z.coerce.number().int().min(1).max(30).default(5),
+});
+
 export type OutreachContact = z.infer<typeof outreachContactSchema>;

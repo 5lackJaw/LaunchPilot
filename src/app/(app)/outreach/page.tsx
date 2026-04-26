@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requestOutreachDraftAction, requestProspectIdentificationAction } from "@/app/(app)/outreach/actions";
+import { requestOutreachDraftAction, requestProspectIdentificationAction, scheduleOutreachFollowUpAction } from "@/app/(app)/outreach/actions";
 import type { OutreachContact } from "@/server/schemas/outreach";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
@@ -19,6 +19,8 @@ type PageProps = {
     prospectError?: string;
     draftRequested?: string;
     draftError?: string;
+    followUpScheduled?: string;
+    followUpError?: string;
   }>;
 };
 
@@ -71,6 +73,18 @@ export default async function OutreachPage({ searchParams }: PageProps) {
             <AlertDescription>Only identified, drafted, or failed contacts can request draft generation.</AlertDescription>
           </Alert>
         ) : null}
+        {params.followUpScheduled ? (
+          <Alert className="xl:col-span-2">
+            <AlertTitle>Follow-up scheduled</AlertTitle>
+            <AlertDescription>The contact now has a durable follow-up reminder in its provenance.</AlertDescription>
+          </Alert>
+        ) : null}
+        {params.followUpError ? (
+          <Alert variant="destructive" className="xl:col-span-2">
+            <AlertTitle>Follow-up scheduling failed</AlertTitle>
+            <AlertDescription>Only sent or opened outreach contacts can have follow-ups scheduled.</AlertDescription>
+          </Alert>
+        ) : null}
 
         <div className="overflow-hidden rounded-lg border bg-card">
           <div className="grid grid-cols-[minmax(0,1fr)_160px_100px_120px_120px] border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
@@ -108,7 +122,7 @@ export default async function OutreachPage({ searchParams }: PageProps) {
           <Card>
             <CardHeader>
               <CardTitle>Next step</CardTitle>
-              <CardDescription>Approved sending, follow-ups, and suppression are later Phase 7 slices.</CardDescription>
+              <CardDescription>Suppression is the remaining Phase 7 slice.</CardDescription>
             </CardHeader>
           </Card>
         </aside>
@@ -125,7 +139,7 @@ function ContactRow({ contact }: { contact: OutreachContact }) {
           <Send className="size-4 text-muted-foreground" aria-hidden="true" />
           <p className="truncate text-sm font-medium">{contact.name}</p>
         </div>
-        <p className="mt-1 truncate text-xs text-muted-foreground">{contact.email ?? contact.url ?? "No contact detail yet"}</p>
+        <p className="mt-1 truncate text-xs text-muted-foreground">{followUpLabel(contact) ?? contact.email ?? contact.url ?? "No contact detail yet"}</p>
       </div>
       <span className="truncate text-sm text-muted-foreground">{contact.publication ?? "Unknown"}</span>
       <span className="font-mono text-sm">{Math.round(contact.score * 100)}%</span>
@@ -138,6 +152,15 @@ function ContactRow({ contact }: { contact: OutreachContact }) {
             <input type="hidden" name="contactId" value={contact.id} />
             <Button type="submit" variant="secondary" size="sm">
               Draft
+            </Button>
+          </form>
+        ) : null}
+        {["sent", "opened"].includes(contact.status) ? (
+          <form action={scheduleOutreachFollowUpAction}>
+            <input type="hidden" name="contactId" value={contact.id} />
+            <input type="hidden" name="delayDays" value="5" />
+            <Button type="submit" variant="secondary" size="sm">
+              Follow up
             </Button>
           </form>
         ) : null}
@@ -210,4 +233,17 @@ function countContacts(contacts: OutreachContact[]) {
     sent: String(contacts.filter((contact) => contact.status === "sent" || contact.status === "opened" || contact.status === "replied").length),
     closed: String(contacts.filter((contact) => contact.status === "suppressed" || contact.status === "failed").length),
   };
+}
+
+function followUpLabel(contact: OutreachContact) {
+  const followUp = contact.provenance.followUp;
+  if (!isFollowUp(followUp)) {
+    return null;
+  }
+
+  return `Follow-up ${new Date(followUp.scheduledFor).toLocaleDateString()}`;
+}
+
+function isFollowUp(value: unknown): value is { scheduledFor: string } {
+  return typeof value === "object" && value !== null && "scheduledFor" in value && typeof value.scheduledFor === "string";
 }

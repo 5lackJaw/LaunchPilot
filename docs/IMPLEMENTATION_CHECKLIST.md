@@ -75,7 +75,7 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Outreach draft generation
 - [x] Outreach tracker page
 - [x] Approve-and-send flow
-- [ ] Follow-up scheduling
+- [x] Follow-up scheduling
 - [ ] Suppression logic
 
 ## Phase 8 — hardening

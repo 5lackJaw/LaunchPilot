@@ -5,6 +5,7 @@ import {
   outreachContactSchema,
   requestOutreachDraftGenerationSchema,
   requestProspectIdentificationSchema,
+  scheduleOutreachFollowUpSchema,
   sendOutreachEmailSchema,
 } from "@/server/schemas/outreach";
 import type { OutreachContact } from "@/server/schemas/outreach";
@@ -104,6 +105,42 @@ export class OutreachService {
     return mapOutreachContact(data);
   }
 
+  async scheduleFollowUp(input: unknown): Promise<OutreachContact> {
+    const parsed = scheduleOutreachFollowUpSchema.parse(input);
+    const contact = await this.getContact({ contactId: parsed.contactId });
+    await new ProductService(this.supabase).getProduct({ productId: contact.productId });
+
+    if (!["sent", "opened"].includes(contact.status)) {
+      throw new OutreachFollowUpScheduleError("Only sent or opened outreach contacts can have follow-ups scheduled.");
+    }
+
+    const scheduledFor = new Date();
+    scheduledFor.setUTCDate(scheduledFor.getUTCDate() + parsed.delayDays);
+
+    const { data, error } = await this.supabase
+      .from("outreach_contacts")
+      .update({
+        provenance: {
+          ...contact.provenance,
+          followUp: {
+            scheduledFor: scheduledFor.toISOString(),
+            delayDays: parsed.delayDays,
+            scheduler: "outreach-follow-up-scheduler-v0",
+            scheduledAt: new Date().toISOString(),
+          },
+        },
+      })
+      .eq("id", contact.id)
+      .select(outreachContactSelect)
+      .single();
+
+    if (error) {
+      throw new OutreachFollowUpScheduleError(error.message);
+    }
+
+    return mapOutreachContact(data);
+  }
+
   private async getContact(input: { contactId: string }): Promise<OutreachContact> {
     const { data, error } = await this.supabase
       .from("outreach_contacts")
@@ -144,6 +181,13 @@ export class OutreachSendError extends Error {
   constructor(message: string) {
     super(`Outreach email could not be sent: ${message}`);
     this.name = "OutreachSendError";
+  }
+}
+
+export class OutreachFollowUpScheduleError extends Error {
+  constructor(message: string) {
+    super(`Outreach follow-up could not be scheduled: ${message}`);
+    this.name = "OutreachFollowUpScheduleError";
   }
 }
 
