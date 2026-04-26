@@ -56,6 +56,8 @@ const navGroups = [
   },
 ];
 
+const navItems = navGroups.flatMap((group) => group.items);
+
 export function AppShell({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -63,6 +65,25 @@ export function AppShell({
 
   return (
     <div className="grid min-h-screen grid-cols-1 bg-background text-foreground md:grid-cols-[220px_1fr]">
+      <header className="sticky top-0 z-30 border-b bg-card/95 backdrop-blur md:hidden">
+        <div className="flex items-center gap-2.5 px-4 py-3">
+          <div className="flex size-7 items-center justify-center rounded-[7px] bg-primary font-mono text-[12px] font-medium text-primary-foreground">
+            LP
+          </div>
+          <span className="font-serif text-[17px] text-foreground">
+            {appConfig.name}
+          </span>
+        </div>
+        <nav
+          className="flex gap-1 overflow-x-auto px-2 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          aria-label="Primary"
+        >
+          {navItems.map((item) => (
+            <MobileNavLink key={item.href} item={item} pathname={pathname} />
+          ))}
+        </nav>
+      </header>
+
       <aside className="hidden border-r bg-card md:flex md:flex-col">
         <div className="flex items-center gap-2.5 border-b px-[18px] py-5">
           <div className="flex size-7 items-center justify-center rounded-[7px] bg-primary font-mono text-[12px] font-medium text-primary-foreground">
@@ -98,6 +119,40 @@ export function AppShell({
       </aside>
       <div className="min-w-0">{children}</div>
     </div>
+  );
+}
+
+function MobileNavLink({
+  item,
+  pathname,
+}: {
+  item: {
+    href: string;
+    label: string;
+    icon: typeof LayoutDashboard;
+    badge?: string;
+  };
+  pathname: string;
+}) {
+  const isActive = pathname === item.href;
+
+  return (
+    <Link
+      href={item.href}
+      className={cn(
+        "relative flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-[12px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+        isActive && "bg-secondary text-foreground",
+      )}
+      aria-current={isActive ? "page" : undefined}
+    >
+      <item.icon className="size-[14px] opacity-70" />
+      <span>{item.label}</span>
+      {item.badge ? (
+        <span className="min-w-[16px] rounded-full bg-amber-400 px-[5px] py-[1px] text-center font-mono text-[9.5px] font-medium text-black">
+          {item.badge}
+        </span>
+      ) : null}
+    </Link>
   );
 }
 

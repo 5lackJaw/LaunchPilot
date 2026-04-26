@@ -4,7 +4,13 @@ import { AppTopbar } from "@/components/layout/app-topbar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   autoSubmitDirectorySubmissionAction,
@@ -14,8 +20,14 @@ import {
 import type { DirectoryTrackerItem } from "@/server/schemas/directory";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
-import { DirectoryReadError, DirectoryService } from "@/server/services/directory-service";
-import { ProductReadError, ProductService } from "@/server/services/product-service";
+import {
+  DirectoryReadError,
+  DirectoryService,
+} from "@/server/services/directory-service";
+import {
+  ProductReadError,
+  ProductService,
+} from "@/server/services/product-service";
 
 type PageProps = {
   searchParams: Promise<{
@@ -52,7 +64,11 @@ export default async function DirectoriesPage({ searchParams }: PageProps) {
     <main className="flex min-h-screen flex-col">
       <AppTopbar
         title="Directories"
-        eyebrow={data.product ? `Submission tracker / ${data.product.name}` : "Submission tracker"}
+        eyebrow={
+          data.product
+            ? `Submission tracker / ${data.product.name}`
+            : "Submission tracker"
+        }
         actions={
           <>
             <Badge variant="secondary">{data.items.length} directories</Badge>
@@ -71,19 +87,26 @@ export default async function DirectoriesPage({ searchParams }: PageProps) {
         {params.packageRequested ? (
           <Alert className="xl:col-span-2">
             <AlertTitle>Listing package generation requested</AlertTitle>
-            <AlertDescription>Directory packages will appear here and in the approval inbox after the workflow runs.</AlertDescription>
+            <AlertDescription>
+              Directory packages will appear here and in the approval inbox
+              after the workflow runs.
+            </AlertDescription>
           </Alert>
         ) : null}
         {params.packageError ? (
           <Alert variant="destructive" className="xl:col-span-2">
             <AlertTitle>Listing package generation failed</AlertTitle>
-            <AlertDescription>Try again after confirming the product and workflow configuration.</AlertDescription>
+            <AlertDescription>
+              Try again after confirming the product and workflow configuration.
+            </AlertDescription>
           </Alert>
         ) : null}
         {params.statusUpdated ? (
           <Alert className="xl:col-span-2">
             <AlertTitle>Directory status updated</AlertTitle>
-            <AlertDescription>The tracker now reflects the manual submission state.</AlertDescription>
+            <AlertDescription>
+              The tracker now reflects the manual submission state.
+            </AlertDescription>
           </Alert>
         ) : null}
         {params.statusError ? (
@@ -95,17 +118,23 @@ export default async function DirectoriesPage({ searchParams }: PageProps) {
         {params.autoSubmitted ? (
           <Alert className="xl:col-span-2">
             <AlertTitle>Directory auto-submitted</AlertTitle>
-            <AlertDescription>The supported directory submission was recorded as submitted with server-side provenance.</AlertDescription>
+            <AlertDescription>
+              The supported directory submission was recorded as submitted with
+              server-side provenance.
+            </AlertDescription>
           </Alert>
         ) : null}
         {params.autoSubmitError ? (
           <Alert variant="destructive" className="xl:col-span-2">
             <AlertTitle>Directory auto-submit failed</AlertTitle>
-            <AlertDescription>Only pending submissions for auto-supported directories with generated packages can be submitted automatically.</AlertDescription>
+            <AlertDescription>
+              Only pending submissions for auto-supported directories with
+              generated packages can be submitted automatically.
+            </AlertDescription>
           </Alert>
         ) : null}
-        <div className="overflow-hidden rounded-lg border bg-card">
-          <div className="grid grid-cols-[minmax(0,1.4fr)_120px_120px_120px_180px] border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+        <div className="overflow-x-auto rounded-lg border bg-card">
+          <div className="grid min-w-[820px] grid-cols-[minmax(0,1.4fr)_120px_120px_120px_180px] border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
             <span>Directory</span>
             <span>Method</span>
             <span>Status</span>
@@ -114,12 +143,18 @@ export default async function DirectoriesPage({ searchParams }: PageProps) {
           </div>
           {data.product ? (
             data.items.length ? (
-              data.items.map((item) => <DirectoryRow key={item.directory.id} item={item} />)
+              data.items.map((item) => (
+                <DirectoryRow key={item.directory.id} item={item} />
+              ))
             ) : (
-              <p className="p-4 text-sm text-muted-foreground">No active directories are configured.</p>
+              <p className="p-4 text-sm text-muted-foreground">
+                No active directories are configured.
+              </p>
             )
           ) : (
-            <p className="p-4 text-sm text-muted-foreground">Create a product before tracking directory submissions.</p>
+            <p className="p-4 text-sm text-muted-foreground">
+              Create a product before tracking directory submissions.
+            </p>
           )}
         </div>
 
@@ -127,7 +162,9 @@ export default async function DirectoriesPage({ searchParams }: PageProps) {
           <Card>
             <CardHeader>
               <CardTitle>Submission state</CardTitle>
-              <CardDescription>Current product progress across the directory catalog.</CardDescription>
+              <CardDescription>
+                Current product progress across the directory catalog.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <Metric label="Pending" value={counts.pending} />
@@ -140,7 +177,10 @@ export default async function DirectoriesPage({ searchParams }: PageProps) {
           <Card>
             <CardHeader>
               <CardTitle>Next step</CardTitle>
-              <CardDescription>Manual and assisted directories stay review-gated. Auto-submit only appears for supported catalog entries.</CardDescription>
+              <CardDescription>
+                Manual and assisted directories stay review-gated. Auto-submit
+                only appears for supported catalog entries.
+              </CardDescription>
             </CardHeader>
           </Card>
         </aside>
@@ -153,10 +193,13 @@ function DirectoryRow({ item }: { item: DirectoryTrackerItem }) {
   const status = item.submission?.status ?? "pending";
 
   return (
-    <div className="grid grid-cols-[minmax(0,1.4fr)_120px_120px_120px_180px] items-center gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-secondary/60">
+    <div className="grid min-w-[820px] grid-cols-[minmax(0,1.4fr)_120px_120px_120px_180px] items-center gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-secondary/60">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <FolderKanban className="size-4 text-muted-foreground" aria-hidden="true" />
+          <FolderKanban
+            className="size-4 text-muted-foreground"
+            aria-hidden="true"
+          />
           <p className="truncate text-sm font-medium">{item.directory.name}</p>
         </div>
         <div className="mt-1 flex flex-wrap gap-1.5">
@@ -167,12 +210,26 @@ function DirectoryRow({ item }: { item: DirectoryTrackerItem }) {
           ))}
         </div>
       </div>
-      <span className="font-mono text-[11px] text-muted-foreground">{item.directory.submissionMethod.replace("_", " ")}</span>
-      <Badge variant={status === "live" ? "success" : status === "failed" || status === "rejected" ? "danger" : status === "submitted" ? "warning" : "secondary"}>
+      <span className="font-mono text-[11px] text-muted-foreground">
+        {item.directory.submissionMethod.replace("_", " ")}
+      </span>
+      <Badge
+        variant={
+          status === "live"
+            ? "success"
+            : status === "failed" || status === "rejected"
+              ? "danger"
+              : status === "submitted"
+                ? "warning"
+                : "secondary"
+        }
+      >
         {status}
       </Badge>
       <span className="font-mono text-[11px] text-muted-foreground">
-        {item.directory.reviewTimeDays === null ? "unknown" : `${item.directory.reviewTimeDays}d`}
+        {item.directory.reviewTimeDays === null
+          ? "unknown"
+          : `${item.directory.reviewTimeDays}d`}
       </span>
       <DirectoryActions item={item} />
     </div>
@@ -247,9 +304,21 @@ function DirectoryActions({ item }: { item: DirectoryTrackerItem }) {
     <div className="flex justify-end gap-1.5">
       {nextStatuses.map((next) => (
         <form key={next.status} action={updateDirectorySubmissionStatusAction}>
-          <input type="hidden" name="submissionId" value={item.submission?.id} />
+          <input
+            type="hidden"
+            name="submissionId"
+            value={item.submission?.id}
+          />
           <input type="hidden" name="status" value={next.status} />
-          <Button type="submit" variant={next.status === "submitted" || next.status === "live" ? "secondary" : "ghost"} size="sm">
+          <Button
+            type="submit"
+            variant={
+              next.status === "submitted" || next.status === "live"
+                ? "secondary"
+                : "ghost"
+            }
+            size="sm"
+          >
             {next.label}
           </Button>
         </form>
@@ -280,22 +349,31 @@ async function loadDirectoryData(): Promise<{
       return { product: null, items: [], error: null };
     }
 
-    const items = await new DirectoryService(supabase).listTracker({ productId: product.id });
+    const items = await new DirectoryService(supabase).listTracker({
+      productId: product.id,
+    });
     return { product, items, error: null };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
       return { product: null, items: [], error: error.message };
     }
 
-    if (error instanceof ProductReadError || error instanceof DirectoryReadError) {
+    if (
+      error instanceof ProductReadError ||
+      error instanceof DirectoryReadError
+    ) {
       return { product: null, items: [], error: error.message };
     }
 
-    if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
+    if (
+      error instanceof Error &&
+      error.message.includes("Supabase URL and publishable key")
+    ) {
       return {
         product: null,
         items: [],
-        error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
+        error:
+          "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
       };
     }
 
@@ -305,9 +383,23 @@ async function loadDirectoryData(): Promise<{
 
 function countStatuses(items: DirectoryTrackerItem[]) {
   return {
-    pending: String(items.filter((item) => !item.submission || item.submission.status === "pending").length),
-    submitted: String(items.filter((item) => item.submission?.status === "submitted").length),
-    live: String(items.filter((item) => item.submission?.status === "live").length),
-    skippedFailed: String(items.filter((item) => item.submission && ["skipped", "failed", "rejected"].includes(item.submission.status)).length),
+    pending: String(
+      items.filter(
+        (item) => !item.submission || item.submission.status === "pending",
+      ).length,
+    ),
+    submitted: String(
+      items.filter((item) => item.submission?.status === "submitted").length,
+    ),
+    live: String(
+      items.filter((item) => item.submission?.status === "live").length,
+    ),
+    skippedFailed: String(
+      items.filter(
+        (item) =>
+          item.submission &&
+          ["skipped", "failed", "rejected"].includes(item.submission.status),
+      ).length,
+    ),
   };
 }

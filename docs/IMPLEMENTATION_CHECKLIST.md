@@ -82,7 +82,7 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Plan and quota enforcement
 - [x] Connection management page
 - [x] Billing page / portal access
-- [ ] Mobile polish for primary routes
+- [x] Mobile polish for primary routes
 - [ ] Empty and error states
 - [ ] Logging and observability improvements
 - [ ] Data export and deletion paths

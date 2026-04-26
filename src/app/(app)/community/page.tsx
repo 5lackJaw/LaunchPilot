@@ -4,14 +4,29 @@ import { AppTopbar } from "@/components/layout/app-topbar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requestCommunityReplyGenerationAction, requestCommunityThreadIngestionAction } from "@/app/(app)/community/actions";
+import {
+  requestCommunityReplyGenerationAction,
+  requestCommunityThreadIngestionAction,
+} from "@/app/(app)/community/actions";
 import type { CommunityThread } from "@/server/schemas/community";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
-import { CommunityService, CommunityThreadReadError } from "@/server/services/community-service";
-import { ProductReadError, ProductService } from "@/server/services/product-service";
+import {
+  CommunityService,
+  CommunityThreadReadError,
+} from "@/server/services/community-service";
+import {
+  ProductReadError,
+  ProductService,
+} from "@/server/services/product-service";
 
 type PageProps = {
   searchParams: Promise<{
@@ -31,7 +46,11 @@ export default async function CommunityPage({ searchParams }: PageProps) {
     <main className="flex min-h-screen flex-col">
       <AppTopbar
         title="Community"
-        eyebrow={data.product ? `Thread intelligence / ${data.product.name}` : "Thread intelligence"}
+        eyebrow={
+          data.product
+            ? `Thread intelligence / ${data.product.name}`
+            : "Thread intelligence"
+        }
         actions={
           <>
             <Badge variant="secondary">{data.threads.length} threads</Badge>
@@ -50,30 +69,42 @@ export default async function CommunityPage({ searchParams }: PageProps) {
         {params.ingestionRequested ? (
           <Alert className="xl:col-span-2">
             <AlertTitle>Thread scan requested</AlertTitle>
-            <AlertDescription>LaunchPilot will score relevant community threads from the current Marketing Brief.</AlertDescription>
+            <AlertDescription>
+              LaunchPilot will score relevant community threads from the current
+              Marketing Brief.
+            </AlertDescription>
           </Alert>
         ) : null}
         {params.ingestionError || data.error ? (
           <Alert variant="destructive" className="xl:col-span-2">
             <AlertTitle>Community threads could not be loaded</AlertTitle>
-            <AlertDescription>{data.error ?? "Try again after confirming the product and workflow configuration."}</AlertDescription>
+            <AlertDescription>
+              {data.error ??
+                "Try again after confirming the product and workflow configuration."}
+            </AlertDescription>
           </Alert>
         ) : null}
         {params.draftRequested ? (
           <Alert className="xl:col-span-2">
             <AlertTitle>Reply draft requested</AlertTitle>
-            <AlertDescription>A review-gated community reply will appear here and in the inbox after guardrail scoring.</AlertDescription>
+            <AlertDescription>
+              A review-gated community reply will appear here and in the inbox
+              after guardrail scoring.
+            </AlertDescription>
           </Alert>
         ) : null}
         {params.draftError ? (
           <Alert variant="destructive" className="xl:col-span-2">
             <AlertTitle>Reply draft request failed</AlertTitle>
-            <AlertDescription>Only observed, drafted, or failed threads can request a new reply draft.</AlertDescription>
+            <AlertDescription>
+              Only observed, drafted, or failed threads can request a new reply
+              draft.
+            </AlertDescription>
           </Alert>
         ) : null}
 
-        <div className="overflow-hidden rounded-lg border bg-card">
-          <div className="grid grid-cols-[120px_minmax(0,1fr)_120px_120px_150px] border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+        <div className="overflow-x-auto rounded-lg border bg-card">
+          <div className="grid min-w-[760px] grid-cols-[120px_minmax(0,1fr)_120px_120px_150px] border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
             <span>Platform</span>
             <span>Thread</span>
             <span>Relevance</span>
@@ -82,12 +113,18 @@ export default async function CommunityPage({ searchParams }: PageProps) {
           </div>
           {data.product ? (
             data.threads.length ? (
-              data.threads.map((thread) => <ThreadRow key={thread.id} thread={thread} />)
+              data.threads.map((thread) => (
+                <ThreadRow key={thread.id} thread={thread} />
+              ))
             ) : (
-              <p className="p-4 text-sm text-muted-foreground">No community threads have been scanned yet.</p>
+              <p className="p-4 text-sm text-muted-foreground">
+                No community threads have been scanned yet.
+              </p>
             )
           ) : (
-            <p className="p-4 text-sm text-muted-foreground">Create a product before scanning community threads.</p>
+            <p className="p-4 text-sm text-muted-foreground">
+              Create a product before scanning community threads.
+            </p>
           )}
         </div>
 
@@ -95,7 +132,9 @@ export default async function CommunityPage({ searchParams }: PageProps) {
           <Card>
             <CardHeader>
               <CardTitle>Thread health</CardTitle>
-              <CardDescription>Observed threads are scored before any reply drafting begins.</CardDescription>
+              <CardDescription>
+                Observed threads are scored before any reply drafting begins.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <Metric label="Observed" value={counts.observed} />
@@ -108,7 +147,10 @@ export default async function CommunityPage({ searchParams }: PageProps) {
           <Card>
             <CardHeader>
               <CardTitle>Next step</CardTitle>
-              <CardDescription>Approved reply drafts are posted through the server-side execution path. Trust-level automation remains a future slice.</CardDescription>
+              <CardDescription>
+                Approved reply drafts are posted through the server-side
+                execution path. Trust-level automation remains a future slice.
+              </CardDescription>
             </CardHeader>
           </Card>
         </aside>
@@ -119,19 +161,36 @@ export default async function CommunityPage({ searchParams }: PageProps) {
 
 function ThreadRow({ thread }: { thread: CommunityThread }) {
   return (
-    <div className="grid grid-cols-[120px_minmax(0,1fr)_120px_120px_150px] items-center gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-secondary/60">
-      <span className="font-mono text-[11px] text-muted-foreground">{thread.platform.replace("_", " ")}</span>
+    <div className="grid min-w-[760px] grid-cols-[120px_minmax(0,1fr)_120px_120px_150px] items-center gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-secondary/60">
+      <span className="font-mono text-[11px] text-muted-foreground">
+        {thread.platform.replace("_", " ")}
+      </span>
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <MessageSquareText className="size-4 text-muted-foreground" aria-hidden="true" />
+          <MessageSquareText
+            className="size-4 text-muted-foreground"
+            aria-hidden="true"
+          />
           <p className="truncate text-sm font-medium">{thread.threadTitle}</p>
         </div>
         <p className="mt-1 truncate text-xs text-muted-foreground">
-          {thread.replyDraft ? `Draft ready / promotional score ${Math.round((thread.promotionalScore ?? 0) * 100)}%` : (thread.threadAuthorHandle ?? "unknown author")}
+          {thread.replyDraft
+            ? `Draft ready / promotional score ${Math.round((thread.promotionalScore ?? 0) * 100)}%`
+            : (thread.threadAuthorHandle ?? "unknown author")}
         </p>
       </div>
-      <span className="font-mono text-sm">{Math.round(thread.relevanceScore * 100)}%</span>
-      <Badge variant={thread.status === "failed" || thread.status === "blocked" ? "danger" : thread.status === "posted" ? "success" : "secondary"}>
+      <span className="font-mono text-sm">
+        {Math.round(thread.relevanceScore * 100)}%
+      </span>
+      <Badge
+        variant={
+          thread.status === "failed" || thread.status === "blocked"
+            ? "danger"
+            : thread.status === "posted"
+              ? "success"
+              : "secondary"
+        }
+      >
         {thread.status.replace("_", " ")}
       </Badge>
       <div className="flex justify-end gap-1.5">
@@ -176,22 +235,31 @@ async function loadCommunityData(): Promise<{
       return { product: null, threads: [], error: null };
     }
 
-    const threads = await new CommunityService(supabase).listThreads({ productId: product.id });
+    const threads = await new CommunityService(supabase).listThreads({
+      productId: product.id,
+    });
     return { product, threads, error: null };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
       return { product: null, threads: [], error: error.message };
     }
 
-    if (error instanceof ProductReadError || error instanceof CommunityThreadReadError) {
+    if (
+      error instanceof ProductReadError ||
+      error instanceof CommunityThreadReadError
+    ) {
       return { product: null, threads: [], error: error.message };
     }
 
-    if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
+    if (
+      error instanceof Error &&
+      error.message.includes("Supabase URL and publishable key")
+    ) {
       return {
         product: null,
         threads: [],
-        error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
+        error:
+          "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
       };
     }
 
@@ -201,9 +269,22 @@ async function loadCommunityData(): Promise<{
 
 function countThreads(threads: CommunityThread[]) {
   return {
-    observed: String(threads.filter((thread) => thread.status === "observed").length),
-    drafted: String(threads.filter((thread) => thread.status === "drafted").length),
-    pendingReview: String(threads.filter((thread) => thread.status === "pending_review" || thread.status === "approved").length),
-    closed: String(threads.filter((thread) => thread.status === "posted" || thread.status === "skipped").length),
+    observed: String(
+      threads.filter((thread) => thread.status === "observed").length,
+    ),
+    drafted: String(
+      threads.filter((thread) => thread.status === "drafted").length,
+    ),
+    pendingReview: String(
+      threads.filter(
+        (thread) =>
+          thread.status === "pending_review" || thread.status === "approved",
+      ).length,
+    ),
+    closed: String(
+      threads.filter(
+        (thread) => thread.status === "posted" || thread.status === "skipped",
+      ).length,
+    ),
   };
 }

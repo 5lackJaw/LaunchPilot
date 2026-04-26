@@ -144,8 +144,8 @@ export default async function OutreachPage({ searchParams }: PageProps) {
           </Alert>
         ) : null}
 
-        <div className="overflow-hidden rounded-lg border bg-card">
-          <div className="grid grid-cols-[minmax(0,1fr)_160px_100px_120px_220px] border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+        <div className="overflow-x-auto rounded-lg border bg-card">
+          <div className="grid min-w-[860px] grid-cols-[minmax(0,1fr)_160px_100px_120px_220px] border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
             <span>Contact</span>
             <span>Publication</span>
             <span>Score</span>
@@ -202,7 +202,7 @@ export default async function OutreachPage({ searchParams }: PageProps) {
 
 function ContactRow({ contact }: { contact: OutreachContact }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_160px_100px_120px_220px] items-center gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-secondary/60">
+    <div className="grid min-w-[860px] grid-cols-[minmax(0,1fr)_160px_100px_120px_220px] items-center gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-secondary/60">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <Send className="size-4 text-muted-foreground" aria-hidden="true" />
