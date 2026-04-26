@@ -225,16 +225,20 @@ Fields:
 - score
 - status
 - last_contact_at
+- provenance
 - created_at
+- updated_at
 
 Recommended `outreach_contacts.status`:
 - identified
 - drafted
+- pending_review
 - sent
 - opened
 - replied
 - converted
 - suppressed
+- failed
 
 ### directory_submissions
 Purpose: status of each product's listing package per directory.

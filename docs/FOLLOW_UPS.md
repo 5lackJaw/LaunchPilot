@@ -102,3 +102,10 @@ Format:
 - Current implication: Approving a community reply can transition the LaunchPilot thread record to `posted` with audit provenance, but no external community platform receives the reply yet.
 - Follow-up trigger: When encrypted community connections and provider-specific posting adapters are implemented.
 - Safe current behavior: Keep the action server-authoritative, require an approved review path, require a draft, and block replies whose promotional score exceeds the guardrail threshold.
+
+- Date: 2026-04-26
+- Area: Outreach prospecting
+- Item: Prospect identification currently uses deterministic Marketing Brief-derived candidates rather than live media databases, search APIs, or email discovery providers.
+- Current implication: The outreach pipeline can persist and rank contacts, but contacts should not be treated as verified real outreach targets yet.
+- Follow-up trigger: When external prospect data providers, enrichment, or email verification are implemented.
+- Safe current behavior: Store provenance for every prospect, keep email nullable, and require later review before any sending workflow exists.

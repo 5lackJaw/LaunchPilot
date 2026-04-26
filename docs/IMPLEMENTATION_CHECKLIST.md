@@ -70,8 +70,8 @@ Use this as the execution checklist. Check items only when fully implemented.
 - [x] Trust-level configuration
 
 ## Phase 7 — outreach composer
-- [ ] Prospect identification flow
-- [ ] Outreach contact model
+- [x] Prospect identification flow
+- [x] Outreach contact model
 - [ ] Outreach draft generation
 - [ ] Outreach tracker page
 - [ ] Approve-and-send flow
