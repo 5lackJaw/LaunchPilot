@@ -52,6 +52,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
       <AppTopbar
         title="Dashboard"
         eyebrow="Weekly operating view"
+        productName={data.product.name}
         actions={
           <div className="flex items-center gap-2">
             <span className="font-mono text-[11.5px] text-muted-foreground">{summary.currentPeriod.label}</span>

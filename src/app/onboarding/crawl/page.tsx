@@ -23,13 +23,15 @@ type PageProps = {
     productId?: string;
     created?: string;
     crawlJobId?: string;
+    duplicate?: string;
   }>;
 };
 
 export default async function OnboardingCrawlPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const wasCreated = params.created === "1" && params.productId;
-  const data = params.productId ? await loadCrawlPageData(params.productId) : null;
+  const wasDuplicate = params.duplicate === "1" && params.productId;
+  const data = await loadCrawlPageData(params.productId);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -59,6 +61,23 @@ export default async function OnboardingCrawlPage({ searchParams }: PageProps) {
               </Alert>
             ) : null}
 
+            {wasDuplicate ? (
+              <Alert>
+                <CheckCircle2 className="absolute left-4 top-3.5 text-accent" />
+                <div className="pl-7">
+                  <AlertTitle>Product already exists</AlertTitle>
+                  <AlertDescription>This URL is already in your account, so LaunchPilot reopened the existing onboarding state instead of creating a duplicate.</AlertDescription>
+                </div>
+              </Alert>
+            ) : null}
+
+            {!params.productId && data.product ? (
+              <Alert>
+                <AlertTitle>Resume onboarding</AlertTitle>
+                <AlertDescription>LaunchPilot found an existing product and loaded its current crawl state.</AlertDescription>
+              </Alert>
+            ) : null}
+
             {data?.error ? (
               <Alert variant="destructive">
                 <AlertTitle>Onboarding state could not be loaded</AlertTitle>
@@ -67,6 +86,7 @@ export default async function OnboardingCrawlPage({ searchParams }: PageProps) {
             ) : null}
 
             {data?.product ? <CrawlPanel product={data.product} crawlJob={data.crawlJob} crawlResult={data.crawlResult} /> : <ProductCreatePanel />}
+            {data.products.length ? <ExistingProductsPanel products={data.products} activeProductId={data.product?.id ?? null} /> : null}
           </div>
 
           <Card>
@@ -83,6 +103,34 @@ export default async function OnboardingCrawlPage({ searchParams }: PageProps) {
         </section>
       </div>
     </main>
+  );
+}
+
+function ExistingProductsPanel({ products, activeProductId }: { products: Product[]; activeProductId: string | null }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Existing products</CardTitle>
+        <CardDescription>Use this list to resume onboarding for a product already attached to your account.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        {products.map((product) => (
+          <div key={product.id} className="grid gap-3 rounded-md border bg-secondary px-3 py-3 text-sm sm:grid-cols-[1fr_auto] sm:items-center">
+            <div className="min-w-0">
+              <p className="truncate font-medium text-foreground">{product.name}</p>
+              <p className="truncate text-xs text-muted-foreground">{product.url}</p>
+            </div>
+            {product.id === activeProductId ? (
+              <Badge variant="secondary">Current</Badge>
+            ) : (
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/onboarding/crawl?productId=${product.id}`}>Resume</Link>
+              </Button>
+            )}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -222,7 +270,8 @@ function StepIcon({ status }: { status: CrawlJob["steps"][number]["status"] }) {
   return <Circle className="text-muted-foreground" />;
 }
 
-async function loadCrawlPageData(productId: string): Promise<{
+async function loadCrawlPageData(productId?: string): Promise<{
+  products: Product[];
   product: Product | null;
   crawlJob: CrawlJob | null;
   crawlResult: CrawlResult | null;
@@ -232,24 +281,31 @@ async function loadCrawlPageData(productId: string): Promise<{
     const supabase = await createSupabaseServerClient();
     const productService = new ProductService(supabase);
     const crawlService = new CrawlService(supabase);
-    const [product, crawlJob, crawlResult] = await Promise.all([
-      productService.getProduct({ productId }),
-      crawlService.getLatestCrawlJob({ productId }),
-      crawlService.getLatestCrawlResult({ productId }),
+    const products = await productService.listProducts();
+    const selectedProduct = productId ? await productService.getProduct({ productId }) : products[0] ?? null;
+
+    if (!selectedProduct) {
+      return { products, product: null, crawlJob: null, crawlResult: null, error: null };
+    }
+
+    const [crawlJob, crawlResult] = await Promise.all([
+      crawlService.getLatestCrawlJob({ productId: selectedProduct.id }),
+      crawlService.getLatestCrawlResult({ productId: selectedProduct.id }),
     ]);
 
-    return { product, crawlJob, crawlResult, error: null };
+    return { products, product: selectedProduct, crawlJob, crawlResult, error: null };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { product: null, crawlJob: null, crawlResult: null, error: error.message };
+      return { products: [], product: null, crawlJob: null, crawlResult: null, error: error.message };
     }
 
     if (error instanceof ProductReadError || error instanceof CrawlReadError) {
-      return { product: null, crawlJob: null, crawlResult: null, error: error.message };
+      return { products: [], product: null, crawlJob: null, crawlResult: null, error: error.message };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
       return {
+        products: [],
         product: null,
         crawlJob: null,
         crawlResult: null,

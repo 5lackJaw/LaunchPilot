@@ -72,6 +72,7 @@ export function InboxClient({
       <AppTopbar
         title="Inbox"
         eyebrow={product ? `Approval queue / ${product.name}` : "Approval queue"}
+        productName={product?.name}
         actions={
           <>
             <Button type="button" variant="ghost" size="sm" onClick={approveHighConfidence}>

@@ -137,3 +137,17 @@ Format:
 - Current implication: Local and production environments can wire real Stripe prices through environment variables; missing prices leave checkout buttons disabled.
 - Follow-up trigger: Before public launch or any paid user testing.
 - Safe current behavior: Create Checkout and Portal sessions server-side only, verify webhook signatures, and update `users.plan_tier` only from signed Stripe events.
+
+- Date: 2026-04-27
+- Area: Product onboarding cleanup
+- Item: Live testing exposed duplicate product rows for the same URL before duplicate detection ran ahead of plan-limit enforcement.
+- Current implication: New duplicate product creation is blocked in the service layer and onboarding reopens the existing product, but existing duplicate rows may still need manual cleanup or consolidation.
+- Follow-up trigger: Before inviting external users, after confirming which duplicate product row contains the desired crawl/brief state, or when adding a full product management page.
+- Safe current behavior: Onboarding loads an existing product when no `productId` is provided, duplicate URL submissions redirect to the existing product, and the UI exposes existing products on the onboarding crawl page.
+
+- Date: 2026-04-27
+- Area: Product switching
+- Item: The mockup-style topbar previously implied a product switcher, but no product-switching workflow has been implemented across all app routes.
+- Current implication: The topbar now shows only the current product name when a page provides one and no longer renders a non-functional dropdown.
+- Follow-up trigger: When adding a product management surface or route-level product selection across dashboard, inbox, analytics, and channel pages.
+- Safe current behavior: Product context remains server-selected per route, and onboarding includes explicit resume links for existing products.

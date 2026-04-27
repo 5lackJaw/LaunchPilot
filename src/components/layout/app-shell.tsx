@@ -26,7 +26,7 @@ const navGroups = [
     label: "Overview",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/inbox", label: "Inbox", icon: Inbox, badge: "7" },
+      { href: "/inbox", label: "Inbox", icon: Inbox },
     ],
   },
   {
@@ -62,8 +62,20 @@ const navItems = navGroups.flatMap((group) => group.items);
 
 export function AppShell({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+  account,
+}: Readonly<{
+  children: React.ReactNode;
+  account?: {
+    email?: string | null;
+    planTier?: string | null;
+    pendingInboxCount?: number;
+  };
+}>) {
   const pathname = usePathname();
+  const pendingInboxBadge = account?.pendingInboxCount ? String(account.pendingInboxCount) : undefined;
+  const accountLabel = account?.email ?? "Signed in";
+  const initials = getInitials(accountLabel);
+  const planLabel = account?.planTier ? `${account.planTier} plan` : "account";
 
   return (
     <div className="grid min-h-screen grid-cols-1 bg-background text-foreground md:grid-cols-[220px_1fr]">
@@ -81,7 +93,11 @@ export function AppShell({
           aria-label="Primary"
         >
           {navItems.map((item) => (
-            <MobileNavLink key={item.href} item={item} pathname={pathname} />
+            <MobileNavLink
+              key={item.href}
+              item={{ ...item, badge: item.href === "/inbox" ? pendingInboxBadge : undefined }}
+              pathname={pathname}
+            />
           ))}
         </nav>
       </header>
@@ -101,7 +117,10 @@ export function AppShell({
             <NavSection
               key={group.label}
               label={group.label}
-              items={group.items}
+              items={group.items.map((item) => ({
+                ...item,
+                badge: item.href === "/inbox" ? pendingInboxBadge : undefined,
+              }))}
               pathname={pathname}
             />
           ))}
@@ -109,12 +128,12 @@ export function AppShell({
 
         <div className="flex items-center gap-2.5 border-t px-[18px] py-3">
           <div className="flex size-[26px] shrink-0 items-center justify-center rounded-full border border-primary bg-secondary font-mono text-[10px] text-primary">
-            CS
+            {initials}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-[12.5px] font-medium">Chris</p>
+            <p className="truncate text-[12.5px] font-medium">{accountLabel}</p>
             <p className="font-mono text-[10.5px] text-muted-foreground">
-              launch plan
+              {planLabel}
             </p>
           </div>
         </div>
@@ -122,6 +141,20 @@ export function AppShell({
       <div className="min-w-0">{children}</div>
     </div>
   );
+}
+
+function getInitials(value: string) {
+  const localPart = value.split("@")[0] ?? value;
+  const parts = localPart.split(/[.\-_\s]+/).filter(Boolean);
+
+  if (!parts.length) {
+    return "LP";
+  }
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
 }
 
 function MobileNavLink({

@@ -6,7 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { CrawlStartError, CrawlService } from "@/server/services/crawl-service";
 import { PlanLimitError } from "@/server/services/plan-service";
-import { ProductCreateError, ProductService } from "@/server/services/product-service";
+import { DuplicateProductError, ProductCreateError, ProductService } from "@/server/services/product-service";
 
 export type ProductCreateFormState = {
   status: "idle" | "error";
@@ -54,6 +54,10 @@ export async function createProductAction(
         status: "error",
         message: error.message,
       };
+    }
+
+    if (error instanceof DuplicateProductError) {
+      redirect(`/onboarding/crawl?productId=${error.productId}&duplicate=1`);
     }
 
     if (error instanceof ProductCreateError) {

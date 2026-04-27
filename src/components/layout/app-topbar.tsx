@@ -1,13 +1,14 @@
-import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function AppTopbar({
   title,
   eyebrow,
+  productName,
   actions,
 }: {
   title: string;
   eyebrow?: string;
+  productName?: string | null;
   actions?: React.ReactNode;
 }) {
   return (
@@ -23,19 +24,18 @@ export function AppTopbar({
             {title}
           </h1>
         </div>
-        <button
-          type="button"
-          className="inline-flex max-w-full items-center gap-2 rounded-md border bg-secondary px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          aria-label="Switch product"
-          aria-haspopup="listbox"
-        >
-          <span
-            className="size-1.5 rounded-full bg-accent shadow-[0_0_8px_hsl(var(--accent))]"
-            aria-hidden="true"
-          />
-          <span className="truncate">OnChainInvoice.com</span>
-          <ChevronDown aria-hidden="true" />
-        </button>
+        {productName ? (
+          <div
+            className="inline-flex max-w-full items-center gap-2 rounded-md border bg-secondary px-3 py-2 text-xs font-medium text-foreground"
+            aria-label="Current product"
+          >
+            <span
+              className="size-1.5 rounded-full bg-accent shadow-[0_0_8px_hsl(var(--accent))]"
+              aria-hidden="true"
+            />
+            <span className="truncate">{productName}</span>
+          </div>
+        ) : null}
       </div>
       {actions ? (
         <div className="flex flex-wrap items-center gap-2">{actions}</div>
