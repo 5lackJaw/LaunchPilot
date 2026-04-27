@@ -11,6 +11,7 @@ import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { CrawlReadError, CrawlService } from "@/server/services/crawl-service";
 import { ProductReadError, ProductService } from "@/server/services/product-service";
+import { CrawlStatusRefresh } from "@/app/onboarding/crawl/crawl-status-refresh";
 import { ProductCreateForm } from "@/app/onboarding/crawl/product-create-form";
 import { StartCrawlForm } from "@/app/onboarding/crawl/start-crawl-form";
 
@@ -176,6 +177,7 @@ function CrawlPanel({
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         <StartCrawlForm productId={product.id} disabled={crawlInFlight} />
+        <CrawlStatusRefresh enabled={crawlInFlight} />
         {crawlJob ? <CrawlProgress crawlJob={crawlJob} /> : <p className="text-sm text-muted-foreground">No crawl job exists yet.</p>}
         {crawlResult ? <CrawlResultPanel crawlResult={crawlResult} /> : null}
         {crawlResult ? (

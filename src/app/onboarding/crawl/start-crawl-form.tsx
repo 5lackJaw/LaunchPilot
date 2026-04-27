@@ -22,17 +22,17 @@ export function StartCrawlForm({ productId, disabled }: { productId: string; dis
         </Alert>
       ) : null}
       <input type="hidden" name="productId" value={productId} />
-      <SubmitButton disabled={disabled} />
+      <SubmitButton disabled={disabled} disabledLabel="Crawl in progress" />
     </form>
   );
 }
 
-function SubmitButton({ disabled }: { disabled?: boolean }) {
+function SubmitButton({ disabled, disabledLabel }: { disabled?: boolean; disabledLabel: string }) {
   const { pending } = useFormStatus();
 
   return (
     <Button type="submit" disabled={disabled || pending}>
-      {pending ? "Starting crawl..." : "Start crawl"}
+      {pending ? "Starting crawl..." : disabled ? disabledLabel : "Start crawl"}
     </Button>
   );
 }
