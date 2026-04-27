@@ -33,7 +33,7 @@ export default async function ContentPage() {
           <Button size="sm" asChild>
             <Link href="/seo">
               <Plus />
-              Select keyword
+              New article
             </Link>
           </Button>
         }
@@ -84,9 +84,17 @@ export default async function ContentPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Next step</CardTitle>
-              <CardDescription>Article generation will fill draft body, SEO metadata, and create review inbox items in the next workflow slice.</CardDescription>
+              <CardTitle>Add content</CardTitle>
+              <CardDescription>Select a keyword opportunity to generate a new article draft.</CardDescription>
             </CardHeader>
+            <CardContent>
+              <Button asChild size="sm" className="w-full">
+                <Link href="/seo">
+                  Find keyword opportunities
+                  <ArrowRight data-icon="inline-end" />
+                </Link>
+              </Button>
+            </CardContent>
           </Card>
         </aside>
       </section>

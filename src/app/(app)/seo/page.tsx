@@ -159,7 +159,7 @@ function OpportunityCard({ opportunity }: { opportunity: KeywordOpportunity }) {
           <input type="hidden" name="productId" value={opportunity.productId} />
           <input type="hidden" name="opportunityId" value={opportunity.id} />
           <Button type="submit" size="sm">
-            Select
+            Generate article
             <ArrowRight data-icon="inline-end" />
           </Button>
         </form>

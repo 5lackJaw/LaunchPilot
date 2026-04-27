@@ -157,12 +157,16 @@ export default async function CommunityPage({ searchParams }: PageProps) {
 
           <Card>
             <CardHeader>
-              <CardTitle>Next step</CardTitle>
+              <CardTitle>How it works</CardTitle>
               <CardDescription>
-                Approved reply drafts are posted through the server-side
-                execution path. Trust-level automation remains a future slice.
+                LaunchBeacon scans Reddit and Hacker News for conversations where your product is genuinely relevant. Threads are scored for relevance, then you review and approve reply drafts before anything is posted.
               </CardDescription>
             </CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <p>1. Click <strong className="text-foreground">Scan threads</strong> to find relevant conversations.</p>
+              <p>2. Review scored threads — click <strong className="text-foreground">Draft</strong> to generate a reply.</p>
+              <p>3. Approve the reply in your inbox before it goes live.</p>
+            </CardContent>
           </Card>
         </aside>
       </section>

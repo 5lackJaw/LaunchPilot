@@ -4,20 +4,20 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-secondary hover:text-foreground",
-        outline: "border bg-background hover:bg-secondary hover:text-foreground",
+        default:     "bg-[#7C6FF7] text-white hover:bg-[#6B5EE4] rounded-[7px]",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-[7px]",
+        secondary:   "bg-[#17171A] text-[#E8E8EC] border border-[#232328] hover:bg-[#1D1D21] rounded-[7px]",
+        outline:     "bg-transparent text-[#E8E8EC] border border-[#232328] hover:bg-[#1D1D21] rounded-[7px]",
+        ghost:       "bg-transparent text-[#8A8A95] hover:bg-[#17171A] hover:text-[#E8E8EC] rounded-[7px]",
       },
       size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        icon: "size-8",
+        default: "h-9 px-4 text-[13px]",
+        sm:      "h-8 px-3 text-[12px]",
+        icon:    "size-8",
       },
     },
     defaultVariants: {

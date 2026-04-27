@@ -79,10 +79,20 @@ export default async function InboxItemPage({ params, searchParams }: PageProps)
 
       <section className="grid gap-4 p-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex flex-col gap-4">
-          {query.reviewed ? (
+          {query.reviewed === "approved" ? (
             <Alert>
-              <AlertTitle>Review saved</AlertTitle>
-              <AlertDescription>The inbox item was marked as {query.reviewed} and an audit event was recorded.</AlertDescription>
+              <AlertTitle>Approved</AlertTitle>
+              <AlertDescription>This item has been queued for action.</AlertDescription>
+            </Alert>
+          ) : query.reviewed === "rejected" ? (
+            <Alert>
+              <AlertTitle>Rejected</AlertTitle>
+              <AlertDescription>This item has been rejected and won&apos;t be acted on.</AlertDescription>
+            </Alert>
+          ) : query.reviewed ? (
+            <Alert>
+              <AlertTitle>Saved</AlertTitle>
+              <AlertDescription>Review decision recorded.</AlertDescription>
             </Alert>
           ) : null}
           {query.reviewError ? (
@@ -92,7 +102,6 @@ export default async function InboxItemPage({ params, searchParams }: PageProps)
             </Alert>
           ) : null}
           <ReviewBody item={data.item} />
-          <RawPayload item={data.item} />
         </div>
         <aside className="flex flex-col gap-4">
           <ReviewSummary item={data.item} />
@@ -247,8 +256,8 @@ function EventLog({ events }: { events: InboxItemEvent[] }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Audit trail</CardTitle>
-        <CardDescription>Server-recorded inbox events.</CardDescription>
+        <CardTitle>History</CardTitle>
+        <CardDescription>Review events for this item.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {events.length ? events.map((event) => (

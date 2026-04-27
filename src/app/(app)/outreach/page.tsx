@@ -198,12 +198,16 @@ export default async function OutreachPage({ searchParams }: PageProps) {
 
           <Card>
             <CardHeader>
-              <CardTitle>Phase 7 complete</CardTitle>
+              <CardTitle>How it works</CardTitle>
               <CardDescription>
-                Outreach prospects, drafts, sending, follow-ups, and suppression
-                are now server-backed.
+                LaunchBeacon identifies newsletters, blogs, and publications whose audience matches your product. You review draft pitches before anything is sent.
               </CardDescription>
             </CardHeader>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <p>1. Click <strong className="text-foreground">Find prospects</strong> to identify relevant publications.</p>
+              <p>2. Click <strong className="text-foreground">Draft</strong> to generate a personalized pitch for each contact.</p>
+              <p>3. Approve the email in your inbox to send it.</p>
+            </CardContent>
           </Card>
         </aside>
       </section>
@@ -274,18 +278,14 @@ function ContactRow({ contact }: { contact: OutreachContact }) {
             </Button>
           </form>
         ) : null}
-        {contact.url ? (
+        {contact.url && !contact.url.includes("example.com") ? (
           <Button variant="ghost" size="sm" asChild>
             <Link href={contact.url} target="_blank" rel="noreferrer">
               Open
               <ExternalLink data-icon="inline-end" />
             </Link>
           </Button>
-        ) : (
-          <Button variant="ghost" size="sm" disabled>
-            No URL
-          </Button>
-        )}
+        ) : null}
       </div>
     </div>
   );

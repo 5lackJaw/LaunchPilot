@@ -53,7 +53,7 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
           {params.generated ? (
             <Alert>
               <AlertTitle>Marketing Brief generated</AlertTitle>
-              <AlertDescription>The current product now has a deterministic brief for local review and keyword planning.</AlertDescription>
+              <AlertDescription>Your brief is ready. Review it below and head to SEO to start planning content.</AlertDescription>
             </Alert>
           ) : null}
           {params.saveError ? (

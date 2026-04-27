@@ -2,11 +2,11 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-const alertVariants = cva("relative w-full rounded-lg border px-4 py-3 text-sm", {
+const alertVariants = cva("relative w-full rounded-[10px] border px-4 py-3 text-sm", {
   variants: {
     variant: {
-      default: "bg-card text-card-foreground",
-      destructive: "border-destructive/35 bg-destructive/10 text-destructive",
+      default:     "border-[#232328] bg-[#17171A] text-[#E8E8EC]",
+      destructive: "border-[rgba(240,96,96,0.25)] bg-[rgba(240,96,96,0.08)] text-[#F06060]",
     },
   },
   defaultVariants: {
