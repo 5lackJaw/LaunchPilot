@@ -118,7 +118,7 @@ function BillingOverview({ profile }: { profile: BillingProfile }) {
           <div>
             <CardTitle>Current plan</CardTitle>
             <CardDescription>
-              {profile.email ?? "Signed-in LaunchPilot account"}
+              {profile.email ?? "Signed-in LaunchBeacon account"}
             </CardDescription>
           </div>
           <Badge

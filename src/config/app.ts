@@ -1,4 +1,4 @@
 export const appConfig = {
-  name: process.env.NEXT_PUBLIC_APP_NAME ?? "LaunchPilot",
+  name: process.env.NEXT_PUBLIC_APP_NAME ?? "LaunchBeacon",
   url: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
 } as const;

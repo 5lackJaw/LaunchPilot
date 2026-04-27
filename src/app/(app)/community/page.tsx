@@ -71,7 +71,7 @@ export default async function CommunityPage({ searchParams }: PageProps) {
           <Alert className="xl:col-span-2">
             <AlertTitle>Thread scan requested</AlertTitle>
             <AlertDescription>
-              LaunchPilot will score relevant community threads from the current
+              LaunchBeacon will score relevant community threads from the current
               Marketing Brief.
             </AlertDescription>
           </Alert>
@@ -132,7 +132,7 @@ export default async function CommunityPage({ searchParams }: PageProps) {
               <EmptyState
                 icon={MessageSquareText}
                 title="No product available"
-                description="Create a product during onboarding before LaunchPilot can scan and score community threads."
+                description="Create a product during onboarding before LaunchBeacon can scan and score community threads."
                 className="border-dashed"
               />
             </div>

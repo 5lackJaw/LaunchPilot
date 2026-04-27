@@ -1,7 +1,7 @@
 # PRODUCT_BRIEF
 
 ## Product summary
-LaunchPilot is an AI-assisted marketing execution platform for solo developers and indie founders. The system reduces the user's role to product decisions and periodic approval, while the platform handles downstream marketing execution: marketing brief generation, content drafting, community drafting, directory listing preparation, outreach drafting, publishing, analytics ingestion, and weekly summaries.
+LaunchBeacon is an AI-assisted marketing execution platform for solo developers and indie founders. The system reduces the user's role to product decisions and periodic approval, while the platform handles downstream marketing execution: marketing brief generation, content drafting, community drafting, directory listing preparation, outreach drafting, publishing, analytics ingestion, and weekly summaries.
 
 ## Product vision
 A solo developer should be able to launch a SaaS product and generate meaningful qualified traffic without needing marketing expertise. The product is optimized for builders with limited weekly marketing time.

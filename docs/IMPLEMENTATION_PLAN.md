@@ -1,6 +1,6 @@
 # IMPLEMENTATION_PLAN
 
-This plan is intentionally scoped for Codex-friendly execution. Build in vertical slices, not giant all-system jumps.
+This plan is intentionally scoped for AI developers-friendly execution. Build in vertical slices, not giant all-system jumps.
 
 ## Phase 0 — foundation
 - bootstrap Next.js 16 app, shared types, environment handling, Supabase wiring, auth shell, base layout, design primitives

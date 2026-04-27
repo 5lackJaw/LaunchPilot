@@ -67,7 +67,7 @@ export default async function OnboardingCrawlPage({ searchParams }: PageProps) {
                 <CheckCircle2 className="absolute left-4 top-3.5 text-accent" />
                 <div className="pl-7">
                   <AlertTitle>Product already exists</AlertTitle>
-                  <AlertDescription>This URL is already in your account, so LaunchPilot reopened the existing onboarding state instead of creating a duplicate.</AlertDescription>
+                  <AlertDescription>This URL is already in your account, so LaunchBeacon reopened the existing onboarding state instead of creating a duplicate.</AlertDescription>
                 </div>
               </Alert>
             ) : null}
@@ -75,7 +75,7 @@ export default async function OnboardingCrawlPage({ searchParams }: PageProps) {
             {!params.productId && data.product ? (
               <Alert>
                 <AlertTitle>Resume onboarding</AlertTitle>
-                <AlertDescription>LaunchPilot found an existing product and loaded its current crawl state.</AlertDescription>
+                <AlertDescription>LaunchBeacon found an existing product and loaded its current crawl state.</AlertDescription>
               </Alert>
             ) : null}
 
@@ -93,7 +93,7 @@ export default async function OnboardingCrawlPage({ searchParams }: PageProps) {
           <Card>
             <CardHeader>
               <CardTitle>What happens next</CardTitle>
-              <CardDescription>LaunchPilot keeps product ownership and crawl state server-side.</CardDescription>
+              <CardDescription>LaunchBeacon keeps product ownership and crawl state server-side.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
               <p>The product is created with onboarding status.</p>

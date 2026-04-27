@@ -1,8 +1,8 @@
 {
-  "name": "launchpilot",
+  "name": "launchbeacon",
   "version": "0.1.0",
   "private": true,
-  "description": "LaunchPilot web application",
+  "description": "LaunchBeacon web application",
   "engines": {
     "node": ">=20.9.0"
   },

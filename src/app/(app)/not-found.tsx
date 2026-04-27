@@ -7,12 +7,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 export default function AppNotFound() {
   return (
     <main className="flex min-h-screen flex-col">
-      <AppTopbar title="LaunchPilot" eyebrow="Not found" />
+      <AppTopbar title="LaunchBeacon" eyebrow="Not found" />
       <div className="p-6">
         <EmptyState
           icon={SearchX}
           title="Workspace page not found"
-          description="The route does not match a LaunchPilot workspace view, or the linked record is no longer available."
+          description="The route does not match a LaunchBeacon workspace view, or the linked record is no longer available."
           action={
             <Button size="sm" asChild>
               <Link href="/dashboard">Back to dashboard</Link>

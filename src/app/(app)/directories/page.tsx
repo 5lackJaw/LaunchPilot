@@ -162,7 +162,7 @@ export default async function DirectoriesPage({ searchParams }: PageProps) {
               <EmptyState
                 icon={FolderKanban}
                 title="No product available"
-                description="Create a product during onboarding before LaunchPilot can track directory submissions."
+                description="Create a product during onboarding before LaunchBeacon can track directory submissions."
                 className="border-dashed"
               />
             </div>

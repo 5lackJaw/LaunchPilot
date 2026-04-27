@@ -77,7 +77,7 @@ export default async function OutreachPage({ searchParams }: PageProps) {
           <Alert className="xl:col-span-2">
             <AlertTitle>Prospect identification requested</AlertTitle>
             <AlertDescription>
-              LaunchPilot will rank outreach contacts from the current Marketing
+              LaunchBeacon will rank outreach contacts from the current Marketing
               Brief.
             </AlertDescription>
           </Alert>
@@ -173,7 +173,7 @@ export default async function OutreachPage({ searchParams }: PageProps) {
               <EmptyState
                 icon={Send}
                 title="No product available"
-                description="Create a product during onboarding before LaunchPilot can identify outreach prospects."
+                description="Create a product during onboarding before LaunchBeacon can identify outreach prospects."
                 className="border-dashed"
               />
             </div>

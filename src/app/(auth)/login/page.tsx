@@ -27,7 +27,7 @@ function AuthPageShell({ eyebrow, children }: { eyebrow: string; children: React
       <div className="flex w-full max-w-md flex-col gap-4">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{eyebrow}</p>
-          <h1 className="font-serif text-2xl italic">LaunchPilot</h1>
+          <h1 className="font-serif text-2xl italic">LaunchBeacon</h1>
         </div>
         {children}
       </div>

@@ -9,7 +9,7 @@ export function InboxAuthRequired() {
         <CardHeader>
           <CardTitle>Sign in to view the inbox</CardTitle>
           <CardDescription>
-            The Approval Inbox is product-scoped, so LaunchPilot only loads it after Supabase confirms your session.
+            The Approval Inbox is product-scoped, so LaunchBeacon only loads it after Supabase confirms your session.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">

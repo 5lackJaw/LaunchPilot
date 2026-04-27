@@ -1,6 +1,6 @@
-# LaunchPilot Codex Suite (Trimmed)
+# LaunchBeacon AI developers Suite (Trimmed)
 
-This suite is designed for Codex to build the entire LaunchPilot webapp without requiring Codex to hold the entire product in active context at once.
+This suite is designed for AI developers to build the entire LaunchBeacon webapp without requiring AI developers to hold the entire product in active context at once.
 
 ## Operating model
 Use this suite as a layered reference system:
@@ -11,8 +11,8 @@ Use this suite as a layered reference system:
 
 Do **not** preload every document for every task. Read only the docs required for the current slice.
 
-## What LaunchPilot is
-LaunchPilot is a multi-tenant SaaS for solo developers and indie founders. It crawls a product URL, generates a persistent Marketing Brief, creates and routes marketing work through an Approval Inbox, publishes approved assets through integrations, and shows plain-language performance analytics. The product is conceptually structured as:
+## What LaunchBeacon is
+LaunchBeacon is a multi-tenant SaaS for solo developers and indie founders. It crawls a product URL, generates a persistent Marketing Brief, creates and routes marketing work through an Approval Inbox, publishes approved assets through integrations, and shows plain-language performance analytics. The product is conceptually structured as:
 - Intelligence layer: crawl, interview, brief generation, keyword and competitor analysis
 - Execution layer: content generation, community drafting, directory packages, outreach drafts
 - Feedback layer: analytics ingestion, summaries, recommendations, performance tracking
@@ -71,7 +71,3 @@ LaunchPilot is a multi-tenant SaaS for solo developers and indie founders. It cr
 - explicit state transitions
 - safe fallback to human review
 - no invented product behavior
-
-## Important concerning app name
-
-LaunchPilot is a temporary name for the application, and is subject to change. For that reason, ensure that changing all instances of the name throughout the codebase can be done with relative ease down the line. 

@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 export default function AppError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <main className="flex min-h-screen flex-col">
-      <AppTopbar title="LaunchPilot" eyebrow="Application error" />
+      <AppTopbar title="LaunchBeacon" eyebrow="Application error" />
       <div className="p-6">
         <EmptyState
           icon={AlertTriangle}

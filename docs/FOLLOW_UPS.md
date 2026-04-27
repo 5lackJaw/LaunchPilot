@@ -15,7 +15,7 @@ Format:
 - Date: 2026-04-25
 - Area: Dependency security
 - Item: `npm audit --omit=dev` reports a moderate PostCSS advisory (`GHSA-qx2v-qp2m-jg93`) through Next.js 16.2.4's bundled `next/node_modules/postcss@8.4.31`.
-- Current implication: Low practical risk for LaunchPilot because the app does not accept user-submitted CSS, run PostCSS on user input, or embed PostCSS-stringified user CSS into HTML `<style>` tags.
+- Current implication: Low practical risk for LaunchBeacon because the app does not accept user-submitted CSS, run PostCSS on user input, or embed PostCSS-stringified user CSS into HTML `<style>` tags.
 - Follow-up trigger: Re-check when upgrading Next.js, when Next publishes a release that bumps bundled PostCSS to `8.5.10+`, or before adding any feature that accepts custom CSS from users.
 - Safe current behavior: Do not run `npm audit fix --force`, because npm currently suggests a breaking downgrade to `next@9.3.3`; keep Next.js 16 current and avoid user-controlled CSS processing.
 
@@ -99,7 +99,7 @@ Format:
 - Date: 2026-04-26
 - Area: Community posting
 - Item: Approved community replies currently use a simulated server-side posting adapter instead of live Reddit, Hacker News, or social credentials.
-- Current implication: Approving a community reply can transition the LaunchPilot thread record to `posted` with audit provenance, but no external community platform receives the reply yet.
+- Current implication: Approving a community reply can transition the LaunchBeacon thread record to `posted` with audit provenance, but no external community platform receives the reply yet.
 - Follow-up trigger: When encrypted community connections and provider-specific posting adapters are implemented.
 - Safe current behavior: Keep the action server-authoritative, require an approved review path, require a draft, and block replies whose promotional score exceeds the guardrail threshold.
 
@@ -120,7 +120,7 @@ Format:
 - Date: 2026-04-26
 - Area: Outreach compliance
 - Item: Suppression is currently enforced as product-local contact state in `outreach_contacts`, not as a global unsubscribe/suppression registry.
-- Current implication: LaunchPilot blocks suppressed contacts from app-level draft generation, sending, and follow-up scheduling for the current product, but production email delivery will need provider-level suppression and unsubscribe handling.
+- Current implication: LaunchBeacon blocks suppressed contacts from app-level draft generation, sending, and follow-up scheduling for the current product, but production email delivery will need provider-level suppression and unsubscribe handling.
 - Follow-up trigger: Before enabling live email sending or adding encrypted email provider connections.
 - Safe current behavior: Keep suppression server-authoritative, store suppression provenance, and reject all outreach actions for suppressed contacts.
 

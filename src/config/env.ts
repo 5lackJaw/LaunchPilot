@@ -10,7 +10,7 @@ const optionalUrl = z.preprocess(
 );
 
 const envSchema = z.object({
-  NEXT_PUBLIC_APP_NAME: z.string().default("LaunchPilot"),
+  NEXT_PUBLIC_APP_NAME: z.string().default("LaunchBeacon"),
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
   NEXT_PUBLIC_SUPABASE_URL: optionalUrl,
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: optionalNonEmptyString,

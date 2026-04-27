@@ -155,7 +155,7 @@ export const productCrawlPlaceholder = inngest.createFunction(
           
           response = await fetch(product.url, {
             headers: {
-              "user-agent": "Mozilla/5.0 (compatible; LaunchPilotBot/0.1)",
+              "user-agent": "Mozilla/5.0 (compatible; LaunchBeaconBot/0.1)",
               accept: "text/html,application/xhtml+xml",
             },
             redirect: "follow",
@@ -196,7 +196,7 @@ export const productCrawlPlaceholder = inngest.createFunction(
                 contentType,
               },
               provenance: {
-                crawler: "LaunchPilotBot/0.1",
+                crawler: "LaunchBeaconBot/0.1",
                 fetchedAt: new Date().toISOString(),
               },
             },

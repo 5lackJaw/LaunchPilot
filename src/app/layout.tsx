@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-const appName = process.env.NEXT_PUBLIC_APP_NAME ?? "LaunchPilot";
+const appName = process.env.NEXT_PUBLIC_APP_NAME ?? "LaunchBeacon";
 
 export const metadata: Metadata = {
   title: {

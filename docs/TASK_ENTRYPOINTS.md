@@ -1,11 +1,11 @@
 # TASK_ENTRYPOINTS
 
-This file tells Codex which docs to read for each task type. Do not read the entire suite unless the task truly spans the whole system.
+This file tells AI developers which docs to read for each task type. Do not read the entire suite unless the task truly spans the whole system.
 
 ## 1. Project bootstrap / repo setup
 Read:
 - `../AGENTS.md`
-- `README_FOR_CODEX.md`
+- `README_FOR_AI_DEVELOPERS.md`
 - `ARCHITECTURE.md`
 - `IMPLEMENTATION_PLAN.md`
 - `IMPLEMENTATION_CHECKLIST.md`

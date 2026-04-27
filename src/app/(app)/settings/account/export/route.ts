@@ -12,7 +12,7 @@ export async function GET() {
     return new Response(body, {
       headers: {
         "content-type": "application/json; charset=utf-8",
-        "content-disposition": `attachment; filename="launchpilot-export-${date}.json"`,
+        "content-disposition": `attachment; filename="launchbeacon-export-${date}.json"`,
         "cache-control": "no-store",
       },
     });

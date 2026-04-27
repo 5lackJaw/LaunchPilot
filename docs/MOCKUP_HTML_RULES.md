@@ -1,6 +1,6 @@
 # MOCKUP_HTML_RULES
 
-This file governs how Codex should use the future `mockup_html/` directory.
+This file governs how AI developers should use the future `mockup_html/` directory.
 
 ## Authority model
 `mockup_html/` is the visual implementation reference, not the product-behavior authority.

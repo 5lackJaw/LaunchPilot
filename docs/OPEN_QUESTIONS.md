@@ -18,5 +18,5 @@ Format:
 - Date: 2026-04-26
 - Area: Data retention policy
 - Question: [UNSPECIFIED — REQUIRES PRODUCT DECISION] What are the exact retention rules for review logs and analytics records after account deletion or plan cancellation?
-- Safe temporary behavior chosen: Provide user-initiated account deletion that cascades account-owned LaunchPilot data through Supabase ownership relationships.
+- Safe temporary behavior chosen: Provide user-initiated account deletion that cascades account-owned LaunchBeacon data through Supabase ownership relationships.
 - Why product input is needed: Retention affects compliance, auditability, and customer expectations, so it should be explicitly decided before public launch.

@@ -76,7 +76,7 @@ function AccountOverviewCard({ overview }: { overview: AccountOverview }) {
     <Card>
       <CardHeader>
         <CardTitle>Account data</CardTitle>
-        <CardDescription>{overview.user.email ?? "Signed-in LaunchPilot account"}</CardDescription>
+        <CardDescription>{overview.user.email ?? "Signed-in LaunchBeacon account"}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 text-sm sm:grid-cols-3">
         <Metric label="Products" value={String(overview.productCount)} />
@@ -96,7 +96,7 @@ function ExportCard() {
           <div>
             <CardTitle>Export data</CardTitle>
             <CardDescription>
-              Download a JSON snapshot of account-owned LaunchPilot records.
+              Download a JSON snapshot of account-owned LaunchBeacon records.
             </CardDescription>
           </div>
         </div>
@@ -119,7 +119,7 @@ function DeleteCard() {
           <div>
             <CardTitle>Delete account</CardTitle>
             <CardDescription>
-              Permanently deletes the Supabase auth user and cascades account-owned LaunchPilot data.
+              Permanently deletes the Supabase auth user and cascades account-owned LaunchBeacon data.
             </CardDescription>
           </div>
         </div>

@@ -1,9 +1,9 @@
 # AGENTS.md
 
-This file contains the durable repository rules for Codex.
+This file contains the durable repository rules for AI developers.
 
 ## Mission
-Build and maintain the LaunchPilot webapp from the canonical docs in this repository.
+Build and maintain the LaunchBeacon webapp from the canonical docs in this repository.
 
 ## Read this first
 For every task:

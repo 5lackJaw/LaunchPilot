@@ -17,3 +17,8 @@ pnpm-debug.log*
 supabase/.temp
 
 .vercel
+
+# Design source files
+*.psd
+*.ai
+*.sketch

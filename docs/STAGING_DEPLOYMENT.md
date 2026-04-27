@@ -1,6 +1,6 @@
 # STAGING_DEPLOYMENT
 
-Use this runbook to get LaunchPilot online in a private/staging environment before public launch.
+Use this runbook to get LaunchBeacon online in a private/staging environment before public launch.
 
 ## Current status
 

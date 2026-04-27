@@ -1,7 +1,7 @@
 # ARCHITECTURE
 
 ## Top-level approach
-LaunchPilot should be built as a modular monolith with durable background workflows. Do not split into microservices for v1.
+LaunchBeacon should be built as a modular monolith with durable background workflows. Do not split into microservices for v1.
 
 ## Primary subsystems
 
