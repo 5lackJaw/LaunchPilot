@@ -5,6 +5,7 @@ import { ZodError } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { CrawlStartError, CrawlService } from "@/server/services/crawl-service";
+import { PlanLimitError } from "@/server/services/plan-service";
 import { ProductCreateError, ProductService } from "@/server/services/product-service";
 
 export type ProductCreateFormState = {
@@ -62,6 +63,13 @@ export async function createProductAction(
       };
     }
 
+    if (error instanceof PlanLimitError) {
+      return {
+        status: "error",
+        message: error.message,
+      };
+    }
+
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
       return {
         status: "error",
@@ -104,6 +112,13 @@ export async function startCrawlAction(
     }
 
     if (error instanceof CrawlStartError) {
+      return {
+        status: "error",
+        message: error.message,
+      };
+    }
+
+    if (error instanceof PlanLimitError) {
       return {
         status: "error",
         message: error.message,
