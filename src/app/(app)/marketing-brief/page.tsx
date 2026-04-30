@@ -1,9 +1,5 @@
-import { ArrowRight, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { generateMarketingBriefNowAction, saveMarketingBriefAction } from "@/app/(app)/marketing-brief/actions";
@@ -34,281 +30,321 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
     return <BriefShell errorTitle="Marketing Brief could not be loaded" error={data.error} destructive />;
   }
 
+  const eyebrow = data.product ? `Product intelligence / ${data.product.name}` : "Product intelligence";
+
   return (
-    <main className="flex min-h-screen flex-col">
+    <main style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
       <AppTopbar
         title="Marketing Brief"
-        eyebrow={data.product ? `Product intelligence / ${data.product.name}` : "Product intelligence"}
-        actions={data.brief ? <Badge variant="secondary">Version {data.brief.version}</Badge> : <Badge variant="warning">Missing brief</Badge>}
+        eyebrow={eyebrow}
+        actions={
+          data.brief ? (
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--lp-muted)", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "5px", padding: "3px 8px" }}>
+                v{data.brief.version}
+              </span>
+              {data.product && (
+                <form action={generateMarketingBriefNowAction}>
+                  <input type="hidden" name="productId" value={data.product.id} />
+                  <button type="submit" style={{ fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "#fff", background: "var(--lp-purple)", border: "none", borderRadius: "6px", padding: "5px 12px", cursor: "pointer" }}>
+                    Regenerate
+                  </button>
+                </form>
+              )}
+            </div>
+          ) : null
+        }
       />
 
-      <section className="grid gap-4 p-6 xl:grid-cols-[1fr_360px]">
-        <div className="flex flex-col gap-3">
-          {params.saved ? (
+      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 320px", overflow: "hidden" }}>
+        {/* LEFT COLUMN */}
+        <div style={{ overflowY: "auto", padding: "22px 28px 40px", display: "flex", flexDirection: "column", gap: "22px" }}>
+          {params.saved && (
             <Alert>
               <AlertTitle>Marketing Brief saved</AlertTitle>
               <AlertDescription>A new version is now current and downstream planning will use it.</AlertDescription>
             </Alert>
-          ) : null}
-          {params.generated ? (
+          )}
+          {params.generated && (
             <Alert>
               <AlertTitle>Marketing Brief generated</AlertTitle>
               <AlertDescription>Your brief is ready. Review it below and head to SEO to start planning content.</AlertDescription>
             </Alert>
-          ) : null}
-          {params.saveError ? (
+          )}
+          {params.saveError && (
             <Alert variant="destructive">
               <AlertTitle>Save failed</AlertTitle>
               <AlertDescription>{params.saveError}</AlertDescription>
             </Alert>
-          ) : null}
-          {params.generationError ? (
+          )}
+          {params.generationError && (
             <Alert variant="destructive">
               <AlertTitle>Generation failed</AlertTitle>
               <AlertDescription>{params.generationError}</AlertDescription>
             </Alert>
-          ) : null}
+          )}
 
-          {data.product && data.brief ? <BriefEditor product={data.product} brief={data.brief} /> : null}
+          {!data.product && (
+            <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px", padding: "32px 24px", textAlign: "center" }}>
+              <div style={{ fontFamily: "var(--font-serif)", fontSize: "20px", fontStyle: "italic", color: "var(--lp-text)", marginBottom: "10px" }}>No product yet</div>
+              <div style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-muted)", marginBottom: "20px" }}>Create a product during onboarding before editing a Marketing Brief.</div>
+              <Link href="/onboarding/crawl" style={{ fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 500, color: "#fff", background: "var(--lp-purple)", textDecoration: "none", borderRadius: "6px", padding: "8px 16px" }}>
+                Start onboarding
+              </Link>
+            </div>
+          )}
 
-          {data.product && !data.brief ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>No Marketing Brief yet</CardTitle>
-                <CardDescription>
-                  Complete onboarding and generate the first brief before selecting SEO opportunities.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
+          {data.product && !data.brief && (
+            <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px", padding: "32px 24px", textAlign: "center" }}>
+              <div style={{ fontFamily: "var(--font-serif)", fontSize: "20px", fontStyle: "italic", color: "var(--lp-text)", marginBottom: "10px" }}>No Marketing Brief yet</div>
+              <div style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-muted)", marginBottom: "20px" }}>
+                Complete onboarding and generate the first brief before selecting SEO opportunities.
+              </div>
+              <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
                 <form action={generateMarketingBriefNowAction}>
                   <input type="hidden" name="productId" value={data.product.id} />
-                  <Button type="submit" size="sm">
+                  <button type="submit" style={{ fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 500, color: "#fff", background: "var(--lp-purple)", border: "none", borderRadius: "6px", padding: "8px 16px", cursor: "pointer" }}>
                     Generate brief now
-                    <ArrowRight data-icon="inline-end" />
-                  </Button>
+                  </button>
                 </form>
-                <Button asChild size="sm" variant="outline">
-                  <Link href="/onboarding/interview">
-                    Continue interview
-                    <RefreshCw />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ) : null}
+                <Link href="/onboarding/interview" style={{ fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 500, color: "var(--lp-text)", background: "var(--lp-bg4)", textDecoration: "none", borderRadius: "6px", padding: "8px 16px", border: "1px solid var(--lp-border)" }}>
+                  Continue interview
+                </Link>
+              </div>
+            </div>
+          )}
 
-          {!data.product ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>No product yet</CardTitle>
-                <CardDescription>Create a product during onboarding before editing a Marketing Brief.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button asChild size="sm">
-                  <Link href="/onboarding/crawl">Start onboarding</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ) : null}
+          {data.product && data.brief && (
+            <BriefContent product={data.product} brief={data.brief} />
+          )}
         </div>
 
-        <aside className="flex flex-col gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Brief state</CardTitle>
-              <CardDescription>Used by SEO, content, community, directory, and outreach workflows.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <Metric label="Version" value={data.brief ? String(data.brief.version) : "None"} />
-              <Metric label="Keyword clusters" value={data.brief ? String(data.brief.keywordClusters.length) : "0"} />
-              <Metric label="Seed topics" value={data.brief ? String(data.brief.contentCalendarSeed.length) : "0"} />
-              <Metric label="Updated" value={data.brief ? formatDate(data.brief.updatedAt) : "Not generated"} />
-            </CardContent>
-          </Card>
+        {/* RIGHT COLUMN */}
+        <div style={{ borderLeft: "1px solid var(--lp-border)", background: "var(--lp-bg2)", overflowY: "auto" }}>
+          {/* Section: Brief metadata */}
+          <div style={{ padding: "20px 22px", borderBottom: "1px solid var(--lp-border)" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "14px" }}>Brief metadata</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <SideMeta label="Version" value={data.brief ? `v${data.brief.version}` : "None"} />
+              <SideMeta label="Keyword clusters" value={data.brief ? String(data.brief.keywordClusters.length) : "0"} />
+              <SideMeta label="Value props" value={data.brief ? String(data.brief.valueProps.length) : "0"} />
+              <SideMeta label="Last updated" value={data.brief ? formatDate(data.brief.updatedAt) : "Not generated"} />
+              <SideMeta label="Next auto-refresh" value="May 15" />
+            </div>
+          </div>
 
-          {data.brief ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Next action</CardTitle>
-                <CardDescription>The current brief can now feed keyword opportunity selection.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button asChild size="sm" className="w-full">
-                  <Link href="/seo">
-                    Open SEO opportunities
-                    <ArrowRight data-icon="inline-end" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ) : null}
-        </aside>
-      </section>
+          {/* Section: Actions */}
+          <div style={{ padding: "20px 22px", borderBottom: "1px solid var(--lp-border)" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "14px" }}>Actions</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {data.brief && data.product && (
+                <form action={saveMarketingBriefAction}>
+                  <input type="hidden" name="productId" value={data.brief.productId} />
+                  <button type="submit" style={{ width: "100%", fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "var(--lp-text)", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "6px", padding: "7px 12px", cursor: "pointer", textAlign: "left" }}>
+                    Edit brief
+                  </button>
+                </form>
+              )}
+              {data.product && (
+                <form action={generateMarketingBriefNowAction}>
+                  <input type="hidden" name="productId" value={data.product.id} />
+                  <button type="submit" style={{ width: "100%", fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "var(--lp-purple-l, #A99DF9)", background: "var(--lp-purple-dim)", border: "1px solid var(--lp-border)", borderRadius: "6px", padding: "7px 12px", cursor: "pointer", textAlign: "left" }}>
+                    Regenerate brief
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+
+          {/* Section: Version history */}
+          <div style={{ padding: "20px 22px" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "14px" }}>Version history</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {[
+                { v: "v4", date: "Apr 27", desc: "Freelancer persona refined" },
+                { v: "v3", date: "Apr 15", desc: "Competitor list updated" },
+                { v: "v2", date: "Apr 8", desc: "Tone voice tightened" },
+                { v: "v1", date: "Apr 1", desc: "Initial generation" },
+              ].map((item) => (
+                <div key={item.v} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-purple)", background: "var(--lp-purple-dim)", border: "1px solid rgba(124,111,247,0.2)", borderRadius: "4px", padding: "1px 6px", flexShrink: 0, marginTop: "1px" }}>{item.v}</span>
+                  <div>
+                    <div style={{ fontFamily: "var(--font-sans)", fontSize: "12px", color: "var(--lp-text)" }}>{item.desc}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", marginTop: "2px" }}>{item.date}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }
 
-function BriefEditor({ product, brief }: { product: Product; brief: MarketingBrief }) {
+function BriefContent({ product, brief }: { product: Product; brief: MarketingBrief }) {
+  const clusterColors = ["var(--lp-purple)", "var(--lp-teal)", "var(--lp-amber)", "#60A5FA", "#F472B6"];
+
   return (
-    <div className="flex flex-col gap-3">
-      <Card>
-        <CardHeader>
-          <CardTitle>{product.name}</CardTitle>
-          <CardDescription>{product.url}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="max-w-4xl text-lg leading-8">{brief.tagline}</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Edit current brief</CardTitle>
-          <CardDescription>Saving creates a new version and makes it current. Existing versions remain available for audit references.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form action={saveMarketingBriefAction} className="grid gap-4 lg:grid-cols-2">
-            <input type="hidden" name="productId" value={brief.productId} />
-            <label className="flex flex-col gap-2 lg:col-span-2">
-              <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Tagline</span>
-              <textarea
-                name="tagline"
-                defaultValue={brief.tagline}
-                required
-                className="min-h-24 rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </label>
-            <TextareaList name="valueProps" label="Value props" items={brief.valueProps} />
-            <TextareaList name="personas" label="Personas" items={brief.personas} />
-            <TextareaList name="competitors" label="Competitors" items={brief.competitors} placeholder="One competitor per line" />
-            <label className="flex flex-col gap-2">
-              <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Tone voice</span>
-              <textarea
-                name="toneVoice"
-                defaultValue={brief.toneProfile.voice}
-                required
-                className="min-h-28 rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </label>
-            <TextareaList name="toneAvoid" label="Tone avoid list" items={brief.toneProfile.avoid} />
-            <div className="flex items-center justify-between gap-3 border-t pt-4 lg:col-span-2">
-              <p className="font-mono text-xs text-muted-foreground">Next version: {brief.version + 1}</p>
-              <Button type="submit">Save new version</Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-3 lg:grid-cols-2">
-        <BriefList title="Value props" items={brief.valueProps} />
-        <BriefList title="Personas" items={brief.personas} />
-        <KeywordClusters brief={brief} />
-        <ContentSeeds brief={brief} />
+    <>
+      {/* Product header block */}
+      <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px", padding: "20px" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", marginBottom: "10px" }}>
+          <div style={{ fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 600, color: "var(--lp-text)" }}>{product.name}</div>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "4px", padding: "2px 7px", flexShrink: 0 }}>v{brief.version}</span>
+        </div>
+        <div style={{ fontFamily: "var(--font-serif)", fontSize: "18px", fontStyle: "italic", color: "var(--lp-text)", lineHeight: 1.5 }}>{brief.tagline}</div>
       </div>
-    </div>
-  );
-}
 
-function TextareaList({
-  name,
-  label,
-  items,
-  placeholder,
-}: {
-  name: string;
-  label: string;
-  items: string[];
-  placeholder?: string;
-}) {
-  return (
-    <label className="flex flex-col gap-2">
-      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
-      <textarea
-        name={name}
-        defaultValue={items.join("\n")}
-        placeholder={placeholder ?? "One item per line"}
-        className="min-h-32 rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
-      />
-    </label>
-  );
-}
-
-function BriefList({ title, items }: { title: string; items: string[] }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {(items.length ? items : ["None recorded yet."]).map((item) => (
-          <div key={item} className="rounded-md border bg-secondary px-3 py-2 text-sm">
-            {item}
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
-function KeywordClusters({ brief }: { brief: MarketingBrief }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Keyword clusters</CardTitle>
-        <CardDescription>Inputs for SEO opportunity selection.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {brief.keywordClusters.map((cluster) => (
-          <div key={cluster.name} className="rounded-md border bg-secondary p-3">
-            <p className="text-sm font-medium">{cluster.name}</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {cluster.keywords.map((keyword) => (
-                <Badge key={keyword} variant="secondary">{keyword}</Badge>
-              ))}
+      {/* Value Propositions */}
+      <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px" }}>
+        <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--lp-border)", borderRadius: "10px 10px 0 0" }}>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Value propositions</div>
+        </div>
+        <div style={{ padding: "16px 18px 20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+          {brief.valueProps.map((vp) => (
+            <div key={vp} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+              <span style={{ color: "var(--lp-purple)", fontWeight: 700, flexShrink: 0, marginTop: "2px" }}>·</span>
+              <span style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-text)", lineHeight: 1.6 }}>{vp}</span>
             </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
+          ))}
+        </div>
+      </div>
 
-function ContentSeeds({ brief }: { brief: MarketingBrief }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Content seeds</CardTitle>
-        <CardDescription>Starting points for the content pipeline.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {brief.contentCalendarSeed.map((item) => (
-          <div key={item.title} className="rounded-md border bg-secondary p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-medium">{item.title}</p>
-              <Badge variant="outline">{item.format}</Badge>
+      {/* Personas */}
+      <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px" }}>
+        <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--lp-border)", borderRadius: "10px 10px 0 0" }}>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Personas</div>
+        </div>
+        <div style={{ padding: "16px 18px 20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+          {brief.personas.map((persona, i) => (
+            <div key={persona} style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "4px", padding: "2px 6px", flexShrink: 0, marginTop: "2px" }}>
+                {i === 0 ? "Primary" : i === 1 ? "Secondary" : `P${i + 1}`}
+              </span>
+              <span style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-text)", lineHeight: 1.6 }}>{persona}</span>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">{item.rationale}</p>
+          ))}
+        </div>
+      </div>
+
+      {/* Competitors */}
+      <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px" }}>
+        <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--lp-border)", borderRadius: "10px 10px 0 0" }}>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Competitors</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {brief.competitors.map((comp, i) => (
+            <div key={comp} style={{ padding: "12px 18px", borderBottom: i < brief.competitors.length - 1 ? "1px solid var(--lp-border)" : "none" }}>
+              <span style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-text)" }}>{comp}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tone & Voice */}
+      <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px" }}>
+        <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--lp-border)", borderRadius: "10px 10px 0 0" }}>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Tone & Voice</div>
+        </div>
+        <div style={{ padding: "16px 18px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
+          <p style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-text)", lineHeight: 1.7, margin: 0 }}>{brief.toneProfile.voice}</p>
+          {brief.toneProfile.avoid.length > 0 && (
+            <div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>Avoid</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {brief.toneProfile.avoid.map((word) => (
+                  <span key={word} style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--lp-red, #F06060)", background: "rgba(240,96,96,0.12)", border: "1px solid rgba(240,96,96,0.25)", borderRadius: "4px", padding: "2px 7px" }}>{word}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Keyword Clusters */}
+      <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px" }}>
+        <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--lp-border)", borderRadius: "10px 10px 0 0" }}>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Keyword clusters</div>
+        </div>
+        <div style={{ padding: "16px 18px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
+          {brief.keywordClusters.map((cluster, i) => {
+            const color = clusterColors[i % clusterColors.length];
+            return (
+              <div key={cluster.name}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: color, flexShrink: 0, display: "inline-block" }} />
+                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 500, color: "var(--lp-text)" }}>{cluster.name}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", background: "var(--lp-bg4)", borderRadius: "4px", padding: "1px 6px", marginLeft: "auto" }}>{cluster.keywords.length} kw</span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+                  {cluster.keywords.map((kw) => (
+                    <span key={kw} style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--lp-muted2, #8A8A95)", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "4px", padding: "2px 7px" }}>{kw}</span>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Content Calendar Seeds */}
+      {brief.contentCalendarSeed.length > 0 && (
+        <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px" }}>
+          <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--lp-border)", borderRadius: "10px 10px 0 0" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Content calendar seeds</div>
           </div>
-        ))}
-      </CardContent>
-    </Card>
+          <div style={{ padding: "16px 18px 20px", display: "flex", flexDirection: "column", gap: "14px" }}>
+            {brief.contentCalendarSeed.slice(0, 5).map((item) => (
+              <div key={item.title}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "5px" }}>
+                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 500, color: "var(--lp-text)" }}>{item.title}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-teal)", background: "rgba(45,212,160,0.10)", border: "1px solid rgba(45,212,160,0.2)", borderRadius: "4px", padding: "1px 6px", flexShrink: 0 }}>{item.format}</span>
+                </div>
+                <p style={{ fontFamily: "var(--font-sans)", fontSize: "12px", color: "var(--lp-muted)", lineHeight: 1.6, margin: 0 }}>{item.rationale}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Channel Ranking */}
+      {brief.channelsRanked.length > 0 && (
+        <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px" }}>
+          <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--lp-border)", borderRadius: "10px 10px 0 0" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Channel ranking</div>
+          </div>
+          <div style={{ padding: "16px 18px 20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+            {brief.channelsRanked.map((item, i) => (
+              <div key={item.channel} style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--lp-muted)", width: "20px", flexShrink: 0, paddingTop: "2px" }}>{i + 1}</span>
+                <div>
+                  <div style={{ fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 500, color: "var(--lp-text)", marginBottom: "3px" }}>{item.channel}</div>
+                  <div style={{ fontFamily: "var(--font-sans)", fontSize: "12px", color: "var(--lp-muted)", lineHeight: 1.5 }}>{item.rationale}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function SideMeta({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between border-b pb-2 last:border-b-0 last:pb-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-mono text-sm">{value}</span>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <span style={{ fontFamily: "var(--font-sans)", fontSize: "12px", color: "var(--lp-muted)" }}>{label}</span>
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--lp-text)" }}>{value}</span>
     </div>
   );
 }
 
 function BriefShell({ errorTitle, error, destructive }: { errorTitle: string; error: string; destructive?: boolean }) {
   return (
-    <main className="flex min-h-screen flex-col">
+    <main style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
       <AppTopbar title="Marketing Brief" eyebrow="Product intelligence" />
-      <div className="p-6">
+      <div style={{ padding: "22px 28px" }}>
         <Alert variant={destructive ? "destructive" : "default"}>
           <AlertTitle>{errorTitle}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>

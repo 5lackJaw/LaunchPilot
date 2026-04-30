@@ -8,7 +8,8 @@
       "Bash(npx tsc *)",
       "Bash(git push *)",
       "Bash(npx vercel *)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://launchpilot-orcin.vercel.app/api/inngest\")"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://launchpilot-orcin.vercel.app/api/inngest\")",
+      "Bash(git -C \".claude/worktrees/agent-aeddeefc30dcff618\" status --short)"
     ]
   }
 }

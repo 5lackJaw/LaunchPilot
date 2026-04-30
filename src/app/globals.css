@@ -191,3 +191,30 @@ body {
 .c-purple    { color: var(--lp-purple-l); }
 .c-muted     { color: var(--lp-muted); }
 .c-muted2    { color: var(--lp-muted2); }
+
+/* ─── Inbox animations ──────────────────────────────────────────────────── */
+
+@keyframes lb-slide-out {
+  from { opacity: 1; transform: translateX(0); max-height: 160px; }
+  to   { opacity: 0; transform: translateX(-16px); max-height: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+}
+.lb-slide-out {
+  animation: lb-slide-out 0.28s ease forwards;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* ─── Scrollbars ────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar        { width: 4px; height: 4px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: var(--lp-border2); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--lp-subtle); }
+
+* { scrollbar-width: thin; scrollbar-color: var(--lp-border2) transparent; }
+
+@keyframes lb-slide-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.lb-slide-in { animation: lb-slide-in 0.25s ease both; }

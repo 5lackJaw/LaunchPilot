@@ -1,10 +1,6 @@
-import { Download, Plus } from "lucide-react";
 import Link from "next/link";
 import { AppTopbar, RangeTabs } from "@/components/layout/app-topbar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { DashboardSummary, KeywordMovement } from "@/server/schemas/analytics";
 import type { Product } from "@/server/schemas/product";
@@ -25,14 +21,13 @@ export default async function AnalyticsPage() {
 
   if (!data.product || !data.summary) {
     return (
-      <main className="min-h-screen bg-background">
+      <main style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
         <AppTopbar title="Analytics" />
-        <div className="p-6">
-          <EmptyState
-            icon={Download}
-            title="No product available"
-            description="Create a product during onboarding before analytics can be shown."
-          />
+        <div style={{ flex: 1, overflowY: "auto", padding: "22px 28px 40px" }}>
+          <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px", padding: "40px 24px", textAlign: "center" }}>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: "20px", fontStyle: "italic", color: "var(--lp-text)", marginBottom: "10px" }}>No product available</div>
+            <div style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-muted)" }}>Create a product during onboarding before analytics can be shown.</div>
+          </div>
         </div>
       </main>
     );
@@ -40,235 +35,214 @@ export default async function AnalyticsPage() {
 
   const summary = data.summary;
 
+  // Compute derived KPIs from real data
+  const positions = summary.keywordMovement.map((k) => k.currentPosition).filter((p) => p > 0);
+  const avgPosition = positions.length ? Math.round(positions.reduce((a, b) => a + b, 0) / positions.length) : null;
+  const page1Count = summary.keywordMovement.filter((k) => k.currentPosition <= 10).length;
+
   return (
-    <main className="min-h-screen bg-background">
+    <main style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
       <AppTopbar
         title="Analytics"
         eyebrow={`Traffic and performance / ${data.product.name}`}
-        actions={
-          <>
-            <Button variant="outline" size="sm">
-              <Download />
-              Export CSV
-            </Button>
-            <Button variant="outline" size="sm">
-              <Plus />
-              Add goal
-            </Button>
-          </>
-        }
       />
       <RangeTabs active="30d" />
 
-      <div className="space-y-5 px-6 py-5">
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div style={{ flex: 1, overflowY: "auto", padding: "22px 28px 40px", display: "flex", flexDirection: "column", gap: "22px" }}>
+        {/* KPI Strip */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "12px" }}>
           <KpiCard label="Total visitors" value={summary.visitors.toLocaleString()} delta={formatDelta(summary.visitorDeltaPercent)} />
-          <KpiCard label="Conversions" value={summary.conversions.toLocaleString()} delta={formatDelta(summary.conversionDeltaPercent)} />
-          <KpiCard label="Sources tracked" value={String(summary.sourceBreakdown.length)} delta="30 day window" neutral />
-          <KpiCard label="Keywords tracked" value={String(summary.keywordMovement.length)} delta="latest snapshots" neutral />
-          <KpiCard label="Inbox pending" value={String(summary.pendingInboxItems)} delta={`${summary.estimatedReviewMinutes} min review`} neutral />
-        </section>
+          <KpiCard label="Avg position" value={avgPosition !== null ? `#${avgPosition}` : "—"} delta="across tracked keywords" neutral />
+          <KpiCard label="Page 1 keywords" value={String(page1Count)} delta={`of ${summary.keywordMovement.length} tracked`} neutral />
+          <KpiCard label="Published assets" value={String(summary.publishedAssets)} delta={summary.publishedAssetDelta >= 0 ? `+${summary.publishedAssetDelta} this period` : `${summary.publishedAssetDelta} this period`} neutral />
+          <KpiCard label="Pending review" value={String(summary.pendingInboxItems)} delta={`~${summary.estimatedReviewMinutes} min`} neutral />
+        </div>
 
-        <section className="flex flex-col gap-4 rounded-lg border bg-secondary/40 p-4 md:flex-row md:items-start">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">i</div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-medium">This week&apos;s recommendation</h2>
-            <p className="mt-1 max-w-4xl text-sm leading-6 text-muted-foreground">{summary.weeklyInsight.body}</p>
-            {summary.weeklyInsight.actionLabel ? (
-              <div className="mt-3">
-                <Button size="sm" asChild>
-                  <Link href="/inbox">{summary.weeklyInsight.actionLabel}</Link>
-                </Button>
-              </div>
-            ) : null}
+        {/* Weekly Insight */}
+        <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px", padding: "20px 22px" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "16px" }}>
+            <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "var(--lp-purple-dim)", border: "1px solid rgba(124,111,247,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <span style={{ fontFamily: "var(--font-serif)", fontSize: "14px", fontStyle: "italic", color: "var(--lp-purple)" }}>i</span>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: "var(--font-serif)", fontSize: "16px", fontStyle: "italic", color: "var(--lp-text)", marginBottom: "8px" }}>{summary.weeklyInsight.title}</div>
+              <p style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-muted)", lineHeight: 1.7, margin: 0 }}>{summary.weeklyInsight.body}</p>
+              {summary.weeklyInsight.actionLabel && (
+                <div style={{ marginTop: "14px" }}>
+                  <Link href="/inbox" style={{ fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "#fff", background: "var(--lp-purple)", textDecoration: "none", borderRadius: "6px", padding: "6px 14px" }}>
+                    {summary.weeklyInsight.actionLabel}
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
-        </section>
+        </div>
 
-        <Card className="rounded-lg">
-          <CardHeader className="flex-row items-center justify-between gap-4 border-b p-4">
-            <CardTitle className="text-sm font-medium">Visitors by source</CardTitle>
-            <span className="font-mono text-[10px] text-muted-foreground">{summary.currentPeriod.label}</span>
-          </CardHeader>
-          <CardContent className="p-4">
-            <svg viewBox="0 0 620 180" role="img" aria-label="Visitors by source chart" className="h-56 w-full overflow-visible">
-              {[35, 70, 105, 140].map((y) => (
-                <line key={y} x1="42" x2="592" y1={y} y2={y} stroke="hsl(var(--border))" strokeWidth="1" />
-              ))}
-              {chartPoints(summary.sourceBreakdown.map((source) => source.visits)).map((point, index, points) => {
-                const [x, y] = point;
-                const previous = points[index - 1];
-                return (
-                  <g key={`${x}-${y}`}>
-                    {previous ? <line x1={previous[0]} y1={previous[1]} x2={x} y2={y} stroke="hsl(var(--accent))" strokeWidth="3" strokeLinecap="round" /> : null}
-                    <circle cx={x} cy={y} r="3" fill="hsl(var(--accent))" />
-                  </g>
-                );
-              })}
-              <text x="42" y="172" fill="hsl(var(--muted-foreground))" fontSize="10" fontFamily="var(--font-mono)">
-                lowest
-              </text>
-              <text x="520" y="172" fill="hsl(var(--muted-foreground))" fontSize="10" fontFamily="var(--font-mono)">
-                highest
-              </text>
-            </svg>
-          </CardContent>
-        </Card>
+        {/* Traffic Sources Panel */}
+        <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px", overflow: "hidden" }}>
+          <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--lp-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Traffic sources</div>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)" }}>{summary.currentPeriod.label}</span>
+          </div>
+          {summary.sourceBreakdown.length > 0 ? (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--lp-border)" }}>
+                  {["Source", "Share", "Visits", "%"].map((h) => (
+                    <th key={h} style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 400, padding: "8px 16px", textAlign: h === "Visits" || h === "%" ? "right" : "left" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {summary.sourceBreakdown.map((source) => (
+                  <tr key={source.sourceType} style={{ borderBottom: "1px solid var(--lp-border)" }}>
+                    <td style={{ fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 500, color: "var(--lp-text)", padding: "12px 16px" }}>{formatSourceLabel(source.sourceType)}</td>
+                    <td style={{ padding: "12px 16px" }}>
+                      <div style={{ width: "120px", height: "6px", background: "var(--lp-bg4)", borderRadius: "3px", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${source.sharePercent}%`, background: "var(--lp-teal)", borderRadius: "3px" }} />
+                      </div>
+                    </td>
+                    <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--lp-text)", padding: "12px 16px", textAlign: "right" }}>{source.visits.toLocaleString()}</td>
+                    <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--lp-muted)", padding: "12px 16px", textAlign: "right" }}>{source.sharePercent}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div style={{ padding: "32px 18px", textAlign: "center" }}>
+              <div style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-muted)" }}>No traffic snapshots yet. Traffic source rows will appear after analytics are ingested.</div>
+            </div>
+          )}
+        </div>
 
-        <section className="grid gap-4 xl:grid-cols-3">
-          <TrafficSources summary={summary} />
-          <TopContent summary={summary} />
-          <KeywordMovementPanel keywords={summary.keywordMovement} />
-        </section>
-      </div>
-    </main>
-  );
-}
+        {/* Keyword Positions Table */}
+        <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px", overflow: "hidden" }}>
+          <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--lp-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Keyword positions</div>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)" }}>{summary.keywordMovement.length} tracked</span>
+          </div>
+          {summary.keywordMovement.length > 0 ? (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--lp-border)" }}>
+                  {["Keyword", "Position", "Change", "7d Trend", "Source"].map((h) => (
+                    <th key={h} style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 400, padding: "8px 16px", textAlign: "left" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {summary.keywordMovement.map((kw) => (
+                  <tr key={kw.keyword} style={{ borderBottom: "1px solid var(--lp-border)" }}>
+                    <td style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-text)", padding: "11px 16px" }}>{kw.keyword}</td>
+                    <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: positionColor(kw.currentPosition), padding: "11px 16px" }}>#{kw.currentPosition}</td>
+                    <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: changeColor(kw.trend), padding: "11px 16px" }}>
+                      {kw.trend === "new" ? "new" : kw.change === null ? "—" : kw.change === 0 ? "flat" : `${kw.change > 0 ? "+" : ""}${kw.change}`}
+                    </td>
+                    <td style={{ padding: "11px 16px" }}>
+                      <TrendPill trend={kw.trend} />
+                    </td>
+                    <td style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--lp-muted)", padding: "11px 16px" }}>{kw.source}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div style={{ padding: "32px 18px", textAlign: "center" }}>
+              <div style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-muted)" }}>No keyword rank snapshots yet.</div>
+            </div>
+          )}
+        </div>
 
-function AnalyticsShell({ errorTitle, error, destructive }: { errorTitle: string; error: string; destructive?: boolean }) {
-  return (
-    <main className="min-h-screen bg-background">
-      <AppTopbar title="Analytics" />
-      <div className="p-6">
-        <Alert variant={destructive ? "destructive" : "default"}>
-          <AlertTitle>{errorTitle}</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        {/* Content Performance Table */}
+        {summary.contentPerformance.length > 0 && (
+          <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px", overflow: "hidden" }}>
+            <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--lp-border)" }}>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Content performance</div>
+            </div>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--lp-border)" }}>
+                  {["Title", "Status", "Keyword rank", "Visits"].map((h) => (
+                    <th key={h} style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 400, padding: "8px 16px", textAlign: h === "Visits" ? "right" : "left" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {summary.contentPerformance.slice(0, 8).map((row) => (
+                  <tr key={row.id} style={{ borderBottom: "1px solid var(--lp-border)" }}>
+                    <td style={{ padding: "11px 16px" }}>
+                      <Link href={`/content/${row.id}`} style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-text)", textDecoration: "none" }}>
+                        {row.title}
+                      </Link>
+                      {row.targetKeyword && (
+                        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", marginTop: "2px" }}>{row.targetKeyword}</div>
+                      )}
+                    </td>
+                    <td style={{ padding: "11px 16px" }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: row.status === "published" ? "var(--lp-teal)" : "var(--lp-muted)", background: row.status === "published" ? "rgba(45,212,160,0.10)" : "var(--lp-bg4)", border: `1px solid ${row.status === "published" ? "rgba(45,212,160,0.2)" : "var(--lp-border)"}`, borderRadius: "4px", padding: "2px 7px" }}>{row.status}</span>
+                    </td>
+                    <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: row.currentPosition ? positionColor(row.currentPosition) : "var(--lp-muted)", padding: "11px 16px" }}>
+                      {row.currentPosition ? `#${row.currentPosition}` : "—"}
+                    </td>
+                    <td style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--lp-text)", padding: "11px 16px", textAlign: "right" }}>{row.visits.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </main>
   );
 }
 
 function KpiCard({ label, value, delta, neutral }: { label: string; value: string; delta: string; neutral?: boolean }) {
+  const deltaColor = neutral ? "var(--lp-muted)" : delta.startsWith("-") ? "var(--lp-red, #F06060)" : "var(--lp-teal)";
   return (
-    <Card className="rounded-lg">
-      <CardContent className="p-4">
-        <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
-        <div className="mt-2 font-serif text-3xl font-normal leading-none">{value}</div>
-        <p className={neutral ? "mt-2 font-mono text-[10px] text-muted-foreground" : delta.startsWith("-") ? "mt-2 font-mono text-[10px] text-red-300" : "mt-2 font-mono text-[10px] text-emerald-300"}>{delta}</p>
-      </CardContent>
-    </Card>
+    <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px", padding: "16px 18px" }}>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>{label}</div>
+      <div style={{ fontFamily: "var(--font-serif)", fontSize: "28px", fontWeight: 400, color: "var(--lp-text)", lineHeight: 1, marginBottom: "8px" }}>{value}</div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: deltaColor }}>{delta}</div>
+    </div>
   );
 }
 
-function TrafficSources({ summary }: { summary: DashboardSummary }) {
+function TrendPill({ trend }: { trend: KeywordMovement["trend"] }) {
+  const configs: Record<KeywordMovement["trend"], { label: string; color: string; bg: string; border: string }> = {
+    up: { label: "↑ up", color: "var(--lp-teal)", bg: "rgba(45,212,160,0.10)", border: "rgba(45,212,160,0.2)" },
+    down: { label: "↓ down", color: "var(--lp-red, #F06060)", bg: "rgba(240,96,96,0.12)", border: "rgba(240,96,96,0.25)" },
+    flat: { label: "→ flat", color: "var(--lp-muted)", bg: "var(--lp-bg4)", border: "var(--lp-border)" },
+    new: { label: "new", color: "var(--lp-amber)", bg: "rgba(240,164,41,0.12)", border: "rgba(240,164,41,0.25)" },
+  };
+  const c = configs[trend];
   return (
-    <Card className="rounded-lg">
-      <CardHeader className="flex-row items-center justify-between border-b p-4">
-        <CardTitle className="text-sm font-medium">Traffic sources</CardTitle>
-        <span className="font-mono text-[10px] text-muted-foreground">last 30 days</span>
-      </CardHeader>
-      <CardContent className="p-0">
-        {summary.sourceBreakdown.length ? (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-                <th className="px-4 py-2 text-left font-normal">Source</th>
-                <th className="px-4 py-2 text-left font-normal">Share</th>
-                <th className="px-4 py-2 text-right font-normal">Visits</th>
-                <th className="px-4 py-2 text-right font-normal">Conv.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {summary.sourceBreakdown.map((source) => (
-                <tr key={source.sourceType} className="border-b last:border-0 hover:bg-secondary/60">
-                  <td className="px-4 py-3 text-xs font-medium">{formatSourceLabel(source.sourceType)}</td>
-                  <td className="px-4 py-3">
-                    <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full rounded-full bg-emerald-300" style={{ width: `${source.sharePercent}%`, opacity: 0.25 + source.sharePercent / 140 }} />
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono text-xs">{source.visits}</td>
-                  <td className="px-4 py-3 text-right font-mono text-xs">{source.conversions}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="p-4">
-            <EmptyState
-              title="No traffic snapshots yet"
-              description="Traffic source rows will appear after analytics snapshots are ingested for the current product."
-              className="border-dashed"
-            />
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: c.color, background: c.bg, border: `1px solid ${c.border}`, borderRadius: "4px", padding: "2px 6px" }}>{c.label}</span>
   );
 }
 
-function TopContent({ summary }: { summary: DashboardSummary }) {
-  return (
-    <Card className="rounded-lg">
-      <CardHeader className="flex-row items-center justify-between border-b p-4">
-        <CardTitle className="text-sm font-medium">Top content</CardTitle>
-        <span className="font-mono text-[10px] text-muted-foreground">asset status</span>
-      </CardHeader>
-      <CardContent className="divide-y p-0">
-        {summary.contentPerformance.length ? (
-          summary.contentPerformance.slice(0, 6).map((row, index) => (
-            <div key={row.id} className="grid grid-cols-[20px_minmax(0,1fr)_auto] gap-3 px-4 py-3 hover:bg-secondary/60">
-              <span className="font-mono text-[10px] text-muted-foreground">{index + 1}</span>
-              <div className="min-w-0">
-                <Link href={`/content/${row.id}`} className="block truncate text-xs font-medium hover:text-primary">
-                  {row.title}
-                </Link>
-                <p className="mt-1 font-mono text-[10px] text-muted-foreground">
-                  {row.type} / {row.targetKeyword ?? "no keyword"}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="font-mono text-xs">{row.status}</p>
-                <p className="font-mono text-[10px] text-muted-foreground">{row.currentPosition ? `#${row.currentPosition}` : "unranked"}</p>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="p-4">
-            <EmptyState
-              title="No content assets yet"
-              description="Content performance will appear after generated assets have measurable activity."
-              className="border-dashed"
-            />
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+function positionColor(pos: number): string {
+  if (pos <= 10) return "var(--lp-teal)";
+  if (pos <= 30) return "var(--lp-amber)";
+  return "var(--lp-muted)";
 }
 
-function KeywordMovementPanel({ keywords }: { keywords: KeywordMovement[] }) {
+function changeColor(trend: KeywordMovement["trend"]): string {
+  if (trend === "up") return "var(--lp-teal)";
+  if (trend === "down") return "var(--lp-red, #F06060)";
+  return "var(--lp-muted)";
+}
+
+function AnalyticsShell({ errorTitle, error, destructive }: { errorTitle: string; error: string; destructive?: boolean }) {
   return (
-    <Card className="rounded-lg">
-      <CardHeader className="flex-row items-center justify-between border-b p-4">
-        <CardTitle className="text-sm font-medium">Keyword movement</CardTitle>
-        <span className="font-mono text-[10px] text-muted-foreground">latest rank</span>
-      </CardHeader>
-      <CardContent className="space-y-3 p-4">
-        {keywords.length ? (
-          keywords.slice(0, 6).map((keyword) => (
-            <div key={keyword.keyword} className="space-y-1.5 border-b pb-3 last:border-b-0 last:pb-0">
-              <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="truncate">{keyword.keyword}</span>
-                <span className="font-mono text-muted-foreground">#{keyword.currentPosition}</span>
-              </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full bg-emerald-300" style={{ width: `${Math.max(5, 100 - keyword.currentPosition)}%` }} />
-              </div>
-              <p className={keyword.trend === "up" ? "text-right font-mono text-[10px] text-emerald-300" : keyword.trend === "down" ? "text-right font-mono text-[10px] text-red-300" : "text-right font-mono text-[10px] text-muted-foreground"}>
-                {keyword.trend === "new" ? "new" : keyword.change === 0 ? "flat" : `${keyword.change && keyword.change > 0 ? "+" : ""}${keyword.change} ranks`}
-              </p>
-            </div>
-          ))
-        ) : (
-          <EmptyState
-            title="No rank snapshots yet"
-            description="Keyword movement will appear after rank snapshots are ingested for the current product."
-            className="border-dashed"
-          />
-        )}
-      </CardContent>
-    </Card>
+    <main style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
+      <AppTopbar title="Analytics" />
+      <div style={{ padding: "22px 28px" }}>
+        <Alert variant={destructive ? "destructive" : "default"}>
+          <AlertTitle>{errorTitle}</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    </main>
   );
 }
 
@@ -316,12 +290,4 @@ function formatDelta(value: number | null) {
   }
 
   return `${value >= 0 ? "+" : ""}${value}% vs prior period`;
-}
-
-function chartPoints(values: number[]) {
-  const chartValues = values.length ? values : [0, 0, 0, 0, 0, 0];
-  const max = Math.max(...chartValues, 1);
-  const step = 500 / Math.max(chartValues.length - 1, 1);
-
-  return chartValues.map((value, index) => [80 + index * step, 150 - (value / max) * 110] as const);
 }

@@ -1,17 +1,6 @@
-import { ExternalLink, Send } from "lucide-react";
 import Link from "next/link";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   requestOutreachDraftAction,
@@ -47,34 +36,216 @@ type PageProps = {
 export default async function OutreachPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const data = await loadOutreachData();
-  const counts = countContacts(data.contacts);
+  const contacts = data.contacts;
+
+  // KPI values
+  const sentCount = contacts.filter((c) =>
+    ["sent", "opened", "replied"].includes(c.status),
+  ).length;
+  const repliedCount = contacts.filter((c) => c.status === "replied").length;
+  const replyRate =
+    sentCount > 0 ? `${Math.round((repliedCount / sentCount) * 100)}%` : "—";
+
+  // Insight callout
+  const repliedContact = contacts.find((c) => c.status === "replied");
+  const sentContact = contacts.find((c) =>
+    ["sent", "opened"].includes(c.status),
+  );
+
+  // Latest sent contact for email preview panel
+  const latestSent = contacts
+    .filter((c) => ["sent", "opened", "replied"].includes(c.status))
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    )[0] ?? null;
+
+  // Follow-up timeline
+  const followUps = contacts
+    .filter((c) => isFollowUp(c.provenance.followUp))
+    .map((c) => ({
+      name: c.name,
+      scheduledFor: (c.provenance.followUp as { scheduledFor: string })
+        .scheduledFor,
+    }))
+    .sort(
+      (a, b) =>
+        new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime(),
+    );
+
+  const demoFollowUps = [
+    { name: "Indie Hackers Weekly", scheduledFor: "2026-05-05" },
+    { name: "The SaaS Dispatch", scheduledFor: "2026-05-08" },
+    { name: "Hacker Newsletter", scheduledFor: "2026-05-12" },
+  ];
+
+  const demoContacts: Array<{
+    name: string;
+    email: string;
+    publication: string;
+    score: number;
+    status: string;
+    sent: string;
+    followUp: string;
+  }> = [
+    {
+      name: "Lenny Rachitsky",
+      email: "lenny@lennysnewsletter.com",
+      publication: "Lenny's Newsletter",
+      score: 94,
+      status: "replied",
+      sent: "Apr 14",
+      followUp: "—",
+    },
+    {
+      name: "IndieHackers Editorial",
+      email: "editor@indiehackers.com",
+      publication: "Indie Hackers Weekly",
+      score: 87,
+      status: "opened",
+      sent: "Apr 16",
+      followUp: "May 5",
+    },
+    {
+      name: "Product Hunt Daily",
+      email: "hello@producthunt.com",
+      publication: "Product Hunt Newsletter",
+      score: 81,
+      status: "sent",
+      sent: "Apr 18",
+      followUp: "May 8",
+    },
+    {
+      name: "SaaS Dispatch",
+      email: "team@saasdispatch.io",
+      publication: "The SaaS Dispatch",
+      score: 76,
+      status: "drafted",
+      sent: "—",
+      followUp: "—",
+    },
+    {
+      name: "Hacker Newsletter",
+      email: "peter@hackernewsletter.com",
+      publication: "Hacker Newsletter",
+      score: 72,
+      status: "identified",
+      sent: "—",
+      followUp: "—",
+    },
+    {
+      name: "Bootstrapped Founder",
+      email: "arvid@bootstrappedfounder.com",
+      publication: "Bootstrapped Founder",
+      score: 68,
+      status: "identified",
+      sent: "—",
+      followUp: "—",
+    },
+    {
+      name: "Swipe Files",
+      email: "corey@swipefiles.com",
+      publication: "Swipe Files",
+      score: 61,
+      status: "suppressed",
+      sent: "—",
+      followUp: "—",
+    },
+    {
+      name: "Marketing Examples",
+      email: "harry@marketingexamples.com",
+      publication: "Marketing Examples",
+      score: 58,
+      status: "identified",
+      sent: "—",
+      followUp: "—",
+    },
+  ];
 
   return (
-    <main className="flex min-h-screen flex-col">
+    <main
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        overflow: "hidden",
+      }}
+    >
       <AppTopbar
         title="Outreach"
         eyebrow={
           data.product
-            ? `Prospect pipeline / ${data.product.name}`
+            ? `Prospect pipeline · ${data.product.name}`
             : "Prospect pipeline"
         }
         actions={
           <>
-            <Badge variant="secondary">{data.contacts.length} contacts</Badge>
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "11px",
+                color: "var(--lp-muted)",
+                padding: "3px 8px",
+                background: "var(--lp-bg3)",
+                border: "1px solid var(--lp-border)",
+                borderRadius: "5px",
+              }}
+            >
+              {contacts.length} contacts
+            </span>
             {data.product ? (
               <form action={requestProspectIdentificationAction}>
-                <Button type="submit" size="sm">
-                  Find prospects
-                </Button>
+                <button
+                  type="submit"
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "11.5px",
+                    fontWeight: 500,
+                    padding: "6px 14px",
+                    borderRadius: "7px",
+                    border: "1px solid var(--lp-purple)",
+                    background: "var(--lp-purple-dim)",
+                    color: "var(--lp-purple-l)",
+                    cursor: "pointer",
+                    letterSpacing: "0.01em",
+                  }}
+                >
+                  ⟳ Find prospects
+                </button>
               </form>
             ) : null}
+            <button
+              type="button"
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "11.5px",
+                padding: "6px 14px",
+                borderRadius: "7px",
+                border: "1px solid var(--lp-border)",
+                background: "transparent",
+                color: "var(--lp-muted)",
+                cursor: "pointer",
+              }}
+            >
+              Export
+            </button>
           </>
         }
       />
 
-      <section className="grid gap-4 p-6 xl:grid-cols-[1fr_340px]">
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "22px 28px 40px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "22px",
+        }}
+      >
+        {/* Alert feedback */}
         {params.prospectRequested ? (
-          <Alert className="xl:col-span-2">
+          <Alert>
             <AlertTitle>Prospect identification requested</AlertTitle>
             <AlertDescription>
               LaunchBeacon will rank outreach contacts from the current Marketing
@@ -83,7 +254,7 @@ export default async function OutreachPage({ searchParams }: PageProps) {
           </Alert>
         ) : null}
         {params.prospectError || data.error ? (
-          <Alert variant="destructive" className="xl:col-span-2">
+          <Alert variant="destructive">
             <AlertTitle>Outreach contacts could not be loaded</AlertTitle>
             <AlertDescription>
               {data.error ??
@@ -92,7 +263,7 @@ export default async function OutreachPage({ searchParams }: PageProps) {
           </Alert>
         ) : null}
         {params.draftRequested ? (
-          <Alert className="xl:col-span-2">
+          <Alert>
             <AlertTitle>Outreach draft requested</AlertTitle>
             <AlertDescription>
               The email draft will appear here and in the approval inbox after
@@ -101,7 +272,7 @@ export default async function OutreachPage({ searchParams }: PageProps) {
           </Alert>
         ) : null}
         {params.draftError ? (
-          <Alert variant="destructive" className="xl:col-span-2">
+          <Alert variant="destructive">
             <AlertTitle>Outreach draft request failed</AlertTitle>
             <AlertDescription>
               Only identified, drafted, or failed contacts can request draft
@@ -110,16 +281,15 @@ export default async function OutreachPage({ searchParams }: PageProps) {
           </Alert>
         ) : null}
         {params.followUpScheduled ? (
-          <Alert className="xl:col-span-2">
+          <Alert>
             <AlertTitle>Follow-up scheduled</AlertTitle>
             <AlertDescription>
-              The contact now has a durable follow-up reminder in its
-              provenance.
+              The contact now has a durable follow-up reminder in its provenance.
             </AlertDescription>
           </Alert>
         ) : null}
         {params.followUpError ? (
-          <Alert variant="destructive" className="xl:col-span-2">
+          <Alert variant="destructive">
             <AlertTitle>Follow-up scheduling failed</AlertTitle>
             <AlertDescription>
               Only sent or opened outreach contacts can have follow-ups
@@ -128,7 +298,7 @@ export default async function OutreachPage({ searchParams }: PageProps) {
           </Alert>
         ) : null}
         {params.suppressed ? (
-          <Alert className="xl:col-span-2">
+          <Alert>
             <AlertTitle>Contact suppressed</AlertTitle>
             <AlertDescription>
               The contact is blocked from future outreach drafts, sends, and
@@ -137,7 +307,7 @@ export default async function OutreachPage({ searchParams }: PageProps) {
           </Alert>
         ) : null}
         {params.suppressError ? (
-          <Alert variant="destructive" className="xl:col-span-2">
+          <Alert variant="destructive">
             <AlertTitle>Suppression failed</AlertTitle>
             <AlertDescription>
               The contact may already be suppressed or no longer available.
@@ -145,158 +315,1246 @@ export default async function OutreachPage({ searchParams }: PageProps) {
           </Alert>
         ) : null}
 
-        <div className="overflow-x-auto rounded-lg border bg-card">
-          <div className="grid min-w-[860px] grid-cols-[minmax(0,1fr)_160px_100px_120px_220px] border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-            <span>Contact</span>
-            <span>Publication</span>
-            <span>Score</span>
-            <span>Status</span>
-            <span className="text-right">Action</span>
-          </div>
-          {data.product ? (
-            data.contacts.length ? (
-              data.contacts.map((contact) => (
-                <ContactRow key={contact.id} contact={contact} />
-              ))
-            ) : (
-              <div className="min-w-[860px] p-4">
-                <EmptyState
-                  icon={Send}
-                  title="No outreach prospects identified"
-                  description="Find prospects after the Marketing Brief is ready. Ranked contacts will appear here before draft generation."
-                  className="border-dashed"
-                />
-              </div>
-            )
-          ) : (
-            <div className="min-w-[860px] p-4">
-              <EmptyState
-                icon={Send}
-                title="No product available"
-                description="Create a product during onboarding before LaunchBeacon can identify outreach prospects."
-                className="border-dashed"
-              />
+        {/* KPI strip */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: "10px",
+          }}
+        >
+          {/* Prospects identified */}
+          <div
+            style={{
+              background: "var(--lp-bg3)",
+              border: "1px solid var(--lp-border)",
+              borderRadius: "10px",
+              padding: "16px 18px",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "9.5px",
+                color: "var(--lp-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: "6px",
+              }}
+            >
+              Prospects identified
             </div>
-          )}
+            <div
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "28px",
+                color: "var(--lp-text)",
+                letterSpacing: "-0.01em",
+                lineHeight: 1,
+                marginBottom: "5px",
+              }}
+            >
+              {contacts.length}
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "11px",
+                color: "var(--lp-muted2)",
+              }}
+            >
+              in pipeline
+            </div>
+          </div>
+
+          {/* Pitches sent */}
+          <div
+            style={{
+              background: "var(--lp-bg3)",
+              border: "1px solid var(--lp-border)",
+              borderRadius: "10px",
+              padding: "16px 18px",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "9.5px",
+                color: "var(--lp-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: "6px",
+              }}
+            >
+              Pitches sent
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "28px",
+                color: "var(--lp-text)",
+                letterSpacing: "-0.01em",
+                lineHeight: 1,
+                marginBottom: "5px",
+              }}
+            >
+              {sentCount}
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "11px",
+                color: sentCount > 0 ? "#2DD4A0" : "var(--lp-muted2)",
+              }}
+            >
+              {sentCount > 0 ? `↑ ${sentCount} delivered` : "none sent yet"}
+            </div>
+          </div>
+
+          {/* Reply rate */}
+          <div
+            style={{
+              background: "var(--lp-bg3)",
+              border: "1px solid var(--lp-border)",
+              borderRadius: "10px",
+              padding: "16px 18px",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "9.5px",
+                color: "var(--lp-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: "6px",
+              }}
+            >
+              Reply rate
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "28px",
+                color: "var(--lp-text)",
+                letterSpacing: "-0.01em",
+                lineHeight: 1,
+                marginBottom: "5px",
+              }}
+            >
+              {replyRate}
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "11px",
+                color: "var(--lp-muted2)",
+              }}
+            >
+              {repliedCount > 0
+                ? `${repliedCount} replied`
+                : "awaiting replies"}
+            </div>
+          </div>
+
+          {/* Est. audience reached */}
+          <div
+            style={{
+              background: "var(--lp-bg3)",
+              border: "1px solid var(--lp-border)",
+              borderRadius: "10px",
+              padding: "16px 18px",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "9.5px",
+                color: "var(--lp-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: "6px",
+              }}
+            >
+              Est. audience reached
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "28px",
+                color: "var(--lp-text)",
+                letterSpacing: "-0.01em",
+                lineHeight: 1,
+                marginBottom: "5px",
+              }}
+            >
+              —
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "11px",
+                color: "var(--lp-muted2)",
+              }}
+            >
+              no subscriber data
+            </div>
+          </div>
         </div>
 
-        <aside className="flex flex-col gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pipeline state</CardTitle>
-              <CardDescription>
-                Contacts are ranked before draft generation begins.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <Metric label="Identified" value={counts.identified} />
-              <Metric label="Drafted" value={counts.drafted} />
-              <Metric label="Sent" value={counts.sent} />
-              <Metric label="Suppressed / failed" value={counts.closed} />
-            </CardContent>
-          </Card>
+        {/* Insight callout */}
+        <div
+          style={{
+            background:
+              "linear-gradient(180deg, var(--lp-bg3) 0%, var(--lp-bg2) 100%)",
+            border: "1px solid var(--lp-border)",
+            borderLeft: "3px solid var(--lp-purple)",
+            borderRadius: "9px",
+            padding: "16px 20px",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "16px",
+          }}
+        >
+          <div
+            style={{
+              width: "32px",
+              height: "32px",
+              borderRadius: "8px",
+              background: "var(--lp-purple-dim)",
+              border: "1px solid rgba(124,111,247,0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <span style={{ fontSize: "16px", color: "var(--lp-purple-l)" }}>
+              ✉
+            </span>
+          </div>
+          <div>
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "10px",
+                color: "var(--lp-purple-l)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: "4px",
+              }}
+            >
+              INSIGHT · OUTREACH
+            </div>
+            {repliedContact ? (
+              <>
+                <div
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: "18px",
+                    fontStyle: "italic",
+                    fontWeight: 400,
+                    color: "var(--lp-text)",
+                    lineHeight: 1.3,
+                    marginBottom: "6px",
+                  }}
+                >
+                  Someone replied to your pitch.
+                </div>
+                <div
+                  style={{
+                    fontSize: "12.5px",
+                    color: "var(--lp-muted2)",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  <strong style={{ color: "var(--lp-text)", fontWeight: 500 }}>
+                    {repliedContact.name}
+                  </strong>
+                  {repliedContact.publication
+                    ? ` from ${repliedContact.publication}`
+                    : ""}{" "}
+                  has replied. Follow up promptly to close the coverage.
+                </div>
+              </>
+            ) : sentContact ? (
+              <>
+                <div
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: "18px",
+                    fontStyle: "italic",
+                    fontWeight: 400,
+                    color: "var(--lp-text)",
+                    lineHeight: 1.3,
+                    marginBottom: "6px",
+                  }}
+                >
+                  A pitch is live — consider a follow-up.
+                </div>
+                <div
+                  style={{
+                    fontSize: "12.5px",
+                    color: "var(--lp-muted2)",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Your pitch to{" "}
+                  <strong style={{ color: "var(--lp-text)", fontWeight: 500 }}>
+                    {sentContact.name}
+                  </strong>
+                  {sentContact.publication
+                    ? ` (${sentContact.publication})`
+                    : ""}{" "}
+                  has been{" "}
+                  <strong style={{ color: "var(--lp-text)", fontWeight: 500 }}>
+                    {sentContact.status}
+                  </strong>
+                  . Schedule a follow-up if no reply within 5 days.
+                </div>
+              </>
+            ) : (
+              <>
+                <div
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: "18px",
+                    fontStyle: "italic",
+                    fontWeight: 400,
+                    color: "var(--lp-text)",
+                    lineHeight: 1.3,
+                    marginBottom: "6px",
+                  }}
+                >
+                  Complete the Marketing Brief to identify relevant publications.
+                </div>
+                <div
+                  style={{
+                    fontSize: "12.5px",
+                    color: "var(--lp-muted2)",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  LaunchBeacon matches your product against{" "}
+                  <strong style={{ color: "var(--lp-text)", fontWeight: 500 }}>
+                    newsletters, blogs, and publications
+                  </strong>{" "}
+                  whose audiences align with your ICP.
+                </div>
+              </>
+            )}
+          </div>
+        </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>How it works</CardTitle>
-              <CardDescription>
-                LaunchBeacon identifies newsletters, blogs, and publications whose audience matches your product. You review draft pitches before anything is sent.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p>1. Click <strong className="text-foreground">Find prospects</strong> to identify relevant publications.</p>
-              <p>2. Click <strong className="text-foreground">Draft</strong> to generate a personalized pitch for each contact.</p>
-              <p>3. Approve the email in your inbox to send it.</p>
-            </CardContent>
-          </Card>
-        </aside>
-      </section>
+        {/* Main table */}
+        <div
+          style={{
+            background: "var(--lp-bg3)",
+            border: "1px solid var(--lp-border)",
+            borderRadius: "10px",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "12px 18px",
+              borderBottom: "1px solid var(--lp-border)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                fontSize: "13px",
+                fontWeight: 500,
+                color: "var(--lp-text)",
+              }}
+            >
+              Outreach contacts
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "11px",
+                  color: "var(--lp-muted)",
+                  padding: "2px 7px",
+                  background: "var(--lp-bg4)",
+                  borderRadius: "4px",
+                  fontWeight: 400,
+                }}
+              >
+                {contacts.length > 0 ? contacts.length : demoContacts.length}
+              </span>
+            </div>
+            {contacts.length === 0 && data.product && (
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "10px",
+                  color: "var(--lp-amber)",
+                  padding: "2px 8px",
+                  background: "rgba(240,164,41,0.10)",
+                  border: "1px solid rgba(240,164,41,0.20)",
+                  borderRadius: "5px",
+                }}
+              >
+                sample data
+              </span>
+            )}
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                minWidth: "960px",
+              }}
+            >
+              <thead>
+                <tr>
+                  {[
+                    "Contact",
+                    "Publication",
+                    "Score",
+                    "Status",
+                    "Sent",
+                    "Follow-up",
+                    "Action",
+                  ].map((col, i) => (
+                    <th
+                      key={col}
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "9.5px",
+                        fontWeight: 400,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        color: "var(--lp-muted)",
+                        textAlign: i === 6 ? "right" : "left",
+                        padding: "10px 18px",
+                        borderBottom: "1px solid var(--lp-border)",
+                        background: "var(--lp-bg2)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {contacts.length > 0
+                  ? contacts.map((contact) => (
+                      <ContactRow key={contact.id} contact={contact} />
+                    ))
+                  : data.product
+                    ? demoContacts.map((row, i) => (
+                        <DemoContactRow key={i} row={row} />
+                      ))
+                    : null}
+                {!data.product && (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      style={{
+                        padding: "40px 18px",
+                        textAlign: "center",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "12px",
+                        color: "var(--lp-muted)",
+                      }}
+                    >
+                      Create a product during onboarding before LaunchBeacon can
+                      identify outreach prospects.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Bottom 2-col grid */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "16px",
+          }}
+        >
+          {/* Latest pitch email preview */}
+          <div
+            style={{
+              background: "var(--lp-bg3)",
+              border: "1px solid var(--lp-border)",
+              borderRadius: "10px",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "12px 18px",
+                borderBottom: "1px solid var(--lp-border)",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                fontSize: "13px",
+                fontWeight: 500,
+                color: "var(--lp-text)",
+              }}
+            >
+              Latest pitch
+              {latestSent && (
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "11px",
+                    color: "var(--lp-muted)",
+                    padding: "2px 7px",
+                    background: "var(--lp-bg4)",
+                    borderRadius: "4px",
+                    fontWeight: 400,
+                  }}
+                >
+                  {latestSent.status}
+                </span>
+              )}
+            </div>
+            <div style={{ padding: "16px 18px" }}>
+              {latestSent ? (
+                <div
+                  style={{
+                    background: "var(--lp-bg2)",
+                    border: "1px solid var(--lp-border)",
+                    borderRadius: "8px",
+                    overflow: "hidden",
+                  }}
+                >
+                  {/* Email header */}
+                  <div
+                    style={{
+                      borderBottom: "1px solid var(--lp-border)",
+                      padding: "12px 16px",
+                    }}
+                  >
+                    {[
+                      {
+                        label: "To",
+                        value: latestSent.email ?? latestSent.url ?? latestSent.name,
+                      },
+                      {
+                        label: "Subject",
+                        value: `Covering ${data.product?.name ?? "our product"} — partnership opportunity`,
+                      },
+                      {
+                        label: "From",
+                        value: "LaunchBeacon <outreach@launchbeacon.app>",
+                      },
+                    ].map((row) => (
+                      <div
+                        key={row.label}
+                        style={{
+                          display: "flex",
+                          gap: "10px",
+                          marginBottom: "6px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: "10px",
+                            color: "var(--lp-muted)",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
+                            minWidth: "52px",
+                            paddingTop: "1px",
+                          }}
+                        >
+                          {row.label}
+                        </span>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: "11.5px",
+                            color: "var(--lp-text)",
+                            wordBreak: "break-all",
+                          }}
+                        >
+                          {row.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Email body */}
+                  <div style={{ padding: "14px 16px" }}>
+                    <p
+                      style={{
+                        fontSize: "12.5px",
+                        color: "var(--lp-muted2)",
+                        lineHeight: 1.7,
+                        margin: 0,
+                      }}
+                    >
+                      Hi {latestSent.name},
+                      <br />
+                      <br />
+                      I&apos;m reaching out because{" "}
+                      {latestSent.publication
+                        ? `${latestSent.publication} readers`
+                        : "your audience"}{" "}
+                      would genuinely benefit from{" "}
+                      <strong style={{ color: "var(--lp-text)", fontWeight: 500 }}>
+                        {data.product?.name ?? "our product"}
+                      </strong>
+                      . We&apos;re helping founders with AI-powered go-to-market
+                      automation, and I&apos;d love to explore a feature or
+                      coverage opportunity.
+                      <br />
+                      <br />
+                      Would you be open to a quick intro?
+                    </p>
+                    <div
+                      style={{
+                        marginTop: "14px",
+                        paddingTop: "12px",
+                        borderTop: "1px solid var(--lp-border)",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "10px",
+                        color: "var(--lp-muted)",
+                      }}
+                    >
+                      Sent{" "}
+                      {new Date(latestSent.updatedAt).toLocaleDateString(
+                        "en-US",
+                        { month: "short", day: "numeric", year: "numeric" },
+                      )}{" "}
+                      · status:{" "}
+                      <span style={{ color: contactStatusColor(latestSent.status) }}>
+                        {latestSent.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    background: "var(--lp-bg2)",
+                    border: "1px solid var(--lp-border)",
+                    borderRadius: "8px",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      borderBottom: "1px solid var(--lp-border)",
+                      padding: "12px 16px",
+                    }}
+                  >
+                    {[
+                      { label: "To", value: "lenny@lennysnewsletter.com" },
+                      {
+                        label: "Subject",
+                        value: "Covering OnChainInvoice — partnership opportunity",
+                      },
+                      {
+                        label: "From",
+                        value: "LaunchBeacon <outreach@launchbeacon.app>",
+                      },
+                    ].map((row) => (
+                      <div
+                        key={row.label}
+                        style={{
+                          display: "flex",
+                          gap: "10px",
+                          marginBottom: "6px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: "10px",
+                            color: "var(--lp-muted)",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
+                            minWidth: "52px",
+                            paddingTop: "1px",
+                          }}
+                        >
+                          {row.label}
+                        </span>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: "11.5px",
+                            color: "var(--lp-text)",
+                            opacity: 0.55,
+                          }}
+                        >
+                          {row.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ padding: "14px 16px", opacity: 0.55 }}>
+                    <p
+                      style={{
+                        fontSize: "12.5px",
+                        color: "var(--lp-muted2)",
+                        lineHeight: 1.7,
+                        margin: 0,
+                      }}
+                    >
+                      Hi Lenny,
+                      <br />
+                      <br />
+                      I&apos;m reaching out because your newsletter readers would
+                      benefit from{" "}
+                      <strong style={{ color: "var(--lp-text)", fontWeight: 500 }}>
+                        OnChainInvoice
+                      </strong>
+                      . We&apos;re automating crypto invoicing for freelancers and
+                      agencies, and I&apos;d love to explore coverage.
+                    </p>
+                    <div
+                      style={{
+                        marginTop: "14px",
+                        paddingTop: "12px",
+                        borderTop: "1px solid var(--lp-border)",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "10px",
+                        color: "var(--lp-muted)",
+                      }}
+                    >
+                      Sample preview · no pitches sent yet
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Follow-up schedule */}
+          <div
+            style={{
+              background: "var(--lp-bg3)",
+              border: "1px solid var(--lp-border)",
+              borderRadius: "10px",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "12px 18px",
+                borderBottom: "1px solid var(--lp-border)",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                fontSize: "13px",
+                fontWeight: 500,
+                color: "var(--lp-text)",
+              }}
+            >
+              Follow-up schedule
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "11px",
+                  color: "var(--lp-muted)",
+                  padding: "2px 7px",
+                  background: "var(--lp-bg4)",
+                  borderRadius: "4px",
+                  fontWeight: 400,
+                }}
+              >
+                {followUps.length > 0
+                  ? followUps.length
+                  : demoFollowUps.length}{" "}
+                upcoming
+              </span>
+            </div>
+            <div style={{ padding: "16px 18px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0",
+                  position: "relative",
+                }}
+              >
+                {(followUps.length > 0 ? followUps : demoFollowUps).map(
+                  (fu, i, arr) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        gap: "14px",
+                        position: "relative",
+                        paddingBottom: i < arr.length - 1 ? "20px" : "0",
+                      }}
+                    >
+                      {/* Timeline line */}
+                      {i < arr.length - 1 && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            left: "5px",
+                            top: "14px",
+                            width: "1px",
+                            height: "calc(100% - 4px)",
+                            background: "var(--lp-border2)",
+                          }}
+                        />
+                      )}
+                      {/* Dot */}
+                      <div
+                        style={{
+                          width: "11px",
+                          height: "11px",
+                          borderRadius: "50%",
+                          background: "var(--lp-purple)",
+                          border: "2px solid var(--lp-bg3)",
+                          boxShadow: `0 0 0 1px var(--lp-purple)`,
+                          flexShrink: 0,
+                          marginTop: "2px",
+                          position: "relative",
+                          zIndex: 1,
+                        }}
+                      />
+                      {/* Content */}
+                      <div>
+                        <div
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: "10px",
+                            color: "var(--lp-muted)",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
+                            marginBottom: "2px",
+                          }}
+                        >
+                          {new Date(fu.scheduledFor).toLocaleDateString(
+                            "en-US",
+                            { month: "short", day: "numeric" },
+                          )}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            color: "var(--lp-text)",
+                            fontWeight: 500,
+                          }}
+                        >
+                          Follow up to{" "}
+                          <span style={{ color: "var(--lp-purple-l)" }}>
+                            {fu.name}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ),
+                )}
+                {followUps.length === 0 && contacts.length > 0 && (
+                  <div
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "12px",
+                      color: "var(--lp-muted)",
+                      textAlign: "center",
+                      padding: "20px 0",
+                    }}
+                  >
+                    No follow-ups scheduled. Use the Follow up button on sent
+                    contacts.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }
 
-function ContactRow({ contact }: { contact: OutreachContact }) {
+function contactStatusColor(status: string): string {
+  if (status === "replied" || status === "converted") return "#2DD4A0";
+  if (status === "opened") return "#5B9EF6";
+  if (status === "sent") return "var(--lp-amber)";
+  if (status === "drafted" || status === "pending_review") return "var(--lp-purple-l)";
+  if (status === "suppressed" || status === "failed") return "var(--lp-red)";
+  return "var(--lp-muted2)";
+}
+
+function scoreColor(pct: number): string {
+  if (pct >= 80) return "#2DD4A0";
+  if (pct >= 60) return "var(--lp-amber)";
+  return "var(--lp-red)";
+}
+
+function ContactStatusPill({ status }: { status: string }) {
+  const color = contactStatusColor(status);
+  let bg = "var(--lp-bg4)";
+  let border = "var(--lp-border)";
+
+  if (status === "replied" || status === "converted") {
+    bg = "rgba(45,212,160,0.10)";
+    border = "rgba(45,212,160,0.25)";
+  } else if (status === "opened") {
+    bg = "rgba(91,158,246,0.10)";
+    border = "rgba(91,158,246,0.25)";
+  } else if (status === "sent") {
+    bg = "rgba(240,164,41,0.10)";
+    border = "rgba(240,164,41,0.25)";
+  } else if (status === "drafted" || status === "pending_review") {
+    bg = "var(--lp-purple-dim)";
+    border = "rgba(124,111,247,0.25)";
+  } else if (status === "suppressed" || status === "failed") {
+    bg = "var(--lp-red-dim)";
+    border = "rgba(240,96,96,0.25)";
+  }
+
   return (
-    <div className="grid min-w-[860px] grid-cols-[minmax(0,1fr)_160px_100px_120px_220px] items-center gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-secondary/60">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <Send className="size-4 text-muted-foreground" aria-hidden="true" />
-          <p className="truncate text-sm font-medium">{contact.name}</p>
-        </div>
-        <p className="mt-1 truncate text-xs text-muted-foreground">
-          {followUpLabel(contact) ??
-            contact.email ??
-            contact.url ??
-            "No contact detail yet"}
-        </p>
-      </div>
-      <span className="truncate text-sm text-muted-foreground">
-        {contact.publication ?? "Unknown"}
-      </span>
-      <span className="font-mono text-sm">
-        {Math.round(contact.score * 100)}%
-      </span>
-      <Badge
-        variant={
-          contact.status === "failed" || contact.status === "suppressed"
-            ? "danger"
-            : contact.status === "sent"
-              ? "success"
-              : "secondary"
-        }
-      >
-        {contact.status.replace("_", " ")}
-      </Badge>
-      <div className="flex justify-end gap-1.5">
-        {["identified", "drafted", "failed"].includes(contact.status) ? (
-          <form action={requestOutreachDraftAction}>
-            <input type="hidden" name="contactId" value={contact.id} />
-            <Button type="submit" variant="secondary" size="sm">
-              Draft
-            </Button>
-          </form>
-        ) : null}
-        {["sent", "opened"].includes(contact.status) ? (
-          <form action={scheduleOutreachFollowUpAction}>
-            <input type="hidden" name="contactId" value={contact.id} />
-            <input type="hidden" name="delayDays" value="5" />
-            <Button type="submit" variant="secondary" size="sm">
-              Follow up
-            </Button>
-          </form>
-        ) : null}
-        {!["suppressed", "converted"].includes(contact.status) ? (
-          <form action={suppressOutreachContactAction}>
-            <input type="hidden" name="contactId" value={contact.id} />
-            <input
-              type="hidden"
-              name="reason"
-              value="Suppressed from outreach tracker."
-            />
-            <Button type="submit" variant="ghost" size="sm">
-              Suppress
-            </Button>
-          </form>
-        ) : null}
-        {contact.url && !contact.url.includes("example.com") ? (
-          <Button variant="ghost" size="sm" asChild>
-            <Link href={contact.url} target="_blank" rel="noreferrer">
-              Open
-              <ExternalLink data-icon="inline-end" />
-            </Link>
-          </Button>
-        ) : null}
-      </div>
-    </div>
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "5px",
+        fontFamily: "var(--font-mono)",
+        fontSize: "10.5px",
+        padding: "2px 8px",
+        borderRadius: "9999px",
+        fontWeight: 500,
+        border: `1px solid ${border}`,
+        color,
+        background: bg,
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span
+        style={{
+          width: "5px",
+          height: "5px",
+          borderRadius: "50%",
+          background: color,
+          display: "block",
+          flexShrink: 0,
+        }}
+      />
+      {status.replace(/_/g, " ")}
+    </span>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function ContactRow({ contact }: { contact: OutreachContact }) {
+  const scorePct = Math.round(contact.score * 100);
+  const fuLabel = followUpLabel(contact);
+
   return (
-    <div className="flex items-center justify-between border-b pb-2 last:border-b-0 last:pb-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-mono text-sm">{value}</span>
-    </div>
+    <tr style={{ borderBottom: "1px solid var(--lp-border)" }}>
+      <td style={{ padding: "12px 18px", verticalAlign: "middle", maxWidth: "220px" }}>
+        <div
+          style={{
+            fontSize: "13px",
+            color: "var(--lp-text)",
+            fontWeight: 600,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {contact.name}
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "10.5px",
+            color: "var(--lp-muted)",
+            marginTop: "2px",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {contact.email ?? contact.url ?? "no contact detail"}
+        </div>
+      </td>
+      <td
+        style={{
+          padding: "12px 18px",
+          verticalAlign: "middle",
+          fontSize: "13px",
+          color: "var(--lp-muted2)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {contact.publication ?? "—"}
+      </td>
+      <td
+        style={{
+          padding: "12px 18px",
+          verticalAlign: "middle",
+          fontFamily: "var(--font-mono)",
+          fontSize: "13px",
+          color: scoreColor(scorePct),
+          fontWeight: 600,
+        }}
+      >
+        {scorePct}
+      </td>
+      <td style={{ padding: "12px 18px", verticalAlign: "middle" }}>
+        <ContactStatusPill status={contact.status} />
+      </td>
+      <td
+        style={{
+          padding: "12px 18px",
+          verticalAlign: "middle",
+          fontFamily: "var(--font-mono)",
+          fontSize: "12px",
+          color: "var(--lp-muted2)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {contact.lastContactAt
+          ? new Date(contact.lastContactAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })
+          : "—"}
+      </td>
+      <td
+        style={{
+          padding: "12px 18px",
+          verticalAlign: "middle",
+          fontFamily: "var(--font-mono)",
+          fontSize: "12px",
+          color: fuLabel ? "var(--lp-purple-l)" : "var(--lp-muted2)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {fuLabel ?? "—"}
+      </td>
+      <td
+        style={{
+          padding: "12px 18px",
+          verticalAlign: "middle",
+          textAlign: "right",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: "6px",
+          }}
+        >
+          {["identified", "drafted", "failed"].includes(contact.status) && (
+            <form action={requestOutreachDraftAction}>
+              <input type="hidden" name="contactId" value={contact.id} />
+              <button
+                type="submit"
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  padding: "4px 10px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--lp-border2)",
+                  background: "var(--lp-bg4)",
+                  color: "var(--lp-text)",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Draft
+              </button>
+            </form>
+          )}
+          {["sent", "opened"].includes(contact.status) && (
+            <form action={scheduleOutreachFollowUpAction}>
+              <input type="hidden" name="contactId" value={contact.id} />
+              <input type="hidden" name="delayDays" value="5" />
+              <button
+                type="submit"
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  padding: "4px 10px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--lp-border2)",
+                  background: "var(--lp-bg4)",
+                  color: "var(--lp-text)",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Follow up
+              </button>
+            </form>
+          )}
+          {!["suppressed", "converted"].includes(contact.status) && (
+            <form action={suppressOutreachContactAction}>
+              <input type="hidden" name="contactId" value={contact.id} />
+              <input
+                type="hidden"
+                name="reason"
+                value="Suppressed from outreach tracker."
+              />
+              <button
+                type="submit"
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "11px",
+                  padding: "4px 10px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--lp-border)",
+                  background: "transparent",
+                  color: "var(--lp-muted)",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Suppress
+              </button>
+            </form>
+          )}
+          {contact.url && !contact.url.includes("example.com") && (
+            <Link
+              href={contact.url}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "11px",
+                padding: "4px 10px",
+                borderRadius: "6px",
+                border: "1px solid var(--lp-border)",
+                background: "transparent",
+                color: "var(--lp-muted)",
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Open ↗
+            </Link>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function DemoContactRow({
+  row,
+}: {
+  row: {
+    name: string;
+    email: string;
+    publication: string;
+    score: number;
+    status: string;
+    sent: string;
+    followUp: string;
+  };
+}) {
+  return (
+    <tr
+      style={{ borderBottom: "1px solid var(--lp-border)", opacity: 0.65 }}
+    >
+      <td style={{ padding: "12px 18px", verticalAlign: "middle", maxWidth: "220px" }}>
+        <div
+          style={{
+            fontSize: "13px",
+            color: "var(--lp-text)",
+            fontWeight: 600,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {row.name}
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "10.5px",
+            color: "var(--lp-muted)",
+            marginTop: "2px",
+          }}
+        >
+          {row.email}
+        </div>
+      </td>
+      <td
+        style={{
+          padding: "12px 18px",
+          verticalAlign: "middle",
+          fontSize: "13px",
+          color: "var(--lp-muted2)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {row.publication}
+      </td>
+      <td
+        style={{
+          padding: "12px 18px",
+          verticalAlign: "middle",
+          fontFamily: "var(--font-mono)",
+          fontSize: "13px",
+          color: scoreColor(row.score),
+          fontWeight: 600,
+        }}
+      >
+        {row.score}
+      </td>
+      <td style={{ padding: "12px 18px", verticalAlign: "middle" }}>
+        <ContactStatusPill status={row.status} />
+      </td>
+      <td
+        style={{
+          padding: "12px 18px",
+          verticalAlign: "middle",
+          fontFamily: "var(--font-mono)",
+          fontSize: "12px",
+          color: "var(--lp-muted2)",
+        }}
+      >
+        {row.sent}
+      </td>
+      <td
+        style={{
+          padding: "12px 18px",
+          verticalAlign: "middle",
+          fontFamily: "var(--font-mono)",
+          fontSize: "12px",
+          color: row.followUp !== "—" ? "var(--lp-purple-l)" : "var(--lp-muted2)",
+        }}
+      >
+        {row.followUp}
+      </td>
+      <td
+        style={{
+          padding: "12px 18px",
+          verticalAlign: "middle",
+          textAlign: "right",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "11px",
+            color: "var(--lp-muted)",
+          }}
+        >
+          —
+        </span>
+      </td>
+    </tr>
   );
 }
 
@@ -373,7 +1631,10 @@ function countContacts(contacts: OutreachContact[]) {
   };
 }
 
-function followUpLabel(contact: OutreachContact) {
+// Keep countContacts in scope for potential future use
+void countContacts;
+
+function followUpLabel(contact: OutreachContact): string | null {
   const followUp = contact.provenance.followUp;
   if (!isFollowUp(followUp)) {
     return null;

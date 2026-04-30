@@ -1,8 +1,5 @@
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { updateAutomationPreferenceAction } from "@/app/(app)/settings/preferences/actions";
 import type { AutomationPreference } from "@/server/schemas/preferences";
@@ -18,136 +15,193 @@ type PageProps = {
   }>;
 };
 
-const trustLevels = [
-  { value: 1, label: "Level 1", description: "Review every action before execution." },
-  { value: 2, label: "Level 2", description: "Auto-execute only very safe low-risk actions." },
-  { value: 3, label: "Level 3", description: "Allow broader autopilot within server guardrails." },
-] as const;
-
 export default async function PreferencesPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const data = await loadPreferencesData();
-  const product = data.product;
 
   return (
-    <main className="flex min-h-screen flex-col">
+    <main style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
       <AppTopbar
         title="Settings"
         eyebrow={data.product ? `Preferences / ${data.product.name}` : "Preferences"}
-        actions={<Badge variant="secondary">{data.preferences.length} channels</Badge>}
       />
 
-      <section className="grid gap-4 p-6 xl:grid-cols-[1fr_340px]">
-        {params.updated ? (
-          <Alert className="xl:col-span-2">
+      <div style={{ flex: 1, overflowY: "auto", padding: "22px 28px 40px", display: "flex", flexDirection: "column", gap: "22px" }}>
+        {params.updated && (
+          <Alert>
             <AlertTitle>Preference saved</AlertTitle>
             <AlertDescription>The {params.updated} automation setting is now active for this product.</AlertDescription>
           </Alert>
-        ) : null}
-        {params.preferenceError || data.error ? (
-          <Alert variant="destructive" className="xl:col-span-2">
+        )}
+        {(params.preferenceError || data.error) && (
+          <Alert variant="destructive">
             <AlertTitle>Preferences could not be loaded</AlertTitle>
             <AlertDescription>{data.error ?? params.preferenceError}</AlertDescription>
           </Alert>
-        ) : null}
+        )}
 
-        <div className="grid gap-4">
-          {product ? (
-            data.preferences.map((preference) => <PreferenceCard key={preference.channel} product={product} preference={preference} />)
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>No product found</CardTitle>
-                <CardDescription>Create a product before setting automation preferences.</CardDescription>
-              </CardHeader>
-            </Card>
+        {/* TRUST LEVELS */}
+        <SectionBlock label="Trust levels">
+          {[
+            { channel: "SEO content auto-publish", selected: "L1", description: "L1: drafts require one-click approval before publishing." },
+            { channel: "Community replies", selected: "L1", description: "L1: replies go to inbox for review before posting." },
+            { channel: "Outreach emails", selected: "Off", description: "Off: no automated outreach emails are sent." },
+          ].map((row) => (
+            <TrustLevelRow key={row.channel} label={row.channel} selected={row.selected} description={row.description} />
+          ))}
+          {/* If real preferences exist, show them too */}
+          {data.product && data.preferences.length > 0 && (
+            <div style={{ marginTop: "14px", paddingTop: "14px", borderTop: "1px solid var(--lp-border)" }}>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", marginBottom: "12px" }}>Live automation preferences</div>
+              {data.preferences.map((pref) => (
+                <form key={pref.channel} action={updateAutomationPreferenceAction} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                  <input type="hidden" name="productId" value={data.product!.id} />
+                  <input type="hidden" name="channel" value={pref.channel} />
+                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-text)", textTransform: "capitalize" }}>{pref.channel}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--lp-muted)", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "4px", padding: "2px 8px" }}>Level {pref.trustLevel}</span>
+                </form>
+              ))}
+            </div>
           )}
-        </div>
+        </SectionBlock>
 
-        <aside className="flex flex-col gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Server guardrails</CardTitle>
-              <CardDescription>Trust levels never move authority into the browser.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <p>Low-confidence outputs stay review-gated.</p>
-              <p>Community replies with high promotional risk are blocked.</p>
-              <p>External credentials remain server-only when provider posting is added.</p>
-            </CardContent>
-          </Card>
-        </aside>
-      </section>
+        {/* REVIEW WINDOW */}
+        <SectionBlock label="Review window">
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "24px" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-text)", fontWeight: 500, marginBottom: "4px" }}>Auto-approval delay</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--lp-muted)" }}>Items not reviewed within this window auto-approve if trust level allows.</div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "10px", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 600, color: "var(--lp-text)" }}>72</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--lp-muted)" }}>hours</span>
+              </div>
+              <div style={{ display: "flex", gap: "2px", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "7px", padding: "3px" }}>
+                {["24h", "48h", "72h", "168h"].map((opt) => (
+                  <span
+                    key={opt}
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "11px",
+                      padding: "3px 8px",
+                      borderRadius: "5px",
+                      cursor: "pointer",
+                      color: opt === "72h" ? "var(--lp-text)" : "var(--lp-muted)",
+                      background: opt === "72h" ? "var(--lp-bg3)" : "transparent",
+                      border: opt === "72h" ? "1px solid var(--lp-border)" : "1px solid transparent",
+                    }}
+                  >
+                    {opt}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </SectionBlock>
+
+        {/* NOTIFICATIONS */}
+        <SectionBlock label="Notifications">
+          <ToggleRow label="Weekly digest email" description="Receive a weekly summary of SEO and content performance." on={true} />
+          <ToggleRow label="Inbox item notifications" description="Get notified when new items land in the approval inbox." on={false} />
+          <ToggleRow label="Rank movement alerts" description="Alert when tracked keywords move significantly in position." on={true} />
+          <ToggleRow label="New opportunity alerts" description="Notify when new SEO or community opportunities are found." on={true} />
+        </SectionBlock>
+
+        {/* CONTENT PREFERENCES */}
+        <SectionBlock label="Content preferences">
+          {/* Article length segmented selector */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "24px" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-text)", fontWeight: 500, marginBottom: "4px" }}>Default article length</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--lp-muted)" }}>Target word count for generated long-form articles.</div>
+            </div>
+            <div style={{ display: "flex", gap: "2px", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "7px", padding: "3px" }}>
+              {["1200", "1500", "1800", "2400"].map((len) => (
+                <span
+                  key={len}
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "11px",
+                    padding: "4px 9px",
+                    borderRadius: "5px",
+                    cursor: "pointer",
+                    color: len === "1800" ? "var(--lp-text)" : "var(--lp-muted)",
+                    background: len === "1800" ? "var(--lp-bg3)" : "transparent",
+                    border: len === "1800" ? "1px solid var(--lp-border)" : "1px solid transparent",
+                  }}
+                >
+                  {len}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <ToggleRow label="Generate comparison pages" description="Automatically create vs-competitor comparison content." on={true} />
+          <ToggleRow label="Internal linking" description="Inject internal links into generated content where relevant." on={true} />
+          <ToggleRow label="Schema markup" description="Add structured data JSON-LD to published content." on={true} />
+        </SectionBlock>
+      </div>
     </main>
   );
 }
 
-function PreferenceCard({ product, preference }: { product: Product; preference: AutomationPreference }) {
+function SectionBlock({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <CardTitle className="capitalize">{preference.channel}</CardTitle>
-            <CardDescription>{channelDescription(preference.channel)}</CardDescription>
-          </div>
-          <Badge variant={preference.trustLevel === 1 ? "secondary" : "warning"}>Level {preference.trustLevel}</Badge>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <form action={updateAutomationPreferenceAction} className="grid gap-4 lg:grid-cols-[1fr_140px_140px_auto] lg:items-end">
-          <input type="hidden" name="productId" value={product.id} />
-          <input type="hidden" name="channel" value={preference.channel} />
-          <fieldset className="grid gap-2">
-            <legend className="mb-1 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Trust level</legend>
-            <div className="grid gap-2 md:grid-cols-3">
-              {trustLevels.map((level) => (
-                <label key={level.value} className="rounded-md border bg-secondary p-3 text-sm">
-                  <span className="flex items-center gap-2 font-medium">
-                    <input type="radio" name="trustLevel" value={level.value} defaultChecked={preference.trustLevel === level.value} />
-                    {level.label}
-                  </span>
-                  <span className="mt-1 block text-xs text-muted-foreground">{level.description}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          <NumberField label="Daily limit" name="dailyAutoActionLimit" value={preference.dailyAutoActionLimit} min={0} max={50} />
-          <NumberField label="Review window" name="reviewWindowHours" value={preference.reviewWindowHours} min={0} max={168} />
-          <Button type="submit" size="sm">
-            Save
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+    <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px" }}>
+      <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--lp-border)", borderRadius: "10px 10px 0 0" }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</div>
+      </div>
+      <div style={{ padding: "16px 18px 20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+        {children}
+      </div>
+    </div>
   );
 }
 
-function NumberField({ label, name, value, min, max }: { label: string; name: string; value: number; min: number; max: number }) {
+function ToggleRow({ label, description, on }: { label: string; description: string; on: boolean }) {
   return (
-    <label className="grid gap-1 text-sm">
-      <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
-      <input
-        name={name}
-        type="number"
-        min={min}
-        max={max}
-        defaultValue={value}
-        className="h-9 rounded-md border bg-background px-2 font-mono text-sm text-foreground"
-      />
-    </label>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-text)", fontWeight: 500, marginBottom: "2px" }}>{label}</div>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--lp-muted)" }}>{description}</div>
+      </div>
+      <div style={{ width: "30px", height: "16px", background: on ? "var(--lp-purple)" : "var(--lp-border2)", borderRadius: "9999px", position: "relative", flexShrink: 0 }}>
+        <span style={{ position: "absolute", left: on ? "auto" : "2px", right: on ? "2px" : "auto", top: "2px", width: "12px", height: "12px", background: on ? "#fff" : "var(--lp-muted)", borderRadius: "50%", display: "block" }} />
+      </div>
+    </div>
   );
 }
 
-function channelDescription(channel: AutomationPreference["channel"]) {
-  const descriptions: Record<AutomationPreference["channel"], string> = {
-    content: "Publishing and content execution preferences.",
-    community: "Reply drafting, approval, and safe auto-post eligibility.",
-    directories: "Listing package submission preferences.",
-    outreach: "Prospect email and follow-up preferences.",
-  };
-
-  return descriptions[channel];
+function TrustLevelRow({ label, selected, description }: { label: string; selected: string; description: string }) {
+  const options = ["Off", "L1", "L2"];
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-text)", fontWeight: 500, marginBottom: "2px" }}>{label}</div>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--lp-muted)" }}>{description}</div>
+      </div>
+      <div style={{ display: "flex", gap: "2px", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "7px", padding: "3px", flexShrink: 0 }}>
+        {options.map((opt) => (
+          <span
+            key={opt}
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "11px",
+              padding: "3px 8px",
+              borderRadius: "5px",
+              cursor: "pointer",
+              color: opt === selected ? "var(--lp-text)" : "var(--lp-muted)",
+              background: opt === selected ? "var(--lp-bg3)" : "transparent",
+              border: opt === selected ? "1px solid var(--lp-border)" : "1px solid transparent",
+            }}
+          >
+            {opt}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 async function loadPreferencesData(): Promise<{

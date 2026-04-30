@@ -42,7 +42,7 @@ const navGroups = [
     label: "Insights",
     items: [
       { href: "/analytics",   label: "Analytics",       icon: BarChart3 },
-      { href: "/seo",         label: "Keywords",        icon: Hash },
+      { href: "/keywords",     label: "Keywords",        icon: Hash },
     ],
   },
   {

@@ -18,9 +18,6 @@ supabase/.temp
 
 .vercel
 
-# Design source files
-*.psd
-*.ai
-*.sketch
-
-.vercel
+mockup_html
+docs
+graphics
