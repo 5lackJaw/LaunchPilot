@@ -17,7 +17,11 @@ LaunchBeacon is a multi-tenant SaaS for solo developers and indie founders. It c
 - Execution layer: content generation, community drafting, directory packages, outreach drafts
 - Feedback layer: analytics ingestion, summaries, recommendations, performance tracking
 
-## Baseline stack
+## Target stack and current implementation
+
+The repository contains the Next.js/Supabase/Inngest app scaffold and redesigned UI. Some target providers are not fully implemented yet; check `docs/IMPLEMENTATION_PLAN.md` and `docs/IMPLEMENTATION_CHECKLIST.md` before treating a capability as production-ready.
+
+Target stack:
 - Next.js 16 App Router + TypeScript
 - Tailwind CSS + shadcn/ui
 - Route Handlers + tRPC
