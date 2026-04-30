@@ -7,6 +7,7 @@ coverage
 .env*.local
 *.tsbuildinfo
 .vercel
+.claude/
 .railway
 npm-debug.log*
 yarn-debug.log*
@@ -16,7 +17,6 @@ pnpm-debug.log*
 .next-dev.err.log
 supabase/.temp
 
-.vercel
 
 mockup_html
 docs
