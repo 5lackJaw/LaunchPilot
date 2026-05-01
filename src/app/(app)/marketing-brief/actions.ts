@@ -59,6 +59,25 @@ export async function saveMarketingBriefAction(formData: FormData) {
   redirect(redirectTo);
 }
 
+export async function setCurrentMarketingBriefVersionAction(formData: FormData) {
+  const productId = String(formData.get("productId") ?? "");
+  const briefId = String(formData.get("briefId") ?? "");
+  let redirectTo = "/marketing-brief";
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    await new BriefService(supabase).setCurrentBriefVersion({ productId, briefId });
+    revalidatePath("/marketing-brief");
+    revalidatePath("/seo");
+    redirectTo = "/marketing-brief?versionChanged=1";
+  } catch (error) {
+    const message = toBriefEditMessage(error);
+    redirectTo = `/marketing-brief?saveError=${encodeURIComponent(message)}`;
+  }
+
+  redirect(redirectTo);
+}
+
 export async function crawlProductForBriefAction(formData: FormData) {
   const productId = String(formData.get("productId") ?? "");
   let redirectTo = "/marketing-brief";

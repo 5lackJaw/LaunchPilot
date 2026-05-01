@@ -3,7 +3,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { WorkflowStatusRefresh } from "@/components/workflow-status-refresh";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { generateMarketingBriefNowAction } from "@/app/(app)/marketing-brief/actions";
+import { generateMarketingBriefNowAction, setCurrentMarketingBriefVersionAction } from "@/app/(app)/marketing-brief/actions";
 import { WorkflowActionPanel } from "@/app/(app)/marketing-brief/workflow-action-panel";
 import type { BriefGenerationJob } from "@/server/schemas/brief-generation-job";
 import type { MarketingBrief } from "@/server/schemas/brief";
@@ -24,6 +24,7 @@ type PageProps = {
     generationError?: string;
     crawlStarted?: string;
     crawlError?: string;
+    versionChanged?: string;
   }>;
 };
 
@@ -67,6 +68,7 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
       <div style={{ flex: 1, display: "grid", gridTemplateColumns: "minmax(0,1fr) 300px", overflow: "hidden" }}>
         <div style={{ overflowY: "auto", padding: "24px 28px 48px" }}>
           {params.saveError ? <TransientError title="Save failed" message={params.saveError} /> : null}
+          {params.versionChanged ? <TransientNotice title="Brief version changed" message="The selected Marketing Brief version is now current." /> : null}
           {params.generationError ? <TransientError title="Generation could not start" message={params.generationError} /> : null}
           {params.crawlError ? <TransientError title="Crawl could not start" message={params.crawlError} /> : null}
           {data.briefGenerationJob?.status === "failed" ? (
@@ -139,9 +141,16 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
             </div>
           </SideSection>
 
-          <SideSection title="Version history">
-            {data.brief ? (
-              <VersionHistoryItem current version={data.brief.version} date={data.brief.updatedAt} description="Current Marketing Brief used by downstream content, community, and outreach workflows." />
+          <SideSection title="Saved versions">
+            {data.briefVersions.length ? (
+              data.briefVersions.map((version) => (
+                <VersionHistoryItem
+                  key={version.id}
+                  productId={data.product?.id ?? ""}
+                  brief={version}
+                  current={version.id === data.brief?.id}
+                />
+              ))
             ) : (
               <p style={sideNoteStyle}>No brief versions yet.</p>
             )}
@@ -311,6 +320,17 @@ function TransientError({ title, message }: { title: string; message: string }) 
   );
 }
 
+function TransientNotice({ title, message }: { title: string; message: string }) {
+  return (
+    <div style={{ marginBottom: "16px" }}>
+      <Alert>
+        <AlertTitle>{title}</AlertTitle>
+        <AlertDescription>{message}</AlertDescription>
+      </Alert>
+    </div>
+  );
+}
+
 function NoProductEmptyState() {
   return (
     <div style={emptyStateStyle}>
@@ -354,19 +374,25 @@ function SideMeta({ label, value, accent }: { label: string; value: string; acce
   );
 }
 
-function VersionHistoryItem({ version, date, description, current }: { version: number; date: string; description: string; current?: boolean }) {
+function VersionHistoryItem({ productId, brief, current }: { productId: string; brief: MarketingBrief; current?: boolean }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "8px 0", borderBottom: "1px solid var(--lp-border)" }}>
       <span style={{ width: "8px", height: "8px", borderRadius: "9999px", background: current ? "var(--lp-purple)" : "var(--lp-subtle)", boxShadow: current ? "0 0 0 3px var(--lp-purple-dim)" : undefined, marginTop: "4px", flexShrink: 0 }} />
-      <div>
-        <div style={{ fontSize: "12px", color: "var(--lp-text)", fontWeight: 500 }}>v{version} · Current</div>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", marginTop: "1px" }}>{formatDate(date)}</div>
-        <div style={{ fontSize: "11.5px", color: "var(--lp-muted)", marginTop: "2px", lineHeight: 1.5 }}>{description}</div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: "12px", color: "var(--lp-text)", fontWeight: 500 }}>v{brief.version}{current ? " · Current" : ""}</div>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", marginTop: "1px" }}>{formatDate(brief.updatedAt)}</div>
+        <div style={{ fontSize: "11.5px", color: "var(--lp-muted)", marginTop: "2px", lineHeight: 1.5 }}>{brief.tagline}</div>
+        {!current ? (
+          <form action={setCurrentMarketingBriefVersionAction} style={{ marginTop: "8px" }}>
+            <input type="hidden" name="productId" value={productId} />
+            <input type="hidden" name="briefId" value={brief.id} />
+            <button type="submit" style={versionSwitchButtonStyle}>Make current</button>
+          </form>
+        ) : null}
       </div>
     </div>
   );
 }
-
 function EmptyCardRow({ children }: { children: React.ReactNode }) {
   return <div style={{ padding: "14px 18px", fontSize: "13px", color: "var(--lp-muted)" }}>{children}</div>;
 }
@@ -377,6 +403,7 @@ async function loadMarketingBriefData(): Promise<{
   crawlJob: CrawlJob | null;
   crawlResult: CrawlResult | null;
   briefGenerationJob: BriefGenerationJob | null;
+  briefVersions: MarketingBrief[];
   isAdmin: boolean;
   error: string | null;
   authRequired: boolean;
@@ -387,26 +414,27 @@ async function loadMarketingBriefData(): Promise<{
     const product = await new ProductService(supabase).getLatestProduct();
 
     if (!product) {
-      return { product: null, brief: null, crawlJob: null, crawlResult: null, briefGenerationJob: null, isAdmin: isInternalAdmin(user), error: null, authRequired: false };
+      return { product: null, brief: null, crawlJob: null, crawlResult: null, briefGenerationJob: null, briefVersions: [], isAdmin: isInternalAdmin(user), error: null, authRequired: false };
     }
 
     const crawlService = new CrawlService(supabase);
     const briefService = new BriefService(supabase);
-    const [brief, crawlJob, crawlResult, briefGenerationJob] = await Promise.all([
+    const [brief, crawlJob, crawlResult, briefGenerationJob, briefVersions] = await Promise.all([
       briefService.getCurrentBrief({ productId: product.id }),
       crawlService.getLatestCrawlJob({ productId: product.id }),
       crawlService.getLatestCrawlResult({ productId: product.id }),
       briefService.getLatestGenerationJob({ productId: product.id }),
+      briefService.listBriefVersions({ productId: product.id }),
     ]);
 
-    return { product, brief, crawlJob, crawlResult, briefGenerationJob, isAdmin: isInternalAdmin(user), error: null, authRequired: false };
+    return { product, brief, crawlJob, crawlResult, briefGenerationJob, briefVersions, isAdmin: isInternalAdmin(user), error: null, authRequired: false };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { product: null, brief: null, crawlJob: null, crawlResult: null, briefGenerationJob: null, isAdmin: false, error: null, authRequired: true };
+      return { product: null, brief: null, crawlJob: null, crawlResult: null, briefGenerationJob: null, briefVersions: [], isAdmin: false, error: null, authRequired: true };
     }
 
     if (error instanceof ProductReadError || error instanceof BriefReadError || error instanceof CrawlReadError) {
-      return { product: null, brief: null, crawlJob: null, crawlResult: null, briefGenerationJob: null, isAdmin: false, error: error.message, authRequired: false };
+      return { product: null, brief: null, crawlJob: null, crawlResult: null, briefGenerationJob: null, briefVersions: [], isAdmin: false, error: error.message, authRequired: false };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
@@ -416,6 +444,7 @@ async function loadMarketingBriefData(): Promise<{
         crawlJob: null,
         crawlResult: null,
         briefGenerationJob: null,
+        briefVersions: [],
         isAdmin: false,
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
         authRequired: false,
@@ -821,5 +850,16 @@ const failureRetryStyle = {
   border: "none",
   borderRadius: "7px",
   padding: "7px 14px",
+  cursor: "pointer",
+};
+
+const versionSwitchButtonStyle = {
+  fontSize: "11.5px",
+  fontWeight: 500,
+  color: "var(--lp-purple-l)",
+  background: "var(--lp-purple-dim)",
+  border: "1px solid rgba(124,111,247,0.2)",
+  borderRadius: "6px",
+  padding: "5px 9px",
   cursor: "pointer",
 };

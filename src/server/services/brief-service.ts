@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
 import { inngest } from "@/inngest/client";
 import { buildInitialBrief } from "@/server/brief/build-initial-brief";
 import { briefGenerationJobSchema } from "@/server/schemas/brief-generation-job";
@@ -16,6 +17,10 @@ const initialBriefGenerationSteps = [
   { label: "Cluster keywords", status: "pending" },
   { label: "Write Marketing Brief", status: "pending" },
 ] as const;
+
+const setCurrentBriefVersionSchema = productIdSchema.extend({
+  briefId: z.string().uuid(),
+});
 
 export class BriefService {
   constructor(private readonly supabase: SupabaseClient) {}
@@ -147,6 +152,10 @@ export class BriefService {
       userId: user.id,
     });
 
+    if (currentBrief && areBriefsEquivalent(currentBrief, brief)) {
+      return currentBrief;
+    }
+
     const { data, error } = await this.supabase
       .from("marketing_briefs")
       .insert({
@@ -248,6 +257,55 @@ export class BriefService {
     return data ? mapBriefGenerationJob(data) : null;
   }
 
+  async listBriefVersions(input: unknown): Promise<MarketingBrief[]> {
+    const { productId } = productIdSchema.parse(input);
+    await new ProductService(this.supabase).getProduct({ productId });
+
+    const { data, error } = await this.supabase
+      .from("marketing_briefs")
+      .select(
+        "id,product_id,version,tagline,value_props,personas,competitors,keyword_clusters,tone_profile,channels_ranked,content_calendar_seed,launch_date,provenance,created_at,updated_at",
+      )
+      .eq("product_id", productId)
+      .order("version", { ascending: false });
+
+    if (error) {
+      throw new BriefReadError(error.message);
+    }
+
+    return (data ?? []).map(mapMarketingBrief);
+  }
+
+  async setCurrentBriefVersion(input: unknown): Promise<MarketingBrief> {
+    const parsed = setCurrentBriefVersionSchema.parse(input);
+    await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
+
+    const { data, error } = await this.supabase
+      .from("marketing_briefs")
+      .select(
+        "id,product_id,version,tagline,value_props,personas,competitors,keyword_clusters,tone_profile,channels_ranked,content_calendar_seed,launch_date,provenance,created_at,updated_at",
+      )
+      .eq("product_id", parsed.productId)
+      .eq("id", parsed.briefId)
+      .single();
+
+    if (error) {
+      throw new BriefReadError(error.message);
+    }
+
+    const brief = mapMarketingBrief(data);
+    const { error: productError } = await this.supabase
+      .from("products")
+      .update({ current_marketing_brief_id: brief.id })
+      .eq("id", parsed.productId);
+
+    if (productError) {
+      throw new BriefEditError(productError.message);
+    }
+
+    return brief;
+  }
+
   async createEditedVersion(input: unknown): Promise<MarketingBrief> {
     const parsed = editMarketingBriefSchema.parse(input);
     await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
@@ -255,6 +313,24 @@ export class BriefService {
 
     if (!currentBrief) {
       throw new BriefEditError("No current Marketing Brief exists for this product.");
+    }
+
+    const editedComparable = {
+      tagline: parsed.tagline,
+      valueProps: parsed.valueProps,
+      personas: parsed.personas,
+      competitors: parsed.competitors,
+      keywordClusters: currentBrief.keywordClusters,
+      toneProfile: {
+        voice: parsed.toneVoice,
+        avoid: parsed.toneAvoid,
+      },
+      channelsRanked: currentBrief.channelsRanked,
+      contentCalendarSeed: currentBrief.contentCalendarSeed,
+    };
+
+    if (areBriefsEquivalent(currentBrief, editedComparable)) {
+      return currentBrief;
     }
 
     const nextVersion = currentBrief.version + 1;
@@ -353,6 +429,56 @@ function getProvenanceString(provenance: unknown, key: string) {
 
   const value = (provenance as Record<string, unknown>)[key];
   return typeof value === "string" ? value : null;
+}
+
+type ComparableBrief = Pick<
+  MarketingBrief,
+  | "tagline"
+  | "valueProps"
+  | "personas"
+  | "competitors"
+  | "keywordClusters"
+  | "toneProfile"
+  | "channelsRanked"
+  | "contentCalendarSeed"
+>;
+
+function areBriefsEquivalent(a: ComparableBrief, b: ComparableBrief) {
+  return canonicalizeBrief(a) === canonicalizeBrief(b);
+}
+
+function canonicalizeBrief(brief: ComparableBrief) {
+  return JSON.stringify({
+    tagline: normalizeString(brief.tagline),
+    valueProps: normalizeStringArray(brief.valueProps),
+    personas: normalizeStringArray(brief.personas),
+    competitors: normalizeStringArray(brief.competitors),
+    keywordClusters: brief.keywordClusters.map((cluster) => ({
+      name: normalizeString(cluster.name),
+      keywords: normalizeStringArray(cluster.keywords),
+    })),
+    toneProfile: {
+      voice: normalizeString(brief.toneProfile.voice),
+      avoid: normalizeStringArray(brief.toneProfile.avoid),
+    },
+    channelsRanked: brief.channelsRanked.map((channel) => ({
+      channel: normalizeString(channel.channel),
+      rationale: normalizeString(channel.rationale),
+    })),
+    contentCalendarSeed: brief.contentCalendarSeed.map((seed) => ({
+      title: normalizeString(seed.title),
+      format: normalizeString(seed.format),
+      rationale: normalizeString(seed.rationale),
+    })),
+  });
+}
+
+function normalizeString(value: string) {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function normalizeStringArray(values: string[]) {
+  return values.map(normalizeString).filter(Boolean);
 }
 
 export class BriefGenerationRequestError extends Error {

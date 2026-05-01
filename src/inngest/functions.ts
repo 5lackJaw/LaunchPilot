@@ -10,6 +10,7 @@ import { extractPageSignals } from "@/server/crawl/extract-page-signals";
 import { isWeeklyDigestEmailConfigured, sendWeeklyDigestEmail } from "@/server/email/weekly-digest-email";
 import { contentAssetSchema } from "@/server/schemas/content";
 import { marketingBriefSchema } from "@/server/schemas/brief";
+import type { MarketingBrief } from "@/server/schemas/brief";
 import { AnalyticsService, buildWeeklyDigest } from "@/server/services/analytics-service";
 import { captureWorkflowException, logWorkflowEvent } from "@/server/observability/workflow-logger";
 
@@ -83,7 +84,9 @@ export const briefGenerationWorkflow = inngest.createFunction(
       if (productResult.data.current_marketing_brief_id && crawlResult.data?.id) {
         const currentBriefResult = await supabase
           .from("marketing_briefs")
-          .select("id,version,provenance")
+          .select(
+            "id,product_id,version,tagline,value_props,personas,competitors,keyword_clusters,tone_profile,channels_ranked,content_calendar_seed,launch_date,provenance,created_at,updated_at",
+          )
           .eq("id", productResult.data.current_marketing_brief_id)
           .maybeSingle();
 
@@ -101,8 +104,8 @@ export const briefGenerationWorkflow = inngest.createFunction(
             ? (provenance as Record<string, unknown>).crawlResultId
             : null;
 
-        if (generator === "ai-router-v1" && crawlResultId === crawlResult.data.id) {
-          currentBriefAlreadyFresh = currentBriefResult.data;
+        if (currentBriefResult.data && generator === "ai-router-v1" && crawlResultId === crawlResult.data.id) {
+          currentBriefAlreadyFresh = mapWorkflowMarketingBrief(currentBriefResult.data);
         }
       }
 
@@ -225,7 +228,12 @@ export const briefGenerationWorkflow = inngest.createFunction(
       );
 
       const inserted = await step.run("persist-brief-version", async () => {
-        return insertMarketingBriefWithNextVersion({ supabase, productId, brief });
+        return insertMarketingBriefWithNextVersion({
+          supabase,
+          productId,
+          brief,
+          currentBrief: currentBriefAlreadyFresh,
+        });
       });
 
       await step.run("mark-current-brief", async () => {
@@ -780,7 +788,16 @@ async function insertMarketingBriefWithNextVersion(input: {
   supabase: ReturnType<typeof createSupabaseAdminClient>;
   productId: string;
   brief: GeneratedBrief;
+  currentBrief: MarketingBrief | null;
 }) {
+  if (input.currentBrief && areWorkflowBriefsEquivalent(input.currentBrief, input.brief)) {
+    return {
+      id: input.currentBrief.id,
+      version: input.currentBrief.version,
+      unchanged: true,
+    };
+  }
+
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -818,7 +835,7 @@ async function insertMarketingBriefWithNextVersion(input: {
       .single();
 
     if (!error) {
-      return data;
+      return { ...data, unchanged: false };
     }
 
     lastError = error;
@@ -830,4 +847,90 @@ async function insertMarketingBriefWithNextVersion(input: {
   throw lastError instanceof Error
     ? lastError
     : new Error("Marketing Brief version could not be allocated after retry.");
+}
+
+function mapWorkflowMarketingBrief(data: {
+  id: string;
+  product_id: string;
+  version: number;
+  tagline: string;
+  value_props: unknown;
+  personas: unknown;
+  competitors: unknown;
+  keyword_clusters: unknown;
+  tone_profile: unknown;
+  channels_ranked: unknown;
+  content_calendar_seed: unknown;
+  launch_date: string | null;
+  provenance: unknown;
+  created_at: string;
+  updated_at: string;
+}) {
+  return marketingBriefSchema.parse({
+    id: data.id,
+    productId: data.product_id,
+    version: data.version,
+    tagline: data.tagline,
+    valueProps: data.value_props,
+    personas: data.personas,
+    competitors: data.competitors,
+    keywordClusters: data.keyword_clusters,
+    toneProfile: data.tone_profile,
+    channelsRanked: data.channels_ranked,
+    contentCalendarSeed: data.content_calendar_seed,
+    launchDate: data.launch_date,
+    provenance: data.provenance,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  });
+}
+
+type ComparableWorkflowBrief = Pick<
+  MarketingBrief,
+  | "tagline"
+  | "valueProps"
+  | "personas"
+  | "competitors"
+  | "keywordClusters"
+  | "toneProfile"
+  | "channelsRanked"
+  | "contentCalendarSeed"
+>;
+
+function areWorkflowBriefsEquivalent(a: ComparableWorkflowBrief, b: ComparableWorkflowBrief) {
+  return canonicalizeWorkflowBrief(a) === canonicalizeWorkflowBrief(b);
+}
+
+function canonicalizeWorkflowBrief(brief: ComparableWorkflowBrief) {
+  return JSON.stringify({
+    tagline: normalizeWorkflowString(brief.tagline),
+    valueProps: normalizeWorkflowStringArray(brief.valueProps),
+    personas: normalizeWorkflowStringArray(brief.personas),
+    competitors: normalizeWorkflowStringArray(brief.competitors),
+    keywordClusters: brief.keywordClusters.map((cluster) => ({
+      name: normalizeWorkflowString(cluster.name),
+      keywords: normalizeWorkflowStringArray(cluster.keywords),
+    })),
+    toneProfile: {
+      voice: normalizeWorkflowString(brief.toneProfile.voice),
+      avoid: normalizeWorkflowStringArray(brief.toneProfile.avoid),
+    },
+    channelsRanked: brief.channelsRanked.map((channel) => ({
+      channel: normalizeWorkflowString(channel.channel),
+      rationale: normalizeWorkflowString(channel.rationale),
+    })),
+    contentCalendarSeed: brief.contentCalendarSeed.map((seed) => ({
+      title: normalizeWorkflowString(seed.title),
+      format: normalizeWorkflowString(seed.format),
+      rationale: normalizeWorkflowString(seed.rationale),
+    })),
+  });
+}
+
+function normalizeWorkflowString(value: string) {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function normalizeWorkflowStringArray(values: string[]) {
+  return values.map(normalizeWorkflowString).filter(Boolean);
 }
