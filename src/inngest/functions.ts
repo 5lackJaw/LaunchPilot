@@ -55,7 +55,7 @@ export const briefGenerationWorkflow = inngest.createFunction(
       });
 
       const inputs = await step.run("load-brief-inputs", async () => {
-      const [productResult, crawlResult, answersResult, versionResult] = await Promise.all([
+      const [productResult, crawlResult, answersResult] = await Promise.all([
         supabase.from("products").select("id,name,url,user_id,current_marketing_brief_id").eq("id", productId).single(),
         supabase
           .from("crawl_results")
@@ -65,7 +65,6 @@ export const briefGenerationWorkflow = inngest.createFunction(
           .limit(1)
           .maybeSingle(),
         supabase.from("interview_answers").select("question_id,answer").eq("product_id", productId),
-        supabase.from("marketing_briefs").select("version").eq("product_id", productId).order("version", { ascending: false }).limit(1),
       ]);
 
       if (productResult.error) {
@@ -78,10 +77,6 @@ export const briefGenerationWorkflow = inngest.createFunction(
 
       if (answersResult.error) {
         throw answersResult.error;
-      }
-
-      if (versionResult.error) {
-        throw versionResult.error;
       }
 
       let currentBriefAlreadyFresh = null;
@@ -115,7 +110,7 @@ export const briefGenerationWorkflow = inngest.createFunction(
         product: productResult.data,
         crawl: crawlResult.data,
         answers: answersResult.data,
-        nextVersion: (versionResult.data[0]?.version ?? 0) + 1,
+        nextVersion: 1,
         userId: productResult.data.user_id,
         currentBriefAlreadyFresh,
       };
@@ -230,30 +225,8 @@ export const briefGenerationWorkflow = inngest.createFunction(
       );
 
       const inserted = await step.run("persist-brief-version", async () => {
-      const { data, error } = await supabase
-        .from("marketing_briefs")
-        .insert({
-          product_id: productId,
-          version: brief.version,
-          tagline: brief.tagline,
-          value_props: brief.valueProps,
-          personas: brief.personas,
-          competitors: brief.competitors,
-          keyword_clusters: brief.keywordClusters,
-          tone_profile: brief.toneProfile,
-          channels_ranked: brief.channelsRanked,
-          content_calendar_seed: brief.contentCalendarSeed,
-          provenance: brief.provenance,
-        })
-        .select("id,version")
-        .single();
-
-      if (error) {
-        throw error;
-      }
-
-      return data;
-    });
+        return insertMarketingBriefWithNextVersion({ supabase, productId, brief });
+      });
 
       await step.run("mark-current-brief", async () => {
       const { error } = await supabase
@@ -800,3 +773,61 @@ export const weeklyDigestGenerationWorkflow = inngest.createFunction(
 );
 
 export const functions = [briefGenerationWorkflow, productCrawlPlaceholder, contentGenerationWorkflow, weeklyDigestGenerationWorkflow];
+
+type GeneratedBrief = Awaited<ReturnType<typeof synthesizeInitialBrief>>;
+
+async function insertMarketingBriefWithNextVersion(input: {
+  supabase: ReturnType<typeof createSupabaseAdminClient>;
+  productId: string;
+  brief: GeneratedBrief;
+}) {
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const { data: versionRows, error: versionError } = await input.supabase
+      .from("marketing_briefs")
+      .select("version")
+      .eq("product_id", input.productId)
+      .order("version", { ascending: false })
+      .limit(1);
+
+    if (versionError) {
+      throw versionError;
+    }
+
+    const nextVersion = (versionRows[0]?.version ?? 0) + 1;
+    const { data, error } = await input.supabase
+      .from("marketing_briefs")
+      .insert({
+        product_id: input.productId,
+        version: nextVersion,
+        tagline: input.brief.tagline,
+        value_props: input.brief.valueProps,
+        personas: input.brief.personas,
+        competitors: input.brief.competitors,
+        keyword_clusters: input.brief.keywordClusters,
+        tone_profile: input.brief.toneProfile,
+        channels_ranked: input.brief.channelsRanked,
+        content_calendar_seed: input.brief.contentCalendarSeed,
+        provenance: {
+          ...input.brief.provenance,
+          versionAllocatedAt: new Date().toISOString(),
+        },
+      })
+      .select("id,version")
+      .single();
+
+    if (!error) {
+      return data;
+    }
+
+    lastError = error;
+    if (error.code !== "23505") {
+      throw error;
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Marketing Brief version could not be allocated after retry.");
+}
