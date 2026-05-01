@@ -20,6 +20,89 @@ export type InitialBriefInputs = {
 export type BriefPersonaAnalysis = z.infer<typeof briefPersonaAnalysisSchema>;
 export type BriefKeywordAnalysis = z.infer<typeof briefKeywordAnalysisSchema>;
 
+const personaAnalysisJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    personas: { type: "array", minItems: 2, maxItems: 3, items: { type: "string" } },
+    painPoints: { type: "array", minItems: 3, maxItems: 6, items: { type: "string" } },
+    jobsToBeDone: { type: "array", minItems: 2, maxItems: 5, items: { type: "string" } },
+  },
+  required: ["personas", "painPoints", "jobsToBeDone"],
+};
+
+const keywordAnalysisJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    keywordClusters: {
+      type: "array",
+      minItems: 3,
+      maxItems: 6,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          name: { type: "string" },
+          intent: { type: "string", enum: ["informational", "commercial", "navigational"] },
+          keywords: { type: "array", minItems: 3, maxItems: 8, items: { type: "string" } },
+        },
+        required: ["name", "intent", "keywords"],
+      },
+    },
+  },
+  required: ["keywordClusters"],
+};
+
+const finalBriefJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    tagline: { type: "string" },
+    valueProps: { type: "array", minItems: 3, maxItems: 5, items: { type: "string" } },
+    competitors: { type: "array", minItems: 2, maxItems: 6, items: { type: "string" } },
+    toneProfile: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        voice: { type: "string" },
+        avoid: { type: "array", minItems: 3, maxItems: 8, items: { type: "string" } },
+      },
+      required: ["voice", "avoid"],
+    },
+    channelsRanked: {
+      type: "array",
+      minItems: 3,
+      maxItems: 5,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          channel: { type: "string" },
+          rationale: { type: "string" },
+        },
+        required: ["channel", "rationale"],
+      },
+    },
+    contentCalendarSeed: {
+      type: "array",
+      minItems: 5,
+      maxItems: 8,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          title: { type: "string" },
+          format: { type: "string" },
+          rationale: { type: "string" },
+        },
+        required: ["title", "format", "rationale"],
+      },
+    },
+  },
+  required: ["tagline", "valueProps", "competitors", "toneProfile", "channelsRanked", "contentCalendarSeed"],
+};
+
 const briefPersonaAnalysisSchema = z.object({
   personas: z.array(z.string().min(8)).min(2).max(3),
   painPoints: z.array(z.string().min(8)).min(3).max(6),
@@ -79,22 +162,25 @@ export async function generateBriefPersonaAnalysis(
     buildBriefInputBlock(inputs),
   ].join("\n\n");
 
-  const result = await aiRouter.generateText({
+  const { data } = await generateParsedJson({
     supabase: inputs.supabase,
     productId: inputs.product.id,
     userId: inputs.userId,
     taskClass: "brief_persona_analysis",
     system: buildBriefSystemPrompt(),
     prompt,
-    maxOutputTokens: 900,
+    maxOutputTokens: 1400,
     temperature: 0.3,
+    schema: briefPersonaAnalysisSchema,
+    responseJsonSchema: personaAnalysisJsonSchema,
+    label: "persona analysis",
     metadata: {
       stage: "persona_analysis",
       crawlResultId: inputs.crawl?.id ?? null,
     },
   });
 
-  return parseJsonResult(result.text, briefPersonaAnalysisSchema, "persona analysis");
+  return data;
 }
 
 export async function generateBriefKeywordAnalysis(input: {
@@ -111,7 +197,7 @@ export async function generateBriefKeywordAnalysis(input: {
     JSON.stringify(input.personaAnalysis, null, 2),
   ].join("\n\n");
 
-  const result = await aiRouter.generateText({
+  const { data } = await generateParsedJson({
     supabase: input.inputs.supabase,
     productId: input.inputs.product.id,
     userId: input.inputs.userId,
@@ -120,13 +206,16 @@ export async function generateBriefKeywordAnalysis(input: {
     prompt,
     maxOutputTokens: 1000,
     temperature: 0.25,
+    schema: briefKeywordAnalysisSchema,
+    responseJsonSchema: keywordAnalysisJsonSchema,
+    label: "keyword analysis",
     metadata: {
       stage: "keyword_analysis",
       crawlResultId: input.inputs.crawl?.id ?? null,
     },
   });
 
-  return parseJsonResult(result.text, briefKeywordAnalysisSchema, "keyword analysis");
+  return data;
 }
 
 export async function synthesizeInitialBrief(input: {
@@ -147,7 +236,7 @@ export async function synthesizeInitialBrief(input: {
     JSON.stringify(input.keywordAnalysis, null, 2),
   ].join("\n\n");
 
-  const result = await aiRouter.generateText({
+  const { data: finalBrief, result } = await generateParsedJson({
     supabase: input.inputs.supabase,
     productId: input.inputs.product.id,
     userId: input.inputs.userId,
@@ -156,12 +245,14 @@ export async function synthesizeInitialBrief(input: {
     prompt,
     maxOutputTokens: 2600,
     temperature: 0.35,
+    schema: finalBriefSchema,
+    responseJsonSchema: finalBriefJsonSchema,
+    label: "brief synthesis",
     metadata: {
       stage: "brief_synthesis",
       crawlResultId: input.inputs.crawl?.id ?? null,
     },
   });
-  const finalBrief = parseJsonResult(result.text, finalBriefSchema, "brief synthesis");
 
   return {
     version: input.inputs.nextVersion,
@@ -243,6 +334,73 @@ function buildBriefInputBlock(inputs: InitialBriefInputs) {
     "Interview answers:",
     JSON.stringify(answers, null, 2),
   ].join("\n");
+}
+
+async function generateParsedJson<T>(input: {
+  supabase: SupabaseClient;
+  productId: string;
+  userId?: string;
+  taskClass: "brief_persona_analysis" | "brief_keyword_analysis" | "brief_generation";
+  system: string;
+  prompt: string;
+  maxOutputTokens: number;
+  temperature: number;
+  schema: z.ZodType<T>;
+  responseJsonSchema: unknown;
+  label: string;
+  metadata: Record<string, unknown>;
+}) {
+  const result = await aiRouter.generateText({
+    supabase: input.supabase,
+    productId: input.productId,
+    userId: input.userId,
+    taskClass: input.taskClass,
+    system: input.system,
+    prompt: input.prompt,
+    maxOutputTokens: input.maxOutputTokens,
+    temperature: input.temperature,
+    responseMimeType: "application/json",
+    responseJsonSchema: input.responseJsonSchema,
+    metadata: input.metadata,
+  });
+
+  try {
+    return {
+      data: parseJsonResult(result.text, input.schema, input.label),
+      result,
+    };
+  } catch (error) {
+    if (!(error instanceof BriefAiParseError)) {
+      throw error;
+    }
+
+    const retry = await aiRouter.generateText({
+      supabase: input.supabase,
+      productId: input.productId,
+      userId: input.userId,
+      taskClass: input.taskClass,
+      system: input.system,
+      prompt: [
+        input.prompt,
+        "The previous response was invalid JSON and could not be parsed.",
+        "Return one complete JSON object only. Do not truncate strings. Do not include markdown.",
+      ].join("\n\n"),
+      maxOutputTokens: Math.ceil(input.maxOutputTokens * 1.5),
+      temperature: 0.1,
+      responseMimeType: "application/json",
+      responseJsonSchema: input.responseJsonSchema,
+      metadata: {
+        ...input.metadata,
+        retryReason: "invalid_json",
+        previousParseError: error.message,
+      },
+    });
+
+    return {
+      data: parseJsonResult(retry.text, input.schema, input.label),
+      result: retry,
+    };
+  }
 }
 
 function parseJsonResult<T>(

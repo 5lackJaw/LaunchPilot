@@ -53,6 +53,8 @@ export type AiGenerateTextInput = AiCallContext & {
   temperature?: number;
   serviceTier?: AiServiceTier;
   allowFallback?: boolean;
+  responseMimeType?: "application/json" | "text/plain";
+  responseJsonSchema?: unknown;
   metadata?: Record<string, unknown>;
 };
 

@@ -304,6 +304,8 @@ export class AiRouter {
       config: {
         maxOutputTokens: input.maxOutputTokens,
         temperature: input.temperature,
+        responseMimeType: input.responseMimeType,
+        responseJsonSchema: input.responseJsonSchema,
       },
     });
 
