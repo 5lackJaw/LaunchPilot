@@ -28,8 +28,11 @@ Target stack:
 - Supabase Postgres/Auth/Storage/Realtime
 - Inngest for durable workflows
 - Railway for long-running workers
-- Anthropic Claude Sonnet 4.6 for generation and analysis
+- Provider-agnostic AI router for all model calls
+- Anthropic Claude Sonnet 4.6 for premium customer-visible generation
+- Gemini 2.5 Flash for high-volume extraction, scoring, summarization, validation, and guardrails
 - OpenAI text-embedding-3-small for clustering/search
+- Current best OpenAI text model, currently GPT-5.5, as premium fallback only
 - Resend for transactional email and weekly digest
 - Stripe for subscriptions and billing
 - Plausible, optionally GA4 + GSC, for analytics

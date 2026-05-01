@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { env } from "@/config/env";
 import {
   connectionProviderInputSchema,
   externalConnectionSchema,
@@ -7,6 +8,11 @@ import type {
   ConnectionProvider,
   ExternalConnection,
 } from "@/server/schemas/connections";
+import {
+  isGhostLegacyEnvConfigured,
+  isWebflowLegacyEnvConfigured,
+  isWordPressLegacyEnvConfigured,
+} from "@/server/publishing/legacy-env-fallback";
 import { AuthService } from "@/server/services/auth-service";
 
 const connectionSelect =
@@ -26,10 +32,7 @@ const providerCatalog: Array<{
     category: "Publishing",
     description: "Create reviewed content drafts in Ghost.",
     defaultScopes: ["content:write"],
-    envConfigured: () =>
-      Boolean(
-        process.env.GHOST_ADMIN_API_URL && process.env.GHOST_ADMIN_API_KEY,
-      ),
+    envConfigured: isGhostLegacyEnvConfigured,
   },
   {
     provider: "wordpress",
@@ -37,12 +40,7 @@ const providerCatalog: Array<{
     category: "Publishing",
     description: "Create reviewed content drafts in WordPress.",
     defaultScopes: ["posts:write"],
-    envConfigured: () =>
-      Boolean(
-        process.env.WORDPRESS_API_URL &&
-        process.env.WORDPRESS_USERNAME &&
-        process.env.WORDPRESS_APPLICATION_PASSWORD,
-      ),
+    envConfigured: isWordPressLegacyEnvConfigured,
   },
   {
     provider: "webflow",
@@ -50,10 +48,7 @@ const providerCatalog: Array<{
     category: "Publishing",
     description: "Create staged CMS items for reviewed content.",
     defaultScopes: ["cms:write"],
-    envConfigured: () =>
-      Boolean(
-        process.env.WEBFLOW_API_TOKEN && process.env.WEBFLOW_COLLECTION_ID,
-      ),
+    envConfigured: isWebflowLegacyEnvConfigured,
   },
   {
     provider: "reddit",
@@ -93,10 +88,7 @@ const providerCatalog: Array<{
     category: "Email",
     description: "Send weekly digest email and transactional notices.",
     defaultScopes: ["email:send"],
-    envConfigured: () =>
-      Boolean(
-        process.env.RESEND_API_KEY && process.env.WEEKLY_DIGEST_FROM_EMAIL,
-      ),
+    envConfigured: () => Boolean(env.RESEND_API_KEY && env.WEEKLY_DIGEST_FROM_EMAIL),
   },
   {
     provider: "outreach_email",

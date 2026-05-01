@@ -245,7 +245,7 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
                 </Button>
               </form>
               {!isGhostPublishingConfigured() ? (
-                <p className="text-xs text-muted-foreground">Set GHOST_ADMIN_URL and GHOST_ADMIN_API_KEY to enable Ghost publishing.</p>
+                <p className="text-xs text-muted-foreground">Connect Ghost in Settings before publishing drafts.</p>
               ) : null}
               <form action={publishContentAssetToWordPressAction}>
                 <input type="hidden" name="assetId" value={data.asset.id} />
@@ -259,7 +259,7 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
                 </Button>
               </form>
               {!isWordPressPublishingConfigured() ? (
-                <p className="text-xs text-muted-foreground">Set WORDPRESS_SITE_URL, WORDPRESS_USERNAME, and WORDPRESS_APPLICATION_PASSWORD to enable WordPress publishing.</p>
+                <p className="text-xs text-muted-foreground">Connect WordPress in Settings before publishing drafts.</p>
               ) : null}
               <form action={publishContentAssetToWebflowAction}>
                 <input type="hidden" name="assetId" value={data.asset.id} />
@@ -273,7 +273,7 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
                 </Button>
               </form>
               {!isWebflowPublishingConfigured() ? (
-                <p className="text-xs text-muted-foreground">Set WEBFLOW_API_TOKEN and WEBFLOW_COLLECTION_ID to enable Webflow publishing.</p>
+                <p className="text-xs text-muted-foreground">Connect Webflow in Settings before publishing drafts.</p>
               ) : null}
             </CardContent>
             {data.asset.publishedUrl ? (

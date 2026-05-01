@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { env } from "@/config/env";
 import type { ContentAsset } from "@/server/schemas/content";
+import { isGhostLegacyEnvConfigured } from "@/server/publishing/legacy-env-fallback";
 import { markdownToBasicHtml } from "@/server/publishing/markdown-to-html";
 
 type GhostPostResponse = {
@@ -15,12 +16,12 @@ type GhostPostResponse = {
 };
 
 export function isGhostPublishingConfigured() {
-  return Boolean(env.GHOST_ADMIN_URL && env.GHOST_ADMIN_API_KEY);
+  return isGhostLegacyEnvConfigured();
 }
 
 export async function publishContentAssetToGhost(asset: ContentAsset) {
-  if (!env.GHOST_ADMIN_URL || !env.GHOST_ADMIN_API_KEY) {
-    throw new GhostPublishError("Ghost publishing is not configured.");
+  if (!isGhostLegacyEnvConfigured() || !env.GHOST_ADMIN_URL || !env.GHOST_ADMIN_API_KEY) {
+    throw new GhostPublishError("Ghost publishing requires a connected user account.");
   }
 
   if (!asset.bodyMd.trim()) {

@@ -16,9 +16,9 @@ pnpm-debug.log*
 .next-dev.log
 .next-dev.err.log
 supabase/.temp
-
-
+README_FOR_AI_DEVELOPERS.md
 mockup_html
 docs
 graphics
-README_FOR_AI_DEVELOPERS.md
+
+

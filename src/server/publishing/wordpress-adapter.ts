@@ -1,5 +1,6 @@
 import { env } from "@/config/env";
 import type { ContentAsset } from "@/server/schemas/content";
+import { isWordPressLegacyEnvConfigured } from "@/server/publishing/legacy-env-fallback";
 import { markdownToBasicHtml } from "@/server/publishing/markdown-to-html";
 
 type WordPressPostResponse = {
@@ -11,12 +12,17 @@ type WordPressPostResponse = {
 };
 
 export function isWordPressPublishingConfigured() {
-  return Boolean(env.WORDPRESS_SITE_URL && env.WORDPRESS_USERNAME && env.WORDPRESS_APPLICATION_PASSWORD);
+  return isWordPressLegacyEnvConfigured();
 }
 
 export async function publishContentAssetToWordPress(asset: ContentAsset) {
-  if (!env.WORDPRESS_SITE_URL || !env.WORDPRESS_USERNAME || !env.WORDPRESS_APPLICATION_PASSWORD) {
-    throw new WordPressPublishError("WordPress publishing is not configured.");
+  if (
+    !isWordPressLegacyEnvConfigured() ||
+    !env.WORDPRESS_SITE_URL ||
+    !env.WORDPRESS_USERNAME ||
+    !env.WORDPRESS_APPLICATION_PASSWORD
+  ) {
+    throw new WordPressPublishError("WordPress publishing requires a connected user account.");
   }
 
   if (!asset.bodyMd.trim()) {

@@ -1,5 +1,6 @@
 import { env } from "@/config/env";
 import type { ContentAsset } from "@/server/schemas/content";
+import { isWebflowLegacyEnvConfigured } from "@/server/publishing/legacy-env-fallback";
 import { markdownToBasicHtml } from "@/server/publishing/markdown-to-html";
 
 type WebflowItemResponse = {
@@ -16,12 +17,12 @@ type WebflowItemResponse = {
 };
 
 export function isWebflowPublishingConfigured() {
-  return Boolean(env.WEBFLOW_API_TOKEN && env.WEBFLOW_COLLECTION_ID);
+  return isWebflowLegacyEnvConfigured();
 }
 
 export async function publishContentAssetToWebflow(asset: ContentAsset) {
-  if (!env.WEBFLOW_API_TOKEN || !env.WEBFLOW_COLLECTION_ID) {
-    throw new WebflowPublishError("Webflow publishing is not configured.");
+  if (!isWebflowLegacyEnvConfigured() || !env.WEBFLOW_API_TOKEN || !env.WEBFLOW_COLLECTION_ID) {
+    throw new WebflowPublishError("Webflow publishing requires a connected user account.");
   }
 
   if (!asset.bodyMd.trim()) {
