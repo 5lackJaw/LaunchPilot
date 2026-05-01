@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useMemo, useTransition } from "react";
 import {
   batchApproveInboxItemsAction,
@@ -642,10 +643,10 @@ export function InboxClient({
           </h1>
 
           {product && (
-            <button type="button" style={{
+            <Link href="/settings/products" style={{
               background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: 8,
               padding: "6px 10px 6px 9px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
-              fontFamily: "var(--font-sans)", color: "var(--lp-text)",
+              fontFamily: "var(--font-sans)", color: "var(--lp-text)", textDecoration: "none",
             }}>
               <span style={{
                 width: 6, height: 6, background: "#2DD4A0", borderRadius: "50%", flexShrink: 0,
@@ -654,8 +655,8 @@ export function InboxClient({
               <span style={{ fontSize: "12.5px", fontWeight: 500, color: "var(--lp-text)", maxWidth: 140, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {product.name}
               </span>
-              <span style={{ color: "var(--lp-muted)", fontSize: 10 }}>⌄</span>
-            </button>
+              <span style={{ color: "var(--lp-muted)", fontSize: 10 }}>manage</span>
+            </Link>
           )}
         </div>
 
@@ -675,7 +676,7 @@ export function InboxClient({
       }}>
         <FilterChip f="all" active={filter === "all"} count={activeItems.length} onClick={() => setFilter("all")} />
         <Sep />
-        {(["article", "reply", "listing", "outreach", "copy"] as const).map((f) => (
+        {FILTERS.filter((f) => f !== "all").map((f) => (
           <FilterChip
             key={f} f={f} active={filter === f}
             count={activeItems.filter((i) => i.type === f).length}

@@ -12,6 +12,7 @@ import {
   Inbox,
   LayoutDashboard,
   Plug,
+  Boxes,
   Search,
   Send,
   Settings,
@@ -48,6 +49,7 @@ const navGroups = [
   {
     label: "Product",
     items: [
+      { href: "/settings/products",      label: "Products",        icon: Boxes },
       { href: "/marketing-brief",       label: "Marketing Brief", icon: FileEdit },
       { href: "/settings/connections",  label: "Connections",     icon: Plug },
       { href: "/settings/billing",      label: "Billing",         icon: CreditCard },

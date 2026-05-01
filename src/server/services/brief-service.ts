@@ -28,11 +28,12 @@ export class BriefService {
     const { productId } = productIdSchema.parse(input);
     await new ProductService(this.supabase).getProduct({ productId });
 
+    const user = await new AuthService(this.supabase).requireUser();
     const [productResult, crawlResult, answersResult, versionResult] = await Promise.all([
       this.supabase.from("products").select("id,name,url").eq("id", productId).single(),
       this.supabase
         .from("crawl_results")
-        .select("id,page_title,meta_description,h1,created_at")
+        .select("id,page_title,meta_description,h1,extracted_signals,created_at")
         .eq("product_id", productId)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -57,11 +58,13 @@ export class BriefService {
       throw new BriefGenerationRequestError(versionResult.error.message);
     }
 
-    const brief = buildInitialBrief({
+    const brief = await buildInitialBrief({
+      supabase: this.supabase,
       product: productResult.data,
       crawl: crawlResult.data,
       answers: answersResult.data,
       nextVersion: (versionResult.data[0]?.version ?? 0) + 1,
+      userId: user.id,
     });
 
     const { data, error } = await this.supabase

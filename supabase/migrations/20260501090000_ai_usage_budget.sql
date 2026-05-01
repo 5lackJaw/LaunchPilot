@@ -32,6 +32,12 @@ create policy "ai_usage_events_select_own"
   to authenticated
   using (user_id = (select auth.uid()));
 
+create policy "ai_usage_events_insert_own"
+  on public.ai_usage_events
+  for insert
+  to authenticated
+  with check (user_id = (select auth.uid()));
+
 create table if not exists public.ai_budget_ledger (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users(id) on delete cascade,
@@ -67,3 +73,16 @@ create policy "ai_budget_ledger_select_own"
   for select
   to authenticated
   using (user_id = (select auth.uid()));
+
+create policy "ai_budget_ledger_insert_own"
+  on public.ai_budget_ledger
+  for insert
+  to authenticated
+  with check (user_id = (select auth.uid()));
+
+create policy "ai_budget_ledger_update_own"
+  on public.ai_budget_ledger
+  for update
+  to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));

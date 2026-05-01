@@ -2,11 +2,13 @@ import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { generateMarketingBriefNowAction, saveMarketingBriefAction } from "@/app/(app)/marketing-brief/actions";
+import { crawlProductForBriefAction, generateMarketingBriefNowAction } from "@/app/(app)/marketing-brief/actions";
 import type { MarketingBrief } from "@/server/schemas/brief";
+import type { CrawlJob, CrawlResult } from "@/server/schemas/crawl";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { BriefReadError, BriefService } from "@/server/services/brief-service";
+import { CrawlReadError, CrawlService } from "@/server/services/crawl-service";
 import { ProductReadError, ProductService } from "@/server/services/product-service";
 
 type PageProps = {
@@ -15,6 +17,8 @@ type PageProps = {
     saveError?: string;
     generated?: string;
     generationError?: string;
+    crawlStarted?: string;
+    crawlError?: string;
   }>;
 };
 
@@ -37,6 +41,7 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
       <AppTopbar
         title="Marketing Brief"
         eyebrow={eyebrow}
+        productName={data.product?.name}
         actions={
           data.brief ? (
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -44,10 +49,18 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
                 v{data.brief.version}
               </span>
               {data.product && (
+                <form action={crawlProductForBriefAction}>
+                  <input type="hidden" name="productId" value={data.product.id} />
+                  <button type="submit" style={{ fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "var(--lp-text)", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "6px", padding: "5px 12px", cursor: "pointer" }}>
+                    Crawl site
+                  </button>
+                </form>
+              )}
+              {data.product && (
                 <form action={generateMarketingBriefNowAction}>
                   <input type="hidden" name="productId" value={data.product.id} />
                   <button type="submit" style={{ fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "#fff", background: "var(--lp-purple)", border: "none", borderRadius: "6px", padding: "5px 12px", cursor: "pointer" }}>
-                    Regenerate
+                    Regenerate from latest crawl
                   </button>
                 </form>
               )}
@@ -81,6 +94,18 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
             <Alert variant="destructive">
               <AlertTitle>Generation failed</AlertTitle>
               <AlertDescription>{params.generationError}</AlertDescription>
+            </Alert>
+          )}
+          {params.crawlStarted && (
+            <Alert>
+              <AlertTitle>Crawl started</AlertTitle>
+              <AlertDescription>LaunchBeacon is fetching the product URL. Regenerate the brief after the crawl finishes.</AlertDescription>
+            </Alert>
+          )}
+          {params.crawlError && (
+            <Alert variant="destructive">
+              <AlertTitle>Crawl failed to start</AlertTitle>
+              <AlertDescription>{params.crawlError}</AlertDescription>
             </Alert>
           )}
 
@@ -129,7 +154,8 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
               <SideMeta label="Keyword clusters" value={data.brief ? String(data.brief.keywordClusters.length) : "0"} />
               <SideMeta label="Value props" value={data.brief ? String(data.brief.valueProps.length) : "0"} />
               <SideMeta label="Last updated" value={data.brief ? formatDate(data.brief.updatedAt) : "Not generated"} />
-              <SideMeta label="Next auto-refresh" value="May 15" />
+              <SideMeta label="Latest crawl" value={data.crawlResult ? formatDate(data.crawlResult.createdAt) : "No crawl result"} />
+              <SideMeta label="Crawl status" value={data.crawlJob ? `${data.crawlJob.status} (${data.crawlJob.progressPercent}%)` : "Not started"} />
             </div>
           </div>
 
@@ -138,10 +164,15 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "14px" }}>Actions</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {data.brief && data.product && (
-                <form action={saveMarketingBriefAction}>
-                  <input type="hidden" name="productId" value={data.brief.productId} />
+                <Link href={`/onboarding/brief?productId=${data.product.id}`} style={{ width: "100%", fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "var(--lp-text)", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "6px", padding: "7px 12px", cursor: "pointer", textAlign: "left", textDecoration: "none" }}>
+                  Edit brief fields
+                </Link>
+              )}
+              {data.product && (
+                <form action={crawlProductForBriefAction}>
+                  <input type="hidden" name="productId" value={data.product.id} />
                   <button type="submit" style={{ width: "100%", fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "var(--lp-text)", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "6px", padding: "7px 12px", cursor: "pointer", textAlign: "left" }}>
-                    Edit brief
+                    Crawl product URL
                   </button>
                 </form>
               )}
@@ -149,9 +180,14 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
                 <form action={generateMarketingBriefNowAction}>
                   <input type="hidden" name="productId" value={data.product.id} />
                   <button type="submit" style={{ width: "100%", fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "var(--lp-purple-l, #A99DF9)", background: "var(--lp-purple-dim)", border: "1px solid var(--lp-border)", borderRadius: "6px", padding: "7px 12px", cursor: "pointer", textAlign: "left" }}>
-                    Regenerate brief
+                    Regenerate from latest crawl
                   </button>
                 </form>
+              )}
+              {data.product && (
+                <Link href="/settings/products" style={{ width: "100%", fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "var(--lp-muted2)", background: "transparent", border: "1px solid var(--lp-border)", borderRadius: "6px", padding: "7px 12px", cursor: "pointer", textAlign: "left", textDecoration: "none" }}>
+                  Manage product
+                </Link>
               )}
             </div>
           </div>
@@ -160,20 +196,19 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
           <div style={{ padding: "20px 22px" }}>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "14px" }}>Version history</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {[
-                { v: "v4", date: "Apr 27", desc: "Freelancer persona refined" },
-                { v: "v3", date: "Apr 15", desc: "Competitor list updated" },
-                { v: "v2", date: "Apr 8", desc: "Tone voice tightened" },
-                { v: "v1", date: "Apr 1", desc: "Initial generation" },
-              ].map((item) => (
-                <div key={item.v} style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-purple)", background: "var(--lp-purple-dim)", border: "1px solid rgba(124,111,247,0.2)", borderRadius: "4px", padding: "1px 6px", flexShrink: 0, marginTop: "1px" }}>{item.v}</span>
+              {data.brief ? (
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-purple)", background: "var(--lp-purple-dim)", border: "1px solid rgba(124,111,247,0.2)", borderRadius: "4px", padding: "1px 6px", flexShrink: 0, marginTop: "1px" }}>v{data.brief.version}</span>
                   <div>
-                    <div style={{ fontFamily: "var(--font-sans)", fontSize: "12px", color: "var(--lp-text)" }}>{item.desc}</div>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", marginTop: "2px" }}>{item.date}</div>
+                    <div style={{ fontFamily: "var(--font-sans)", fontSize: "12px", color: "var(--lp-text)" }}>Current brief version</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", marginTop: "2px" }}>{formatDate(data.brief.updatedAt)}</div>
                   </div>
                 </div>
-              ))}
+              ) : (
+                <div style={{ fontFamily: "var(--font-sans)", fontSize: "12px", color: "var(--lp-muted)", lineHeight: 1.5 }}>
+                  No brief versions yet.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -357,6 +392,8 @@ function BriefShell({ errorTitle, error, destructive }: { errorTitle: string; er
 async function loadMarketingBriefData(): Promise<{
   product: Product | null;
   brief: MarketingBrief | null;
+  crawlJob: CrawlJob | null;
+  crawlResult: CrawlResult | null;
   error: string | null;
   authRequired: boolean;
 }> {
@@ -365,24 +402,32 @@ async function loadMarketingBriefData(): Promise<{
     const product = await new ProductService(supabase).getLatestProduct();
 
     if (!product) {
-      return { product: null, brief: null, error: null, authRequired: false };
+      return { product: null, brief: null, crawlJob: null, crawlResult: null, error: null, authRequired: false };
     }
 
-    const brief = await new BriefService(supabase).getCurrentBrief({ productId: product.id });
-    return { product, brief, error: null, authRequired: false };
+    const crawlService = new CrawlService(supabase);
+    const [brief, crawlJob, crawlResult] = await Promise.all([
+      new BriefService(supabase).getCurrentBrief({ productId: product.id }),
+      crawlService.getLatestCrawlJob({ productId: product.id }),
+      crawlService.getLatestCrawlResult({ productId: product.id }),
+    ]);
+
+    return { product, brief, crawlJob, crawlResult, error: null, authRequired: false };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { product: null, brief: null, error: null, authRequired: true };
+      return { product: null, brief: null, crawlJob: null, crawlResult: null, error: null, authRequired: true };
     }
 
-    if (error instanceof ProductReadError || error instanceof BriefReadError) {
-      return { product: null, brief: null, error: error.message, authRequired: false };
+    if (error instanceof ProductReadError || error instanceof BriefReadError || error instanceof CrawlReadError) {
+      return { product: null, brief: null, crawlJob: null, crawlResult: null, error: error.message, authRequired: false };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
       return {
         product: null,
         brief: null,
+        crawlJob: null,
+        crawlResult: null,
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
         authRequired: false,
       };

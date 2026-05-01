@@ -6,6 +6,8 @@ import { ZodError } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { BriefEditError, BriefGenerationRequestError, BriefService } from "@/server/services/brief-service";
+import { CrawlService, CrawlStartError } from "@/server/services/crawl-service";
+import { PlanLimitError } from "@/server/services/plan-service";
 import { ProductReadError } from "@/server/services/product-service";
 
 export async function generateMarketingBriefNowAction(formData: FormData) {
@@ -49,6 +51,24 @@ export async function saveMarketingBriefAction(formData: FormData) {
   } catch (error) {
     const message = toBriefEditMessage(error);
     redirectTo = `/marketing-brief?saveError=${encodeURIComponent(message)}`;
+  }
+
+  redirect(redirectTo);
+}
+
+export async function crawlProductForBriefAction(formData: FormData) {
+  const productId = String(formData.get("productId") ?? "");
+  let redirectTo = "/marketing-brief";
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const job = await new CrawlService(supabase).startCrawl({ productId });
+
+    revalidatePath("/marketing-brief");
+    redirectTo = `/marketing-brief?crawlStarted=1&crawlJobId=${job.id}`;
+  } catch (error) {
+    const message = toCrawlMessage(error);
+    redirectTo = `/marketing-brief?crawlError=${encodeURIComponent(message)}`;
   }
 
   redirect(redirectTo);
@@ -100,6 +120,34 @@ function toBriefEditMessage(error: unknown) {
   }
 
   return "Marketing Brief could not be saved.";
+}
+
+function toCrawlMessage(error: unknown) {
+  if (error instanceof ZodError) {
+    return "Missing or invalid product ID.";
+  }
+
+  if (error instanceof AuthRequiredError) {
+    return error.message;
+  }
+
+  if (error instanceof ProductReadError || error instanceof CrawlStartError || error instanceof PlanLimitError) {
+    return error.message;
+  }
+
+  if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
+    return "Supabase is not configured yet.";
+  }
+
+  if (error instanceof Error && error.message.toLowerCase().includes("inngest")) {
+    return "The crawl job could not be sent to the workflow runner. Check Inngest settings.";
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Crawl could not be started.";
 }
 
 function splitLines(value: FormDataEntryValue | null) {

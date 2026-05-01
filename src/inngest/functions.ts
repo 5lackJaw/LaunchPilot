@@ -1,6 +1,10 @@
 import { inngest } from "@/inngest/client";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { buildInitialBrief } from "@/server/brief/build-initial-brief";
+import {
+  generateBriefKeywordAnalysis,
+  generateBriefPersonaAnalysis,
+  synthesizeInitialBrief,
+} from "@/server/brief/build-initial-brief";
 import { buildArticleDraft } from "@/server/content/build-article-draft";
 import { extractPageSignals } from "@/server/crawl/extract-page-signals";
 import { isWeeklyDigestEmailConfigured, sendWeeklyDigestEmail } from "@/server/email/weekly-digest-email";
@@ -20,7 +24,7 @@ export const briefGenerationWorkflow = inngest.createFunction(
     try {
       const inputs = await step.run("load-brief-inputs", async () => {
       const [productResult, crawlResult, answersResult, versionResult] = await Promise.all([
-        supabase.from("products").select("id,name,url").eq("id", productId).single(),
+        supabase.from("products").select("id,name,url,user_id").eq("id", productId).single(),
         supabase
           .from("crawl_results")
           .select("id,page_title,meta_description,h1,extracted_signals,created_at")
@@ -53,10 +57,19 @@ export const briefGenerationWorkflow = inngest.createFunction(
         crawl: crawlResult.data,
         answers: answersResult.data,
         nextVersion: (versionResult.data[0]?.version ?? 0) + 1,
+        userId: productResult.data.user_id,
       };
     });
 
-      const brief = await step.run("compose-brief", async () => buildInitialBrief(inputs));
+      const personaAnalysis = await step.run("generate-personas-jtbd", async () =>
+        generateBriefPersonaAnalysis({ ...inputs, supabase }),
+      );
+      const keywordAnalysis = await step.run("generate-keyword-clusters", async () =>
+        generateBriefKeywordAnalysis({ inputs: { ...inputs, supabase }, personaAnalysis }),
+      );
+      const brief = await step.run("synthesize-brief", async () =>
+        synthesizeInitialBrief({ inputs: { ...inputs, supabase }, personaAnalysis, keywordAnalysis }),
+      );
 
       const inserted = await step.run("persist-brief-version", async () => {
       const { data, error } = await supabase

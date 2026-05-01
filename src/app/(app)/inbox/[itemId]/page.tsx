@@ -276,22 +276,6 @@ function EventLog({ events }: { events: InboxItemEvent[] }) {
   );
 }
 
-function RawPayload({ item }: { item: InboxItem }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Payload</CardTitle>
-        <CardDescription>Structured source data used by this review surface.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <pre className="max-h-80 overflow-auto rounded-md border bg-secondary p-3 font-mono text-xs text-muted-foreground">
-          {JSON.stringify(item.payload, null, 2)}
-        </pre>
-      </CardContent>
-    </Card>
-  );
-}
-
 function Field({ label, value }: { label: string; value?: string }) {
   return (
     <div>

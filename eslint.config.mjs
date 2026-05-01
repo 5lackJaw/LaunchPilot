@@ -6,10 +6,12 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   globalIgnores([
+    ".claude/**",
     ".next/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "test-openai-key.js",
   ]),
 ]);
 

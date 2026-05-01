@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 export function AppTopbar({
   title,
   eyebrow,
@@ -39,15 +41,17 @@ export function AppTopbar({
           </h1>
         </div>
         {productName ? (
-          <div
+          <Link
+            href="/settings/products"
             className="inline-flex shrink-0 items-center gap-2"
             style={{
               background: "var(--lp-bg3)",
               border: "1px solid var(--lp-border)",
               borderRadius: "8px",
               padding: "6px 10px 6px 9px",
+              textDecoration: "none",
             }}
-            aria-label="Current product"
+            aria-label="Manage active product"
           >
             <span
               className="shrink-0"
@@ -66,7 +70,10 @@ export function AppTopbar({
             >
               {productName}
             </span>
-          </div>
+            <span className="font-mono text-[10px]" style={{ color: "var(--lp-muted)" }} aria-hidden="true">
+              manage
+            </span>
+          </Link>
         ) : null}
       </div>
       {actions ? (

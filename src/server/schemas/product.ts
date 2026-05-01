@@ -5,6 +5,10 @@ export const createProductSchema = z.object({
   url: z.string().trim().url("Enter a full URL, including https://").max(2048, "URL is too long."),
 });
 
+export const updateProductSchema = createProductSchema.extend({
+  productId: z.string().uuid(),
+});
+
 export const productSchema = z.object({
   id: z.string().uuid(),
   userId: z.string().uuid(),
@@ -20,4 +24,5 @@ export const productIdSchema = z.object({
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
+export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export type Product = z.infer<typeof productSchema>;
