@@ -8,7 +8,7 @@ import { AuthRequiredError } from "@/server/services/auth-service";
 import { BriefEditError, BriefGenerationBlockedError, BriefGenerationRequestError, BriefService } from "@/server/services/brief-service";
 import { CrawlService, CrawlStartBlockedError, CrawlStartError } from "@/server/services/crawl-service";
 import { PlanLimitError } from "@/server/services/plan-service";
-import { ProductReadError } from "@/server/services/product-service";
+import { ProductReadError, ProductService } from "@/server/services/product-service";
 
 export async function generateMarketingBriefNowAction(formData: FormData) {
   const productId = String(formData.get("productId") ?? "");
@@ -78,6 +78,52 @@ export async function crawlProductForBriefAction(formData: FormData) {
   }
 
   redirect(redirectTo);
+}
+
+export async function cancelCrawlForBriefAction(formData: FormData) {
+  const productId = String(formData.get("productId") ?? "");
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    await new ProductService(supabase).getProduct({ productId });
+    await supabase
+      .from("crawl_jobs")
+      .update({
+        status: "failed",
+        error_message: "Cancelled by user.",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("product_id", productId)
+      .in("status", ["queued", "running"]);
+    revalidatePath("/marketing-brief");
+  } catch {
+    // Keep cancellation best-effort; the workflow runner remains server-authoritative.
+  }
+
+  redirect("/marketing-brief");
+}
+
+export async function cancelBriefGenerationForBriefAction(formData: FormData) {
+  const productId = String(formData.get("productId") ?? "");
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    await new ProductService(supabase).getProduct({ productId });
+    await supabase
+      .from("brief_generation_jobs")
+      .update({
+        status: "failed",
+        error_message: "Cancelled by user.",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("product_id", productId)
+      .in("status", ["queued", "running"]);
+    revalidatePath("/marketing-brief");
+  } catch {
+    // Keep cancellation best-effort; the workflow runner remains server-authoritative.
+  }
+
+  redirect("/marketing-brief");
 }
 
 function toBriefGenerationMessage(error: unknown) {
