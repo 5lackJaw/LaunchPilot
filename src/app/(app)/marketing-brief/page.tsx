@@ -1,12 +1,16 @@
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AppTopbar } from "@/components/layout/app-topbar";
+import { BriefGenerationWorkflowStatus, CrawlWorkflowStatus } from "@/components/product-workflow-status";
+import { WorkflowStatusRefresh } from "@/components/workflow-status-refresh";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { crawlProductForBriefAction, generateMarketingBriefNowAction } from "@/app/(app)/marketing-brief/actions";
+import type { BriefGenerationJob } from "@/server/schemas/brief-generation-job";
 import type { MarketingBrief } from "@/server/schemas/brief";
 import type { CrawlJob, CrawlResult } from "@/server/schemas/crawl";
 import type { Product } from "@/server/schemas/product";
-import { AuthRequiredError } from "@/server/services/auth-service";
+import { AuthRequiredError, AuthService } from "@/server/services/auth-service";
+import { isInternalAdmin } from "@/server/services/admin-service";
 import { BriefReadError, BriefService } from "@/server/services/brief-service";
 import { CrawlReadError, CrawlService } from "@/server/services/crawl-service";
 import { ProductReadError, ProductService } from "@/server/services/product-service";
@@ -16,6 +20,7 @@ type PageProps = {
     saved?: string;
     saveError?: string;
     generated?: string;
+    generationStarted?: string;
     generationError?: string;
     crawlStarted?: string;
     crawlError?: string;
@@ -35,6 +40,8 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
   }
 
   const eyebrow = data.product ? `Product intelligence / ${data.product.name}` : "Product intelligence";
+  const crawlInFlight = data.crawlJob?.status === "queued" || data.crawlJob?.status === "running";
+  const briefGenerationInFlight = data.briefGenerationJob?.status === "queued" || data.briefGenerationJob?.status === "running";
 
   return (
     <main style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
@@ -51,16 +58,16 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
               {data.product && (
                 <form action={crawlProductForBriefAction}>
                   <input type="hidden" name="productId" value={data.product.id} />
-                  <button type="submit" style={{ fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "var(--lp-text)", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "6px", padding: "5px 12px", cursor: "pointer" }}>
-                    Crawl site
+                  <button type="submit" disabled={crawlInFlight} style={{ fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "var(--lp-text)", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "6px", padding: "5px 12px", cursor: crawlInFlight ? "not-allowed" : "pointer", opacity: crawlInFlight ? 0.55 : 1 }}>
+                    {crawlInFlight ? "Crawling" : "Crawl site"}
                   </button>
                 </form>
               )}
               {data.product && (
                 <form action={generateMarketingBriefNowAction}>
                   <input type="hidden" name="productId" value={data.product.id} />
-                  <button type="submit" style={{ fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "#fff", background: "var(--lp-purple)", border: "none", borderRadius: "6px", padding: "5px 12px", cursor: "pointer" }}>
-                    Regenerate from latest crawl
+                  <button type="submit" disabled={briefGenerationInFlight} style={{ fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "#fff", background: "var(--lp-purple)", border: "none", borderRadius: "6px", padding: "5px 12px", cursor: briefGenerationInFlight ? "not-allowed" : "pointer", opacity: briefGenerationInFlight ? 0.55 : 1 }}>
+                    {briefGenerationInFlight ? "Generating" : "Regenerate from latest crawl"}
                   </button>
                 </form>
               )}
@@ -72,6 +79,7 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
       <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 320px", overflow: "hidden" }}>
         {/* LEFT COLUMN */}
         <div style={{ overflowY: "auto", padding: "22px 28px 40px", display: "flex", flexDirection: "column", gap: "22px" }}>
+          <WorkflowStatusRefresh enabled={crawlInFlight || briefGenerationInFlight} />
           {params.saved && (
             <Alert>
               <AlertTitle>Marketing Brief saved</AlertTitle>
@@ -82,6 +90,12 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
             <Alert>
               <AlertTitle>Marketing Brief generated</AlertTitle>
               <AlertDescription>Your brief is ready. Review it below and head to SEO to start planning content.</AlertDescription>
+            </Alert>
+          )}
+          {params.generationStarted && (
+            <Alert>
+              <AlertTitle>Marketing Brief generation started</AlertTitle>
+              <AlertDescription>LaunchBeacon is generating the brief. Status updates appear below while the workflow runs.</AlertDescription>
             </Alert>
           )}
           {params.saveError && (
@@ -99,7 +113,7 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
           {params.crawlStarted && (
             <Alert>
               <AlertTitle>Crawl started</AlertTitle>
-              <AlertDescription>LaunchBeacon is fetching the product URL. Regenerate the brief after the crawl finishes.</AlertDescription>
+              <AlertDescription>LaunchBeacon is fetching the product URL. Status updates appear below while the workflow runs.</AlertDescription>
             </Alert>
           )}
           {params.crawlError && (
@@ -142,6 +156,13 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
           {data.product && data.brief && (
             <BriefContent product={data.product} brief={data.brief} />
           )}
+
+          {data.product ? (
+            <div style={{ display: "grid", gap: "14px" }}>
+              <CrawlWorkflowStatus crawlJob={data.crawlJob} />
+              <BriefGenerationWorkflowStatus job={data.briefGenerationJob} />
+            </div>
+          ) : null}
         </div>
 
         {/* RIGHT COLUMN */}
@@ -171,19 +192,36 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
               {data.product && (
                 <form action={crawlProductForBriefAction}>
                   <input type="hidden" name="productId" value={data.product.id} />
-                  <button type="submit" style={{ width: "100%", fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "var(--lp-text)", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "6px", padding: "7px 12px", cursor: "pointer", textAlign: "left" }}>
-                    Crawl product URL
+                  {data.isAdmin ? (
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontFamily: "var(--font-sans)", fontSize: "12px", color: "var(--lp-muted)", marginBottom: "7px" }}>
+                      <input name="adminOverride" value="1" type="checkbox" />
+                      Testing mode
+                    </label>
+                  ) : null}
+                  <button type="submit" disabled={crawlInFlight} style={{ width: "100%", fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "var(--lp-text)", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "6px", padding: "7px 12px", cursor: crawlInFlight ? "not-allowed" : "pointer", textAlign: "left", opacity: crawlInFlight ? 0.55 : 1 }}>
+                    {crawlInFlight ? "Crawl in progress" : "Crawl product URL"}
                   </button>
                 </form>
               )}
               {data.product && (
                 <form action={generateMarketingBriefNowAction}>
                   <input type="hidden" name="productId" value={data.product.id} />
-                  <button type="submit" style={{ width: "100%", fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "var(--lp-purple-l, #A99DF9)", background: "var(--lp-purple-dim)", border: "1px solid var(--lp-border)", borderRadius: "6px", padding: "7px 12px", cursor: "pointer", textAlign: "left" }}>
-                    Regenerate from latest crawl
+                  {data.isAdmin ? (
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontFamily: "var(--font-sans)", fontSize: "12px", color: "var(--lp-muted)", marginBottom: "7px" }}>
+                      <input name="adminOverride" value="1" type="checkbox" />
+                      Testing mode
+                    </label>
+                  ) : null}
+                  <button type="submit" disabled={briefGenerationInFlight} style={{ width: "100%", fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "var(--lp-purple-l, #A99DF9)", background: "var(--lp-purple-dim)", border: "1px solid var(--lp-border)", borderRadius: "6px", padding: "7px 12px", cursor: briefGenerationInFlight ? "not-allowed" : "pointer", textAlign: "left", opacity: briefGenerationInFlight ? 0.55 : 1 }}>
+                    {briefGenerationInFlight ? "Generation in progress" : "Regenerate from latest crawl"}
                   </button>
                 </form>
               )}
+              {data.isAdmin ? (
+                <div style={{ fontFamily: "var(--font-sans)", fontSize: "12px", color: "var(--lp-amber)", lineHeight: 1.5 }}>
+                  Testing mode is enabled for this account. Limits can be bypassed from admin-only actions.
+                </div>
+              ) : null}
               {data.product && (
                 <Link href="/settings/products" style={{ width: "100%", fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "var(--lp-muted2)", background: "transparent", border: "1px solid var(--lp-border)", borderRadius: "6px", padding: "7px 12px", cursor: "pointer", textAlign: "left", textDecoration: "none" }}>
                   Manage product
@@ -394,32 +432,37 @@ async function loadMarketingBriefData(): Promise<{
   brief: MarketingBrief | null;
   crawlJob: CrawlJob | null;
   crawlResult: CrawlResult | null;
+  briefGenerationJob: BriefGenerationJob | null;
+  isAdmin: boolean;
   error: string | null;
   authRequired: boolean;
 }> {
   try {
     const supabase = await createSupabaseServerClient();
+    const user = await new AuthService(supabase).requireUser();
     const product = await new ProductService(supabase).getLatestProduct();
 
     if (!product) {
-      return { product: null, brief: null, crawlJob: null, crawlResult: null, error: null, authRequired: false };
+      return { product: null, brief: null, crawlJob: null, crawlResult: null, briefGenerationJob: null, isAdmin: isInternalAdmin(user), error: null, authRequired: false };
     }
 
     const crawlService = new CrawlService(supabase);
-    const [brief, crawlJob, crawlResult] = await Promise.all([
-      new BriefService(supabase).getCurrentBrief({ productId: product.id }),
+    const briefService = new BriefService(supabase);
+    const [brief, crawlJob, crawlResult, briefGenerationJob] = await Promise.all([
+      briefService.getCurrentBrief({ productId: product.id }),
       crawlService.getLatestCrawlJob({ productId: product.id }),
       crawlService.getLatestCrawlResult({ productId: product.id }),
+      briefService.getLatestGenerationJob({ productId: product.id }),
     ]);
 
-    return { product, brief, crawlJob, crawlResult, error: null, authRequired: false };
+    return { product, brief, crawlJob, crawlResult, briefGenerationJob, isAdmin: isInternalAdmin(user), error: null, authRequired: false };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { product: null, brief: null, crawlJob: null, crawlResult: null, error: null, authRequired: true };
+      return { product: null, brief: null, crawlJob: null, crawlResult: null, briefGenerationJob: null, isAdmin: false, error: null, authRequired: true };
     }
 
     if (error instanceof ProductReadError || error instanceof BriefReadError || error instanceof CrawlReadError) {
-      return { product: null, brief: null, crawlJob: null, crawlResult: null, error: error.message, authRequired: false };
+      return { product: null, brief: null, crawlJob: null, crawlResult: null, briefGenerationJob: null, isAdmin: false, error: error.message, authRequired: false };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
@@ -428,6 +471,8 @@ async function loadMarketingBriefData(): Promise<{
         brief: null,
         crawlJob: null,
         crawlResult: null,
+        briefGenerationJob: null,
+        isAdmin: false,
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
         authRequired: false,
       };

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthRequiredError } from "@/server/services/auth-service";
-import { BriefEditError, BriefService } from "@/server/services/brief-service";
+import { BriefEditError, BriefGenerationBlockedError, BriefService } from "@/server/services/brief-service";
 import { ProductReadError } from "@/server/services/product-service";
 
 export async function requestBriefGenerationAction(formData: FormData) {
@@ -12,10 +12,13 @@ export async function requestBriefGenerationAction(formData: FormData) {
 
   try {
     const supabase = await createSupabaseServerClient();
-    await new BriefService(supabase).requestGeneration({ productId });
+    await new BriefService(supabase).requestGeneration({
+      productId,
+      adminOverride: formData.get("adminOverride") === "1",
+    });
   } catch (error) {
     const message = toBriefRequestMessage(error);
-    redirect(`/onboarding/interview?productId=${encodeURIComponent(productId)}&briefError=${encodeURIComponent(message)}`);
+    redirect(`/onboarding/brief?productId=${encodeURIComponent(productId)}&requestError=${encodeURIComponent(message)}`);
   }
 
   redirect(`/onboarding/brief?productId=${encodeURIComponent(productId)}&requested=1`);
@@ -52,7 +55,7 @@ function toBriefRequestMessage(error: unknown) {
     return error.message;
   }
 
-  if (error instanceof ProductReadError) {
+  if (error instanceof ProductReadError || error instanceof BriefGenerationBlockedError) {
     return error.message;
   }
 

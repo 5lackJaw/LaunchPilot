@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthRequiredError } from "@/server/services/auth-service";
-import { CrawlService, CrawlStartError } from "@/server/services/crawl-service";
+import { CrawlService, CrawlStartBlockedError, CrawlStartError } from "@/server/services/crawl-service";
 import { PlanLimitError } from "@/server/services/plan-service";
 import {
   DuplicateProductError,
@@ -87,7 +87,10 @@ export async function crawlProductFromSettingsAction(formData: FormData) {
 
   try {
     const supabase = await createSupabaseServerClient();
-    const job = await new CrawlService(supabase).startCrawl({ productId });
+    const job = await new CrawlService(supabase).startCrawl({
+      productId,
+      adminOverride: formData.get("adminOverride") === "1",
+    });
 
     revalidateProductPaths();
     redirectTo = `/settings/products?crawlStarted=1&productId=${job.productId}&crawlJobId=${job.id}`;
@@ -146,6 +149,7 @@ function toProductMessage(error: unknown) {
     error instanceof ProductUpdateError ||
     error instanceof ProductDeleteError ||
     error instanceof CrawlStartError ||
+    error instanceof CrawlStartBlockedError ||
     error instanceof PlanLimitError
   ) {
     return error.message;

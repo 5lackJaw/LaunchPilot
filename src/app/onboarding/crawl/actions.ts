@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthRequiredError } from "@/server/services/auth-service";
-import { CrawlStartError, CrawlService } from "@/server/services/crawl-service";
+import { CrawlStartBlockedError, CrawlStartError, CrawlService } from "@/server/services/crawl-service";
 import { PlanLimitError } from "@/server/services/plan-service";
 import { DuplicateProductError, ProductCreateError, ProductService } from "@/server/services/product-service";
 
@@ -93,7 +93,10 @@ export async function startCrawlAction(
 
   try {
     const supabase = await createSupabaseServerClient();
-    const job = await new CrawlService(supabase).startCrawl({ productId });
+    const job = await new CrawlService(supabase).startCrawl({
+      productId,
+      adminOverride: formData.get("adminOverride") === "1",
+    });
 
     redirect(`/onboarding/crawl?productId=${job.productId}&crawlJobId=${job.id}`);
   } catch (error) {
@@ -115,7 +118,7 @@ export async function startCrawlAction(
       };
     }
 
-    if (error instanceof CrawlStartError) {
+    if (error instanceof CrawlStartError || error instanceof CrawlStartBlockedError) {
       return {
         status: "error",
         message: error.message,

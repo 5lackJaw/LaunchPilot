@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
-import { CheckCircle2, Circle, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CrawlWorkflowStatus } from "@/components/product-workflow-status";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { CrawlJob, CrawlResult } from "@/server/schemas/crawl";
 import type { Product } from "@/server/schemas/product";
-import { AuthRequiredError } from "@/server/services/auth-service";
+import { AuthRequiredError, AuthService } from "@/server/services/auth-service";
+import { isInternalAdmin } from "@/server/services/admin-service";
 import { CrawlReadError, CrawlService } from "@/server/services/crawl-service";
 import { ProductReadError, ProductService } from "@/server/services/product-service";
 import { CrawlStatusRefresh } from "@/app/onboarding/crawl/crawl-status-refresh";
@@ -43,7 +45,7 @@ export default async function OnboardingCrawlPage({ searchParams }: PageProps) {
               LP
             </div>
             <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Onboarding</p>
+              <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">Product setup</p>
               <h1 className="font-serif text-2xl italic">Create product</h1>
             </div>
           </div>
@@ -74,31 +76,31 @@ export default async function OnboardingCrawlPage({ searchParams }: PageProps) {
 
             {!params.productId && data.product ? (
               <Alert>
-                <AlertTitle>Resume onboarding</AlertTitle>
-                <AlertDescription>LaunchBeacon found an existing product and loaded its current crawl state.</AlertDescription>
+                <AlertTitle>Product setup loaded</AlertTitle>
+                <AlertDescription>LaunchBeacon found an existing product and loaded its current setup state.</AlertDescription>
               </Alert>
             ) : null}
 
             {data?.error ? (
               <Alert variant="destructive">
-                <AlertTitle>Onboarding state could not be loaded</AlertTitle>
+                <AlertTitle>Product setup state could not be loaded</AlertTitle>
                 <AlertDescription>{data.error}</AlertDescription>
               </Alert>
             ) : null}
 
-            {data?.product ? <CrawlPanel product={data.product} crawlJob={data.crawlJob} crawlResult={data.crawlResult} /> : <ProductCreatePanel />}
+            {data?.product ? <CrawlPanel product={data.product} crawlJob={data.crawlJob} crawlResult={data.crawlResult} isAdmin={data.isAdmin} /> : <ProductCreatePanel />}
             {data.products.length ? <ExistingProductsPanel products={data.products} activeProductId={data.product?.id ?? null} /> : null}
           </div>
 
           <Card>
             <CardHeader>
               <CardTitle>What happens next</CardTitle>
-              <CardDescription>LaunchBeacon keeps product ownership and crawl state server-side.</CardDescription>
+              <CardDescription>LaunchBeacon keeps product ownership and workflow state server-side.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
               <p>The product is created with onboarding status.</p>
-              <p>The crawl workflow will attach extracted signals to this product.</p>
-              <p>Generated briefs and later assets will reference this product ID for tenant isolation.</p>
+              <p>The crawl workflow attaches extracted signals to this product.</p>
+              <p>The interview and Marketing Brief use those signals to prepare the app workspace.</p>
             </CardContent>
           </Card>
         </section>
@@ -155,10 +157,12 @@ function CrawlPanel({
   product,
   crawlJob,
   crawlResult,
+  isAdmin,
 }: {
   product: Product;
   crawlJob: CrawlJob | null;
   crawlResult: CrawlResult | null;
+  isAdmin: boolean;
 }) {
   const crawlInFlight = crawlJob?.status === "queued" || crawlJob?.status === "running";
 
@@ -176,9 +180,9 @@ function CrawlPanel({
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        <StartCrawlForm productId={product.id} disabled={crawlInFlight} />
+        <StartCrawlForm productId={product.id} disabled={crawlInFlight} isAdmin={isAdmin} />
         <CrawlStatusRefresh enabled={crawlInFlight} />
-        {crawlJob ? <CrawlProgress crawlJob={crawlJob} /> : <p className="text-sm text-muted-foreground">No crawl job exists yet.</p>}
+        <CrawlWorkflowStatus crawlJob={crawlJob} />
         {crawlResult ? <CrawlResultPanel crawlResult={crawlResult} /> : null}
         {crawlResult ? (
           <Button asChild>
@@ -232,62 +236,24 @@ function ResultRow({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-function CrawlProgress({ crawlJob }: { crawlJob: CrawlJob }) {
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="h-2 overflow-hidden rounded-full bg-secondary">
-        <div className="h-full rounded-full bg-primary" style={{ width: `${crawlJob.progressPercent}%` }} />
-      </div>
-      <div className="flex items-center justify-between font-mono text-xs text-muted-foreground">
-        <span>{crawlJob.progressPercent}%</span>
-        <span>Updated {new Date(crawlJob.updatedAt).toLocaleString()}</span>
-      </div>
-      <div className="flex flex-col gap-2">
-        {crawlJob.steps.map((step) => (
-          <div key={step.label} className="flex items-center gap-2 rounded-md border bg-secondary px-3 py-2 text-sm">
-            <StepIcon status={step.status} />
-            <span className="flex-1">{step.label}</span>
-            <span className="font-mono text-[10px] uppercase text-muted-foreground">{step.status}</span>
-          </div>
-        ))}
-      </div>
-      {crawlJob.errorMessage ? <p className="text-sm text-destructive">{crawlJob.errorMessage}</p> : null}
-    </div>
-  );
-}
-
-function StepIcon({ status }: { status: CrawlJob["steps"][number]["status"] }) {
-  if (status === "completed") {
-    return <CheckCircle2 className="text-accent" />;
-  }
-
-  if (status === "failed") {
-    return <XCircle className="text-destructive" />;
-  }
-
-  if (status === "running") {
-    return <Loader2 className="animate-spin text-primary" />;
-  }
-
-  return <Circle className="text-muted-foreground" />;
-}
-
 async function loadCrawlPageData(productId?: string): Promise<{
   products: Product[];
   product: Product | null;
   crawlJob: CrawlJob | null;
   crawlResult: CrawlResult | null;
+  isAdmin: boolean;
   error: string | null;
 }> {
   try {
     const supabase = await createSupabaseServerClient();
+    const user = await new AuthService(supabase).requireUser();
     const productService = new ProductService(supabase);
     const crawlService = new CrawlService(supabase);
     const products = await productService.listProducts();
     const selectedProduct = productId ? await productService.getProduct({ productId }) : products[0] ?? null;
 
     if (!selectedProduct) {
-      return { products, product: null, crawlJob: null, crawlResult: null, error: null };
+      return { products, product: null, crawlJob: null, crawlResult: null, isAdmin: isInternalAdmin(user), error: null };
     }
 
     const [crawlJob, crawlResult] = await Promise.all([
@@ -295,14 +261,14 @@ async function loadCrawlPageData(productId?: string): Promise<{
       crawlService.getLatestCrawlResult({ productId: selectedProduct.id }),
     ]);
 
-    return { products, product: selectedProduct, crawlJob, crawlResult, error: null };
+    return { products, product: selectedProduct, crawlJob, crawlResult, isAdmin: isInternalAdmin(user), error: null };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { products: [], product: null, crawlJob: null, crawlResult: null, error: error.message };
+      return { products: [], product: null, crawlJob: null, crawlResult: null, isAdmin: false, error: error.message };
     }
 
     if (error instanceof ProductReadError || error instanceof CrawlReadError) {
-      return { products: [], product: null, crawlJob: null, crawlResult: null, error: error.message };
+      return { products: [], product: null, crawlJob: null, crawlResult: null, isAdmin: false, error: error.message };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
@@ -311,6 +277,7 @@ async function loadCrawlPageData(productId?: string): Promise<{
         product: null,
         crawlJob: null,
         crawlResult: null,
+        isAdmin: false,
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
       };
     }

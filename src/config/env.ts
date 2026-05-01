@@ -26,6 +26,8 @@ const envSchema = z.object({
   OPENAI_API_KEY: optionalNonEmptyString,
   INNGEST_EVENT_KEY: optionalNonEmptyString,
   INNGEST_SIGNING_KEY: optionalNonEmptyString,
+  INTERNAL_ADMIN_USER_IDS: optionalNonEmptyString,
+  INTERNAL_ADMIN_EMAILS: optionalNonEmptyString,
   ENABLE_DEV_INBOX_SEED: optionalNonEmptyString,
   ENABLE_LEGACY_PUBLISHING_ENV_FALLBACK: optionalNonEmptyString,
   GHOST_ADMIN_URL: optionalUrl,

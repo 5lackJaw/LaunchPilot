@@ -10,7 +10,15 @@ const initialState: CrawlStartFormState = {
   status: "idle",
 };
 
-export function StartCrawlForm({ productId, disabled }: { productId: string; disabled?: boolean }) {
+export function StartCrawlForm({
+  productId,
+  disabled,
+  isAdmin,
+}: {
+  productId: string;
+  disabled?: boolean;
+  isAdmin?: boolean;
+}) {
   const [state, formAction] = useActionState(startCrawlAction, initialState);
 
   return (
@@ -22,6 +30,12 @@ export function StartCrawlForm({ productId, disabled }: { productId: string; dis
         </Alert>
       ) : null}
       <input type="hidden" name="productId" value={productId} />
+      {isAdmin ? (
+        <label className="flex items-center gap-2 rounded-md border bg-secondary px-3 py-2 text-sm">
+          <input name="adminOverride" value="1" type="checkbox" className="size-4" />
+          <span>Testing mode: bypass crawl cooldown and plan limits</span>
+        </label>
+      ) : null}
       <SubmitButton disabled={disabled} disabledLabel="Crawl in progress" />
     </form>
   );

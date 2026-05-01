@@ -3,6 +3,7 @@ import { inngest } from "@/inngest/client";
 import { AuthService } from "@/server/services/auth-service";
 import { crawlJobSchema, crawlResultSchema } from "@/server/schemas/crawl";
 import { productIdSchema } from "@/server/schemas/product";
+import { shouldUseAdminOverride } from "@/server/services/admin-service";
 import { PlanService } from "@/server/services/plan-service";
 import { ProductService } from "@/server/services/product-service";
 
@@ -17,8 +18,19 @@ export class CrawlService {
 
   async startCrawl(input: unknown) {
     const { productId } = productIdSchema.parse(input);
+    const requestedAdminOverride =
+      typeof input === "object" &&
+      input !== null &&
+      "adminOverride" in input &&
+      Boolean((input as { adminOverride?: unknown }).adminOverride);
+    const user = await new AuthService(this.supabase).requireUser();
+    const adminOverride = shouldUseAdminOverride({ user, requested: requestedAdminOverride });
+
     await new ProductService(this.supabase).getProduct({ productId });
-    await new PlanService(this.supabase).assertCanStartCrawl({ productId });
+    await this.assertCrawlCanStart({ productId, adminOverride });
+    if (!adminOverride) {
+      await new PlanService(this.supabase).assertCanStartCrawl({ productId });
+    }
 
     const { data, error } = await this.supabase
       .from("crawl_jobs")
@@ -34,6 +46,10 @@ export class CrawlService {
       .single();
 
     if (error) {
+      if (error.code === "23505") {
+        throw new CrawlStartBlockedError("A crawl is already running for this product.");
+      }
+
       throw new CrawlStartError(error.message);
     }
 
@@ -104,6 +120,42 @@ export class CrawlService {
 
     return data ? mapCrawlResult(data) : null;
   }
+
+  private async assertCrawlCanStart(input: {
+    productId: string;
+    adminOverride: boolean;
+  }) {
+    const inFlight = await this.getLatestCrawlJob({ productId: input.productId });
+
+    if (inFlight?.status === "queued" || inFlight?.status === "running") {
+      throw new CrawlStartBlockedError("A crawl is already running for this product.");
+    }
+
+    if (input.adminOverride) {
+      return;
+    }
+
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await this.supabase
+      .from("crawl_jobs")
+      .select("id,created_at")
+      .eq("product_id", input.productId)
+      .neq("status", "failed")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw new CrawlStartError(error.message);
+    }
+
+    if (data) {
+      throw new CrawlStartBlockedError(
+        `Product crawl is limited to once every 24 hours. Next crawl is available ${formatNextAvailable(data.created_at)}.`,
+      );
+    }
+  }
 }
 
 export class CrawlStartError extends Error {
@@ -118,6 +170,22 @@ export class CrawlReadError extends Error {
     super(`Crawl status could not be loaded: ${message}`);
     this.name = "CrawlReadError";
   }
+}
+
+export class CrawlStartBlockedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CrawlStartBlockedError";
+  }
+}
+
+function formatNextAvailable(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(new Date(value).getTime() + 24 * 60 * 60 * 1000));
 }
 
 function mapCrawlJob(data: {

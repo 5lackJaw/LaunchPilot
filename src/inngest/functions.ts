@@ -18,10 +18,42 @@ export const briefGenerationWorkflow = inngest.createFunction(
   async ({ event, step }) => {
     const workflow = "brief_generation";
     const productId = event.data.productId as string;
+    const briefGenerationJobId = event.data.briefGenerationJobId as string | undefined;
     const supabase = createSupabaseAdminClient();
-    logWorkflowEvent({ workflow, status: "started", eventName: event.name, productId });
+    logWorkflowEvent({ workflow, status: "started", eventName: event.name, productId, entityId: briefGenerationJobId });
 
     try {
+      if (!briefGenerationJobId) {
+        logWorkflowEvent({
+          workflow,
+          status: "failed",
+          eventName: event.name,
+          productId,
+          metadata: { reason: "missing_brief_generation_job_id" },
+        });
+        return null;
+      }
+
+      await step.run("mark-brief-generation-running", async () => {
+        const { error } = await supabase
+          .from("brief_generation_jobs")
+          .update({
+            status: "running",
+            progress_percent: 10,
+            steps: [
+              { label: "Load product context", status: "running" },
+              { label: "Analyze audience", status: "pending" },
+              { label: "Cluster keywords", status: "pending" },
+              { label: "Write Marketing Brief", status: "pending" },
+            ],
+          })
+          .eq("id", briefGenerationJobId);
+
+        if (error) {
+          throw error;
+        }
+      });
+
       const inputs = await step.run("load-brief-inputs", async () => {
       const [productResult, crawlResult, answersResult, versionResult] = await Promise.all([
         supabase.from("products").select("id,name,url,user_id,current_marketing_brief_id").eq("id", productId).single(),
@@ -89,26 +121,110 @@ export const briefGenerationWorkflow = inngest.createFunction(
       };
     });
 
-      if (inputs.currentBriefAlreadyFresh) {
+      const currentBriefAlreadyFresh = inputs.currentBriefAlreadyFresh;
+
+      if (currentBriefAlreadyFresh) {
+        await step.run("mark-brief-generation-skipped-complete", async () => {
+          const { error } = await supabase
+            .from("brief_generation_jobs")
+            .update({
+              status: "completed",
+              progress_percent: 100,
+              marketing_brief_id: currentBriefAlreadyFresh.id,
+              completed_at: new Date().toISOString(),
+              steps: [
+                { label: "Load product context", status: "completed" },
+                { label: "Analyze audience", status: "completed" },
+                { label: "Cluster keywords", status: "completed" },
+                { label: "Write Marketing Brief", status: "completed" },
+              ],
+            })
+            .eq("id", briefGenerationJobId);
+
+          if (error) {
+            throw error;
+          }
+        });
+
         logWorkflowEvent({
           workflow,
           status: "succeeded",
           eventName: event.name,
           productId,
+          entityId: briefGenerationJobId,
           metadata: {
             skipped: "current_brief_already_uses_latest_crawl",
-            briefVersion: inputs.currentBriefAlreadyFresh.version,
+            briefVersion: currentBriefAlreadyFresh.version,
           },
         });
-        return inputs.currentBriefAlreadyFresh;
+        return currentBriefAlreadyFresh;
       }
+
+      await step.run("mark-audience-analysis-running", async () => {
+        const { error } = await supabase
+          .from("brief_generation_jobs")
+          .update({
+            progress_percent: 25,
+            steps: [
+              { label: "Load product context", status: "completed" },
+              { label: "Analyze audience", status: "running" },
+              { label: "Cluster keywords", status: "pending" },
+              { label: "Write Marketing Brief", status: "pending" },
+            ],
+          })
+          .eq("id", briefGenerationJobId);
+
+        if (error) {
+          throw error;
+        }
+      });
 
       const personaAnalysis = await step.run("generate-personas-jtbd", async () =>
         generateBriefPersonaAnalysis({ ...inputs, supabase }),
       );
+
+      await step.run("mark-keyword-analysis-running", async () => {
+        const { error } = await supabase
+          .from("brief_generation_jobs")
+          .update({
+            progress_percent: 55,
+            steps: [
+              { label: "Load product context", status: "completed" },
+              { label: "Analyze audience", status: "completed" },
+              { label: "Cluster keywords", status: "running" },
+              { label: "Write Marketing Brief", status: "pending" },
+            ],
+          })
+          .eq("id", briefGenerationJobId);
+
+        if (error) {
+          throw error;
+        }
+      });
+
       const keywordAnalysis = await step.run("generate-keyword-clusters", async () =>
         generateBriefKeywordAnalysis({ inputs: { ...inputs, supabase }, personaAnalysis }),
       );
+
+      await step.run("mark-brief-synthesis-running", async () => {
+        const { error } = await supabase
+          .from("brief_generation_jobs")
+          .update({
+            progress_percent: 80,
+            steps: [
+              { label: "Load product context", status: "completed" },
+              { label: "Analyze audience", status: "completed" },
+              { label: "Cluster keywords", status: "completed" },
+              { label: "Write Marketing Brief", status: "running" },
+            ],
+          })
+          .eq("id", briefGenerationJobId);
+
+        if (error) {
+          throw error;
+        }
+      });
+
       const brief = await step.run("synthesize-brief", async () =>
         synthesizeInitialBrief({ inputs: { ...inputs, supabase }, personaAnalysis, keywordAnalysis }),
       );
@@ -155,8 +271,46 @@ export const briefGenerationWorkflow = inngest.createFunction(
         return inserted;
       });
 
-      logWorkflowEvent({ workflow, status: "succeeded", eventName: event.name, productId, metadata: { briefVersion: inserted.version } });
+      await step.run("mark-brief-generation-complete", async () => {
+        const { error } = await supabase
+          .from("brief_generation_jobs")
+          .update({
+            status: "completed",
+            progress_percent: 100,
+            marketing_brief_id: inserted.id,
+            completed_at: new Date().toISOString(),
+            steps: [
+              { label: "Load product context", status: "completed" },
+              { label: "Analyze audience", status: "completed" },
+              { label: "Cluster keywords", status: "completed" },
+              { label: "Write Marketing Brief", status: "completed" },
+            ],
+          })
+          .eq("id", briefGenerationJobId);
+
+        if (error) {
+          throw error;
+        }
+      });
+
+      logWorkflowEvent({ workflow, status: "succeeded", eventName: event.name, productId, entityId: briefGenerationJobId, metadata: { briefVersion: inserted.version } });
     } catch (error) {
+      if (briefGenerationJobId) {
+        await supabase
+          .from("brief_generation_jobs")
+          .update({
+            status: "failed",
+            error_message: error instanceof Error ? error.message.slice(0, 500) : "Unknown brief generation failure.",
+            steps: [
+              { label: "Load product context", status: "completed" },
+              { label: "Analyze audience", status: "failed" },
+              { label: "Cluster keywords", status: "pending" },
+              { label: "Write Marketing Brief", status: "pending" },
+            ],
+          })
+          .eq("id", briefGenerationJobId);
+      }
+
       captureWorkflowException(error, { workflow, eventName: event.name, productId });
       throw error;
     }

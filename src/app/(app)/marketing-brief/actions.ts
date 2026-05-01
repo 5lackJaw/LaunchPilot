@@ -5,8 +5,8 @@ import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthRequiredError } from "@/server/services/auth-service";
-import { BriefEditError, BriefGenerationRequestError, BriefService } from "@/server/services/brief-service";
-import { CrawlService, CrawlStartError } from "@/server/services/crawl-service";
+import { BriefEditError, BriefGenerationBlockedError, BriefGenerationRequestError, BriefService } from "@/server/services/brief-service";
+import { CrawlService, CrawlStartBlockedError, CrawlStartError } from "@/server/services/crawl-service";
 import { PlanLimitError } from "@/server/services/plan-service";
 import { ProductReadError } from "@/server/services/product-service";
 
@@ -16,11 +16,14 @@ export async function generateMarketingBriefNowAction(formData: FormData) {
 
   try {
     const supabase = await createSupabaseServerClient();
-    await new BriefService(supabase).generateInitialBriefNow({ productId });
+    await new BriefService(supabase).requestGeneration({
+      productId,
+      adminOverride: formData.get("adminOverride") === "1",
+    });
 
     revalidatePath("/marketing-brief");
     revalidatePath("/seo");
-    redirectTo = "/marketing-brief?generated=1";
+    redirectTo = "/marketing-brief?generationStarted=1";
   } catch (error) {
     const message = toBriefGenerationMessage(error);
     redirectTo = `/marketing-brief?generationError=${encodeURIComponent(message)}`;
@@ -62,7 +65,10 @@ export async function crawlProductForBriefAction(formData: FormData) {
 
   try {
     const supabase = await createSupabaseServerClient();
-    const job = await new CrawlService(supabase).startCrawl({ productId });
+    const job = await new CrawlService(supabase).startCrawl({
+      productId,
+      adminOverride: formData.get("adminOverride") === "1",
+    });
 
     revalidatePath("/marketing-brief");
     redirectTo = `/marketing-brief?crawlStarted=1&crawlJobId=${job.id}`;
@@ -83,7 +89,7 @@ function toBriefGenerationMessage(error: unknown) {
     return error.message;
   }
 
-  if (error instanceof ProductReadError || error instanceof BriefGenerationRequestError) {
+  if (error instanceof ProductReadError || error instanceof BriefGenerationRequestError || error instanceof BriefGenerationBlockedError) {
     return error.message;
   }
 
@@ -131,7 +137,7 @@ function toCrawlMessage(error: unknown) {
     return error.message;
   }
 
-  if (error instanceof ProductReadError || error instanceof CrawlStartError || error instanceof PlanLimitError) {
+  if (error instanceof ProductReadError || error instanceof CrawlStartError || error instanceof CrawlStartBlockedError || error instanceof PlanLimitError) {
     return error.message;
   }
 

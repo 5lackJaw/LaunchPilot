@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AppTopbar } from "@/components/layout/app-topbar";
+import { CrawlWorkflowStatus } from "@/components/product-workflow-status";
+import { WorkflowStatusRefresh } from "@/components/workflow-status-refresh";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   crawlProductFromSettingsAction,
@@ -10,8 +12,11 @@ import {
   setActiveProductAction,
   updateProductAction,
 } from "@/app/(app)/settings/products/actions";
+import type { CrawlJob } from "@/server/schemas/crawl";
 import type { Product } from "@/server/schemas/product";
-import { AuthRequiredError } from "@/server/services/auth-service";
+import { AuthRequiredError, AuthService } from "@/server/services/auth-service";
+import { isInternalAdmin } from "@/server/services/admin-service";
+import { CrawlReadError, CrawlService } from "@/server/services/crawl-service";
 import { ProductReadError, ProductService } from "@/server/services/product-service";
 
 type PageProps = {
@@ -135,8 +140,15 @@ export default async function ProductsSettingsPage({ searchParams }: PageProps) 
               </div>
             </div>
 
+            <WorkflowStatusRefresh enabled={data.selectedCrawlJob?.status === "queued" || data.selectedCrawlJob?.status === "running"} />
+
             {selectedProduct ? (
-              <SelectedProductPanel product={selectedProduct} isActive={activeProduct?.id === selectedProduct.id} />
+              <SelectedProductPanel
+                product={selectedProduct}
+                isActive={activeProduct?.id === selectedProduct.id}
+                crawlJob={data.selectedCrawlJob}
+                isAdmin={data.isAdmin}
+              />
             ) : null}
 
             {selectedProduct ? (
@@ -202,7 +214,19 @@ function DeleteProductPanel({ product }: { product: Product }) {
   );
 }
 
-function SelectedProductPanel({ product, isActive }: { product: Product; isActive: boolean }) {
+function SelectedProductPanel({
+  product,
+  isActive,
+  crawlJob,
+  isAdmin,
+}: {
+  product: Product;
+  isActive: boolean;
+  crawlJob: CrawlJob | null;
+  isAdmin: boolean;
+}) {
+  const crawlInFlight = crawlJob?.status === "queued" || crawlJob?.status === "running";
+
   return (
     <div className="rounded-[10px] border bg-card">
       <div className="flex items-start justify-between gap-4 border-b px-5 py-4">
@@ -241,14 +265,26 @@ function SelectedProductPanel({ product, isActive }: { product: Product; isActiv
       <div className="flex flex-wrap items-center gap-2 border-t px-5 py-4">
         <form action={crawlProductFromSettingsAction}>
           <input type="hidden" name="productId" value={product.id} />
-          <Button type="submit" variant="outline">Crawl site</Button>
+          {isAdmin ? (
+            <label className="mr-2 inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <input name="adminOverride" value="1" type="checkbox" className="size-4" />
+              Testing mode
+            </label>
+          ) : null}
+          <Button type="submit" variant="outline" disabled={crawlInFlight}>
+            {crawlInFlight ? "Crawl in progress" : "Crawl site"}
+          </Button>
         </form>
         <Button asChild>
           <Link href="/marketing-brief">Open Marketing Brief</Link>
         </Button>
         <p className="text-sm text-muted-foreground">
-          Crawl first when the site changed. Regenerate the brief from Marketing Brief after the crawl completes.
+          Crawl first when the site changed. This panel updates while the crawl runs.
         </p>
+      </div>
+
+      <div className="border-t p-5">
+        <CrawlWorkflowStatus crawlJob={crawlJob} />
       </div>
     </div>
   );
@@ -260,7 +296,7 @@ function StatusAlerts({ params }: { params: Awaited<PageProps["searchParams"]> }
   if (params.saved) alerts.push({ title: "Product saved", message: "Product details were updated. Crawl the site if the URL or page content changed." });
   if (params.active) alerts.push({ title: "Active product changed", message: "App pages now use this product by default." });
   if (params.duplicate) alerts.push({ title: "Product already exists", message: "That URL is already attached to a product." });
-  if (params.crawlStarted) alerts.push({ title: "Crawl started", message: "Refresh this page or open onboarding crawl to watch progress." });
+  if (params.crawlStarted) alerts.push({ title: "Crawl started", message: "This page will show the latest crawl progress for the selected product." });
   if (params.deleted) alerts.push({ title: "Product deleted", message: "The product and its product-scoped records were deleted." });
   if (params.createError) alerts.push({ title: "Product could not be added", message: params.createError, destructive: true });
   if (params.saveError) alerts.push({ title: "Product could not be saved", message: params.saveError, destructive: true });
@@ -307,12 +343,15 @@ async function loadProductsData(selectedProductId?: string): Promise<{
   products: Product[];
   activeProduct: Product | null;
   selectedProduct: Product | null;
+  selectedCrawlJob: CrawlJob | null;
   planTier: string | null;
+  isAdmin: boolean;
   error: string | null;
   authRequired: boolean;
 }> {
   try {
     const supabase = await createSupabaseServerClient();
+    const user = await new AuthService(supabase).requireUser();
     const productService = new ProductService(supabase);
     const [products, activeProduct, profile] = await Promise.all([
       productService.listProducts(),
@@ -322,22 +361,28 @@ async function loadProductsData(selectedProductId?: string): Promise<{
     const selectedProduct = selectedProductId
       ? products.find((product) => product.id === selectedProductId) ?? null
       : null;
+    const effectiveSelectedProduct = selectedProduct ?? activeProduct ?? products[0] ?? null;
+    const selectedCrawlJob = effectiveSelectedProduct
+      ? await new CrawlService(supabase).getLatestCrawlJob({ productId: effectiveSelectedProduct.id })
+      : null;
 
     return {
       products,
       activeProduct,
       selectedProduct,
+      selectedCrawlJob,
       planTier: typeof profile.data?.plan_tier === "string" ? profile.data.plan_tier : "free",
+      isAdmin: isInternalAdmin(user),
       error: profile.error ? profile.error.message : null,
       authRequired: false,
     };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { products: [], activeProduct: null, selectedProduct: null, planTier: null, error: null, authRequired: true };
+      return { products: [], activeProduct: null, selectedProduct: null, selectedCrawlJob: null, planTier: null, isAdmin: false, error: null, authRequired: true };
     }
 
-    if (error instanceof ProductReadError) {
-      return { products: [], activeProduct: null, selectedProduct: null, planTier: null, error: error.message, authRequired: false };
+    if (error instanceof ProductReadError || error instanceof CrawlReadError) {
+      return { products: [], activeProduct: null, selectedProduct: null, selectedCrawlJob: null, planTier: null, isAdmin: false, error: error.message, authRequired: false };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
@@ -345,7 +390,9 @@ async function loadProductsData(selectedProductId?: string): Promise<{
         products: [],
         activeProduct: null,
         selectedProduct: null,
+        selectedCrawlJob: null,
         planTier: null,
+        isAdmin: false,
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
         authRequired: false,
       };

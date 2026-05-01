@@ -1,27 +1,97 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { inngest } from "@/inngest/client";
 import { buildInitialBrief } from "@/server/brief/build-initial-brief";
+import { briefGenerationJobSchema } from "@/server/schemas/brief-generation-job";
+import type { BriefGenerationJob } from "@/server/schemas/brief-generation-job";
 import { editMarketingBriefSchema, marketingBriefSchema } from "@/server/schemas/brief";
 import type { MarketingBrief } from "@/server/schemas/brief";
 import { productIdSchema } from "@/server/schemas/product";
 import { AuthService } from "@/server/services/auth-service";
+import { shouldUseAdminOverride } from "@/server/services/admin-service";
 import { ProductService } from "@/server/services/product-service";
+
+const initialBriefGenerationSteps = [
+  { label: "Load product context", status: "pending" },
+  { label: "Analyze audience", status: "pending" },
+  { label: "Cluster keywords", status: "pending" },
+  { label: "Write Marketing Brief", status: "pending" },
+] as const;
 
 export class BriefService {
   constructor(private readonly supabase: SupabaseClient) {}
 
   async requestGeneration(input: unknown) {
     const { productId } = productIdSchema.parse(input);
+    const requestedAdminOverride =
+      typeof input === "object" &&
+      input !== null &&
+      "adminOverride" in input &&
+      Boolean((input as { adminOverride?: unknown }).adminOverride);
+    const user = await new AuthService(this.supabase).requireUser();
+    const adminOverride = shouldUseAdminOverride({ user, requested: requestedAdminOverride });
+
     await new ProductService(this.supabase).getProduct({ productId });
+    await this.assertGenerationCanStart({ productId, adminOverride });
 
-    await inngest.send({
-      name: "brief/generation.requested",
-      data: {
-        productId,
-      },
-    });
+    const crawlResult = await this.supabase
+      .from("crawl_results")
+      .select("id")
+      .eq("product_id", productId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    return { productId };
+    if (crawlResult.error) {
+      throw new BriefGenerationRequestError(crawlResult.error.message);
+    }
+
+    const { data, error } = await this.supabase
+      .from("brief_generation_jobs")
+      .insert({
+        product_id: productId,
+        status: "queued",
+        progress_percent: 0,
+        steps: initialBriefGenerationSteps,
+        crawl_result_id: crawlResult.data?.id ?? null,
+        admin_override: adminOverride,
+      })
+      .select(
+        "id,product_id,status,progress_percent,steps,crawl_result_id,marketing_brief_id,error_message,admin_override,created_at,updated_at,completed_at",
+      )
+      .single();
+
+    if (error) {
+      if (error.code === "23505") {
+        throw new BriefGenerationBlockedError("Marketing Brief generation is already running for this product.");
+      }
+
+      throw new BriefGenerationRequestError(error.message);
+    }
+
+    const job = mapBriefGenerationJob(data);
+
+    try {
+      await inngest.send({
+        name: "brief/generation.requested",
+        data: {
+          productId,
+          briefGenerationJobId: job.id,
+        },
+      });
+    } catch (error) {
+      await this.supabase
+        .from("brief_generation_jobs")
+        .update({
+          status: "failed",
+          progress_percent: 0,
+          error_message: "Workflow event dispatch failed.",
+        })
+        .eq("id", job.id);
+
+      throw error;
+    }
+
+    return job;
   }
 
   async generateInitialBriefNow(input: unknown): Promise<MarketingBrief> {
@@ -157,6 +227,27 @@ export class BriefService {
     return data ? mapMarketingBrief(data) : null;
   }
 
+  async getLatestGenerationJob(input: unknown): Promise<BriefGenerationJob | null> {
+    const { productId } = productIdSchema.parse(input);
+    await new AuthService(this.supabase).requireUser();
+
+    const { data, error } = await this.supabase
+      .from("brief_generation_jobs")
+      .select(
+        "id,product_id,status,progress_percent,steps,crawl_result_id,marketing_brief_id,error_message,admin_override,created_at,updated_at,completed_at",
+      )
+      .eq("product_id", productId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw new BriefReadError(error.message);
+    }
+
+    return data ? mapBriefGenerationJob(data) : null;
+  }
+
   async createEditedVersion(input: unknown): Promise<MarketingBrief> {
     const parsed = editMarketingBriefSchema.parse(input);
     await new ProductService(this.supabase).getProduct({ productId: parsed.productId });
@@ -217,6 +308,42 @@ export class BriefService {
 
     return brief;
   }
+
+  private async assertGenerationCanStart(input: {
+    productId: string;
+    adminOverride: boolean;
+  }) {
+    const latest = await this.getLatestGenerationJob({ productId: input.productId });
+
+    if (latest?.status === "queued" || latest?.status === "running") {
+      throw new BriefGenerationBlockedError("Marketing Brief generation is already running for this product.");
+    }
+
+    if (input.adminOverride) {
+      return;
+    }
+
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await this.supabase
+      .from("brief_generation_jobs")
+      .select("id,created_at")
+      .eq("product_id", input.productId)
+      .neq("status", "failed")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw new BriefGenerationRequestError(error.message);
+    }
+
+    if (data) {
+      throw new BriefGenerationBlockedError(
+        `Marketing Brief generation is limited to once every 24 hours. Next generation is available ${formatNextAvailable(data.created_at)}.`,
+      );
+    }
+  }
 }
 
 function getProvenanceString(provenance: unknown, key: string) {
@@ -232,6 +359,13 @@ export class BriefGenerationRequestError extends Error {
   constructor(message: string) {
     super(`Brief generation could not be requested: ${message}`);
     this.name = "BriefGenerationRequestError";
+  }
+}
+
+export class BriefGenerationBlockedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BriefGenerationBlockedError";
   }
 }
 
@@ -283,4 +417,43 @@ export function mapMarketingBrief(data: {
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   });
+}
+
+export function mapBriefGenerationJob(data: {
+  id: string;
+  product_id: string;
+  status: string;
+  progress_percent: number;
+  steps: unknown;
+  crawl_result_id: string | null;
+  marketing_brief_id: string | null;
+  error_message: string | null;
+  admin_override: boolean;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+}) {
+  return briefGenerationJobSchema.parse({
+    id: data.id,
+    productId: data.product_id,
+    status: data.status,
+    progressPercent: data.progress_percent,
+    steps: data.steps,
+    crawlResultId: data.crawl_result_id,
+    marketingBriefId: data.marketing_brief_id,
+    errorMessage: data.error_message,
+    adminOverride: data.admin_override,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+    completedAt: data.completed_at,
+  });
+}
+
+function formatNextAvailable(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(new Date(value).getTime() + 24 * 60 * 60 * 1000));
 }
