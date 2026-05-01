@@ -9,6 +9,8 @@ export type AiModelRole =
   | "fallback_generation";
 
 export type AiTaskClass =
+  | "brief_persona_analysis"
+  | "brief_keyword_analysis"
   | "brief_generation"
   | "positioning_generation"
   | "seo_article_outline"

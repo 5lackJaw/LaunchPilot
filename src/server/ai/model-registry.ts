@@ -86,6 +86,8 @@ export const aiModels: Record<string, AiModelConfig> = {
 export const aiTaskRoutes: Record<AiTaskClass, AiTaskRoute> = {
   crawl_extraction: utilityRoute(),
   competitor_summary: utilityRoute(),
+  brief_persona_analysis: utilityRoute(),
+  brief_keyword_analysis: utilityRoute(),
   brief_generation: premiumRoute(),
   positioning_generation: premiumRoute(),
   keyword_expansion: utilityRoute(),

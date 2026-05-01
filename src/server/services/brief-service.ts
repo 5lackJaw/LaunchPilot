@@ -58,6 +58,16 @@ export class BriefService {
       throw new BriefGenerationRequestError(versionResult.error.message);
     }
 
+    const currentBrief = await this.getCurrentBrief({ productId });
+    if (
+      currentBrief &&
+      crawlResult.data?.id &&
+      getProvenanceString(currentBrief.provenance, "generator") === "ai-router-v1" &&
+      getProvenanceString(currentBrief.provenance, "crawlResultId") === crawlResult.data.id
+    ) {
+      return currentBrief;
+    }
+
     const brief = await buildInitialBrief({
       supabase: this.supabase,
       product: productResult.data,
@@ -207,6 +217,15 @@ export class BriefService {
 
     return brief;
   }
+}
+
+function getProvenanceString(provenance: unknown, key: string) {
+  if (!provenance || typeof provenance !== "object" || Array.isArray(provenance)) {
+    return null;
+  }
+
+  const value = (provenance as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : null;
 }
 
 export class BriefGenerationRequestError extends Error {

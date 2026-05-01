@@ -55,11 +55,13 @@ export class AiBudgetService {
       planTier: owner.planTier,
     });
 
-    if (ledger.usedEstimatedUsd + input.estimatedCostUsd > ledger.hardBudgetUsd) {
+    const usedUsdForHardCap = ledger.usedActualUsd;
+
+    if (usedUsdForHardCap + input.estimatedCostUsd > ledger.hardBudgetUsd) {
       throw new AiBudgetExceededError({
         taskClass: input.taskClass,
         hardBudgetUsd: ledger.hardBudgetUsd,
-        usedUsd: ledger.usedEstimatedUsd,
+        usedUsd: usedUsdForHardCap,
         estimatedCostUsd: input.estimatedCostUsd,
       });
     }

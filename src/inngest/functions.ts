@@ -24,7 +24,7 @@ export const briefGenerationWorkflow = inngest.createFunction(
     try {
       const inputs = await step.run("load-brief-inputs", async () => {
       const [productResult, crawlResult, answersResult, versionResult] = await Promise.all([
-        supabase.from("products").select("id,name,url,user_id").eq("id", productId).single(),
+        supabase.from("products").select("id,name,url,user_id,current_marketing_brief_id").eq("id", productId).single(),
         supabase
           .from("crawl_results")
           .select("id,page_title,meta_description,h1,extracted_signals,created_at")
@@ -52,14 +52,56 @@ export const briefGenerationWorkflow = inngest.createFunction(
         throw versionResult.error;
       }
 
+      let currentBriefAlreadyFresh = null;
+      if (productResult.data.current_marketing_brief_id && crawlResult.data?.id) {
+        const currentBriefResult = await supabase
+          .from("marketing_briefs")
+          .select("id,version,provenance")
+          .eq("id", productResult.data.current_marketing_brief_id)
+          .maybeSingle();
+
+        if (currentBriefResult.error) {
+          throw currentBriefResult.error;
+        }
+
+        const provenance = currentBriefResult.data?.provenance;
+        const generator =
+          provenance && typeof provenance === "object" && !Array.isArray(provenance)
+            ? (provenance as Record<string, unknown>).generator
+            : null;
+        const crawlResultId =
+          provenance && typeof provenance === "object" && !Array.isArray(provenance)
+            ? (provenance as Record<string, unknown>).crawlResultId
+            : null;
+
+        if (generator === "ai-router-v1" && crawlResultId === crawlResult.data.id) {
+          currentBriefAlreadyFresh = currentBriefResult.data;
+        }
+      }
+
       return {
         product: productResult.data,
         crawl: crawlResult.data,
         answers: answersResult.data,
         nextVersion: (versionResult.data[0]?.version ?? 0) + 1,
         userId: productResult.data.user_id,
+        currentBriefAlreadyFresh,
       };
     });
+
+      if (inputs.currentBriefAlreadyFresh) {
+        logWorkflowEvent({
+          workflow,
+          status: "succeeded",
+          eventName: event.name,
+          productId,
+          metadata: {
+            skipped: "current_brief_already_uses_latest_crawl",
+            briefVersion: inputs.currentBriefAlreadyFresh.version,
+          },
+        });
+        return inputs.currentBriefAlreadyFresh;
+      }
 
       const personaAnalysis = await step.run("generate-personas-jtbd", async () =>
         generateBriefPersonaAnalysis({ ...inputs, supabase }),
@@ -247,14 +289,6 @@ export const productCrawlPlaceholder = inngest.createFunction(
         return crawlResult;
       });
 
-      await step.run("trigger-brief-generation", async () => {
-        await inngest.send({
-          name: "brief/generation.requested",
-          data: {
-            productId,
-          },
-        });
-      });
       logWorkflowEvent({ workflow, status: "succeeded", eventName: event.name, productId, entityId: crawlJobId });
     } catch (error) {
       await step.run("mark-failed", async () => {
