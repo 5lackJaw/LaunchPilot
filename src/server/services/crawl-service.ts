@@ -3,7 +3,7 @@ import { inngest } from "@/inngest/client";
 import { AuthService } from "@/server/services/auth-service";
 import { crawlJobSchema, crawlResultSchema } from "@/server/schemas/crawl";
 import { productIdSchema } from "@/server/schemas/product";
-import { shouldUseAdminOverride } from "@/server/services/admin-service";
+import { getAdminAccountMode } from "@/server/services/admin-service";
 import { PlanService } from "@/server/services/plan-service";
 import { ProductService } from "@/server/services/product-service";
 
@@ -18,19 +18,12 @@ export class CrawlService {
 
   async startCrawl(input: unknown) {
     const { productId } = productIdSchema.parse(input);
-    const requestedAdminOverride =
-      typeof input === "object" &&
-      input !== null &&
-      "adminOverride" in input &&
-      Boolean((input as { adminOverride?: unknown }).adminOverride);
     const user = await new AuthService(this.supabase).requireUser();
-    const adminOverride = shouldUseAdminOverride({ user, requested: requestedAdminOverride });
+    const adminOverride = (await getAdminAccountMode({ supabase: this.supabase, user })) === "god";
 
     await new ProductService(this.supabase).getProduct({ productId });
     await this.assertCrawlCanStart({ productId, adminOverride });
-    if (!adminOverride) {
-      await new PlanService(this.supabase).assertCanStartCrawl({ productId });
-    }
+    await new PlanService(this.supabase).assertCanStartCrawl({ productId });
 
     const { data, error } = await this.supabase
       .from("crawl_jobs")

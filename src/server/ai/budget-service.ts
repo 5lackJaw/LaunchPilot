@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AiBudgetExceededError } from "@/server/ai/errors";
 import type { AiProvider, AiTaskClass } from "@/server/ai/types";
+import { isInternalAdminIdentity, type AdminAccountMode } from "@/server/services/admin-service";
 
 type PlanTier = "free" | "launch" | "growth";
 
@@ -12,6 +13,7 @@ type AiBudget = {
 type ProductOwner = {
   userId: string;
   planTier: PlanTier;
+  restrictionsDisabled: boolean;
 };
 
 type Ledger = {
@@ -49,6 +51,19 @@ export class AiBudgetService {
     const owner = input.userId
       ? await this.loadPlanForUser(input.userId)
       : await this.loadProductOwner(input.productId);
+    if (owner.restrictionsDisabled) {
+      return {
+        userId: owner.userId,
+        ledger: {
+          id: "admin-god-mode",
+          usedEstimatedUsd: 0,
+          usedActualUsd: 0,
+          softBudgetUsd: Number.POSITIVE_INFINITY,
+          hardBudgetUsd: Number.POSITIVE_INFINITY,
+        },
+      };
+    }
+
     const ledger = await this.getOrCreateLedger({
       userId: owner.userId,
       productId: input.productId,
@@ -106,7 +121,8 @@ export class AiBudgetService {
       return null;
     }
 
-    if (input.status === "succeeded") {
+    const owner = await this.loadPlanForUser(input.userId);
+    if (input.status === "succeeded" && !owner.restrictionsDisabled) {
       await this.incrementLedgerUsage({
         userId: input.userId,
         productId: input.productId,
@@ -135,7 +151,7 @@ export class AiBudgetService {
   private async loadPlanForUser(userId: string): Promise<ProductOwner> {
     const { data, error } = await this.supabase
       .from("users")
-      .select("plan_tier")
+      .select("email,plan_tier,admin_account_mode")
       .eq("id", userId)
       .single();
 
@@ -143,9 +159,24 @@ export class AiBudgetService {
       throw error;
     }
 
+    const adminMode = parseAdminAccountMode(data.admin_account_mode);
+    const isAdmin = isInternalAdminIdentity({
+      id: userId,
+      email: typeof data.email === "string" ? data.email : null,
+    });
+
+    if (isAdmin && adminMode === "god") {
+      return {
+        userId,
+        planTier: "growth",
+        restrictionsDisabled: true,
+      };
+    }
+
     return {
       userId,
-      planTier: parsePlanTier(data.plan_tier),
+      planTier: isAdmin && adminMode ? parsePlanTier(adminMode) : parsePlanTier(data.plan_tier),
+      restrictionsDisabled: false,
     };
   }
 
@@ -251,6 +282,14 @@ function parsePlanTier(value: unknown): PlanTier {
   }
 
   return "free";
+}
+
+function parseAdminAccountMode(value: unknown): AdminAccountMode | null {
+  if (value === "free" || value === "launch" || value === "growth" || value === "god") {
+    return value;
+  }
+
+  return null;
 }
 
 function parseMoney(value: unknown): number {

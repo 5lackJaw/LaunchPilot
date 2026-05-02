@@ -8,7 +8,7 @@ import { editMarketingBriefSchema, marketingBriefSchema } from "@/server/schemas
 import type { MarketingBrief } from "@/server/schemas/brief";
 import { productIdSchema } from "@/server/schemas/product";
 import { AuthService } from "@/server/services/auth-service";
-import { shouldUseAdminOverride } from "@/server/services/admin-service";
+import { getAdminAccountMode } from "@/server/services/admin-service";
 import { ProductService } from "@/server/services/product-service";
 
 const initialBriefGenerationSteps = [
@@ -27,13 +27,8 @@ export class BriefService {
 
   async requestGeneration(input: unknown) {
     const { productId } = productIdSchema.parse(input);
-    const requestedAdminOverride =
-      typeof input === "object" &&
-      input !== null &&
-      "adminOverride" in input &&
-      Boolean((input as { adminOverride?: unknown }).adminOverride);
     const user = await new AuthService(this.supabase).requireUser();
-    const adminOverride = shouldUseAdminOverride({ user, requested: requestedAdminOverride });
+    const adminOverride = (await getAdminAccountMode({ supabase: this.supabase, user })) === "god";
 
     await new ProductService(this.supabase).getProduct({ productId });
     await this.assertGenerationCanStart({ productId, adminOverride });

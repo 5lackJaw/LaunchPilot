@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AuthService } from "@/server/services/auth-service";
+import { getEffectivePlanForUser } from "@/server/services/admin-service";
 
 type PlanTier = "free" | "launch" | "growth";
 
@@ -36,6 +37,10 @@ export class PlanService {
 
   async assertCanCreateProduct(): Promise<void> {
     const plan = await this.getCurrentPlan();
+    if (plan.restrictionsDisabled) {
+      return;
+    }
+
     const { count, error } = await this.supabase
       .from("products")
       .select("id", { count: "exact", head: true })
@@ -57,6 +62,10 @@ export class PlanService {
   async assertCanStartCrawl(input: { productId: string }): Promise<void> {
     const plan = await this.getCurrentPlan();
     await this.assertProductBelongsToCurrentUser(input.productId, plan.userId);
+    if (plan.restrictionsDisabled) {
+      return;
+    }
+
     const monthStart = getCurrentMonthStart();
 
     const { count, error } = await this.supabase
@@ -85,6 +94,10 @@ export class PlanService {
   }): Promise<void> {
     const plan = await this.getCurrentPlan();
     await this.assertProductBelongsToCurrentUser(input.productId, plan.userId);
+    if (plan.restrictionsDisabled) {
+      return;
+    }
+
     const current = await this.countGeneratedActions(input.productId);
 
     this.assertUnderLimit({
@@ -104,6 +117,10 @@ export class PlanService {
   }): Promise<void> {
     const plan = await this.getCurrentPlan();
     await this.assertProductBelongsToCurrentUser(input.productId, plan.userId);
+    if (plan.restrictionsDisabled) {
+      return;
+    }
+
     const current = await this.countExecutedActions(input.productId);
 
     this.assertUnderLimit({
@@ -120,6 +137,7 @@ export class PlanService {
     userId: string;
     tier: PlanTier;
     limits: PlanLimits;
+    restrictionsDisabled: boolean;
   }> {
     const user = await new AuthService(this.supabase).requireUser();
     const { data, error } = await this.supabase
@@ -132,11 +150,17 @@ export class PlanService {
       throw new PlanLimitError(error.message);
     }
 
-    const tier = parsePlanTier(data.plan_tier);
+    const effective = await getEffectivePlanForUser({
+      supabase: this.supabase,
+      user,
+      persistedPlanTier: data.plan_tier,
+    });
+    const tier = effective.effectiveTier;
     return {
       userId: user.id,
       tier,
       limits: provisionalPlanLimits[tier],
+      restrictionsDisabled: effective.restrictionsDisabled,
     };
   }
 
