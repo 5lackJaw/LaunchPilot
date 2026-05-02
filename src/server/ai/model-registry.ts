@@ -97,6 +97,7 @@ export const aiTaskRoutes: Record<AiTaskClass, AiTaskRoute> = {
     batchEligible: true,
     flexEligible: false,
   },
+  seo_search_intent: utilityRoute(),
   seo_article_outline: premiumRoute(),
   seo_article_draft: premiumRoute(),
   seo_review: utilityRoute(),

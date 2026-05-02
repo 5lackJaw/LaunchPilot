@@ -13,6 +13,7 @@ export type AiTaskClass =
   | "brief_keyword_analysis"
   | "brief_generation"
   | "positioning_generation"
+  | "seo_search_intent"
   | "seo_article_outline"
   | "seo_article_draft"
   | "seo_review"

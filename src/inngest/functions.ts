@@ -5,7 +5,13 @@ import {
   generateBriefPersonaAnalysis,
   synthesizeInitialBrief,
 } from "@/server/brief/build-initial-brief";
-import { buildArticleDraft } from "@/server/content/build-article-draft";
+import {
+  assembleArticleDraft,
+  generateArticleOutline,
+  generateFullArticleDraft,
+  researchSearcherIntent,
+  reviewArticleSeo,
+} from "@/server/content/build-article-draft";
 import { extractPageSignals } from "@/server/crawl/extract-page-signals";
 import { isWeeklyDigestEmailConfigured, sendWeeklyDigestEmail } from "@/server/email/weekly-digest-email";
 import { contentAssetSchema } from "@/server/schemas/content";
@@ -496,7 +502,7 @@ export const contentGenerationWorkflow = inngest.createFunction(
       }
 
       const [productResult, briefResult] = await Promise.all([
-        supabase.from("products").select("id,name").eq("id", asset.productId).single(),
+        supabase.from("products").select("id,name,user_id").eq("id", asset.productId).single(),
         supabase
           .from("marketing_briefs")
           .select(
@@ -536,13 +542,37 @@ export const contentGenerationWorkflow = inngest.createFunction(
       return { asset, brief, product: productResult.data };
     });
 
-      const draft = await step.run("compose-article-draft", async () =>
-      buildArticleDraft({
+      const articleInput = {
+        supabase,
         asset: inputs.asset,
         brief: inputs.brief,
         productName: inputs.product.name,
-      }),
+        userId: inputs.product.user_id,
+      };
+
+      const searchIntent = await step.run("research-searcher-intent", async () =>
+        researchSearcherIntent(articleInput),
       );
+
+      const outline = await step.run("generate-article-outline", async () =>
+        generateArticleOutline({ ...articleInput, searchIntent }),
+      );
+
+      const articleBody = await step.run("draft-full-article", async () =>
+        generateFullArticleDraft({ ...articleInput, searchIntent, outline }),
+      );
+
+      const seoReview = await step.run("review-article-seo", async () =>
+        reviewArticleSeo({ ...articleInput, searchIntent, outline, draft: articleBody }),
+      );
+
+      const draft = assembleArticleDraft({
+        input: articleInput,
+        searchIntent,
+        outline,
+        draft: articleBody,
+        seoReview,
+      });
 
       const updated = await step.run("persist-content-asset", async () => {
       const { data, error } = await supabase
@@ -556,9 +586,7 @@ export const contentGenerationWorkflow = inngest.createFunction(
           ai_confidence: draft.aiConfidence,
           provenance: {
             ...inputs.asset.provenance,
-            generator: "deterministic-content-v0",
-            generatedAt: new Date().toISOString(),
-            briefVersion: inputs.brief.version,
+            ...draft.provenance,
           },
         })
         .eq("id", inputs.asset.id)
@@ -637,6 +665,7 @@ export const contentGenerationWorkflow = inngest.createFunction(
 
       logWorkflowEvent({ workflow, status: "succeeded", eventName: event.name, productId: updated.product_id, entityId: contentAssetId });
     } catch (error) {
+      await supabase.from("content_assets").update({ status: "failed" }).eq("id", contentAssetId);
       captureWorkflowException(error, { workflow, eventName: event.name, entityId: contentAssetId });
       throw error;
     }
