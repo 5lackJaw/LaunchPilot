@@ -1,16 +1,18 @@
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { updateAutomationPreferenceAction } from "@/app/(app)/settings/preferences/actions";
+import { updateAdminAccountModeAction, updateAutomationPreferenceAction } from "@/app/(app)/settings/preferences/actions";
 import type { AutomationPreference } from "@/server/schemas/preferences";
 import type { Product } from "@/server/schemas/product";
-import { AuthRequiredError } from "@/server/services/auth-service";
+import { AuthRequiredError, AuthService } from "@/server/services/auth-service";
+import { isInternalAdmin, type AdminAccountMode } from "@/server/services/admin-service";
 import { PreferencesReadError, PreferencesService } from "@/server/services/preferences-service";
 import { ProductReadError, ProductService } from "@/server/services/product-service";
 
 type PageProps = {
   searchParams: Promise<{
     updated?: string;
+    adminModeUpdated?: string;
     preferenceError?: string;
   }>;
 };
@@ -33,12 +35,54 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
             <AlertDescription>The {params.updated} automation setting is now active for this product.</AlertDescription>
           </Alert>
         )}
+        {params.adminModeUpdated && (
+          <Alert>
+            <AlertTitle>Admin mode saved</AlertTitle>
+            <AlertDescription>Account mode is now {formatAdminMode(params.adminModeUpdated)} for this admin account.</AlertDescription>
+          </Alert>
+        )}
         {(params.preferenceError || data.error) && (
           <Alert variant="destructive">
             <AlertTitle>Preferences could not be loaded</AlertTitle>
             <AlertDescription>{data.error ?? params.preferenceError}</AlertDescription>
           </Alert>
         )}
+
+        {data.isAdmin ? (
+          <SectionBlock label="Admin">
+            <form action={updateAdminAccountModeAction} style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "24px" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-text)", fontWeight: 500, marginBottom: "4px" }}>Account mode</div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--lp-muted)", lineHeight: 1.55 }}>
+                  Test the app as a Free, Launch, or Growth account. God mode removes admin restrictions such as crawl cooldowns, generation caps, and AI budget caps.
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+                <select
+                  name="adminAccountMode"
+                  defaultValue={data.adminAccountMode ?? "growth"}
+                  style={{
+                    height: "34px",
+                    minWidth: "150px",
+                    border: "1px solid var(--lp-border)",
+                    borderRadius: "7px",
+                    background: "var(--lp-bg4)",
+                    color: "var(--lp-text)",
+                    fontFamily: "var(--font-sans)",
+                    fontSize: "12.5px",
+                    padding: "0 10px",
+                  }}
+                >
+                  <option value="free">Free</option>
+                  <option value="launch">Launch</option>
+                  <option value="growth">Growth</option>
+                  <option value="god">God mode</option>
+                </select>
+                <button type="submit" style={smallButtonStyle}>Save</button>
+              </div>
+            </form>
+          </SectionBlock>
+        ) : null}
 
         {/* TRUST LEVELS */}
         <SectionBlock label="Trust levels">
@@ -207,31 +251,43 @@ function TrustLevelRow({ label, selected, description }: { label: string; select
 async function loadPreferencesData(): Promise<{
   product: Product | null;
   preferences: AutomationPreference[];
+  isAdmin: boolean;
+  adminAccountMode: AdminAccountMode | null;
   error: string | null;
 }> {
   try {
     const supabase = await createSupabaseServerClient();
+    const user = await new AuthService(supabase).requireUser();
+    const isAdmin = isInternalAdmin(user);
     const product = await new ProductService(supabase).getLatestProduct();
+    const profile = isAdmin
+      ? await supabase.from("users").select("plan_tier,admin_account_mode").eq("id", user.id).maybeSingle()
+      : null;
+    const adminAccountMode = isAdmin
+      ? parseAdminAccountMode(profile?.data?.admin_account_mode) ?? parseAdminAccountMode(profile?.data?.plan_tier) ?? "free"
+      : null;
 
     if (!product) {
-      return { product: null, preferences: [], error: null };
+      return { product: null, preferences: [], isAdmin, adminAccountMode, error: profile?.error?.message ?? null };
     }
 
     const preferences = await new PreferencesService(supabase).listAutomationPreferences({ productId: product.id });
-    return { product, preferences, error: null };
+    return { product, preferences, isAdmin, adminAccountMode, error: profile?.error?.message ?? null };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { product: null, preferences: [], error: error.message };
+      return { product: null, preferences: [], isAdmin: false, adminAccountMode: null, error: error.message };
     }
 
     if (error instanceof ProductReadError || error instanceof PreferencesReadError) {
-      return { product: null, preferences: [], error: error.message };
+      return { product: null, preferences: [], isAdmin: false, adminAccountMode: null, error: error.message };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
       return {
         product: null,
         preferences: [],
+        isAdmin: false,
+        adminAccountMode: null,
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
       };
     }
@@ -239,3 +295,32 @@ async function loadPreferencesData(): Promise<{
     throw error;
   }
 }
+
+function parseAdminAccountMode(value: unknown): AdminAccountMode | null {
+  if (value === "free" || value === "launch" || value === "growth" || value === "god") {
+    return value;
+  }
+
+  return null;
+}
+
+function formatAdminMode(value: string) {
+  if (value === "god") {
+    return "God mode";
+  }
+
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+const smallButtonStyle = {
+  height: "34px",
+  border: "none",
+  borderRadius: "7px",
+  background: "var(--lp-purple)",
+  color: "#fff",
+  fontFamily: "var(--font-sans)",
+  fontSize: "12.5px",
+  fontWeight: 500,
+  padding: "0 14px",
+  cursor: "pointer",
+};

@@ -38,7 +38,7 @@ export function BriefGenerationWorkflowStatus({ job }: { job: BriefGenerationJob
       steps={job.steps}
       updatedAt={job.updatedAt}
       errorMessage={job.errorMessage}
-      trailingBadge={job.adminOverride ? "testing override" : undefined}
+      trailingBadge={job.adminOverride ? "god mode" : undefined}
     />
   );
 }

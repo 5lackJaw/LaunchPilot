@@ -10,7 +10,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { CrawlJob, CrawlResult } from "@/server/schemas/crawl";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError, AuthService } from "@/server/services/auth-service";
-import { isInternalAdmin } from "@/server/services/admin-service";
 import { CrawlReadError, CrawlService } from "@/server/services/crawl-service";
 import { ProductReadError, ProductService } from "@/server/services/product-service";
 import { CrawlStatusRefresh } from "@/app/onboarding/crawl/crawl-status-refresh";
@@ -88,7 +87,7 @@ export default async function OnboardingCrawlPage({ searchParams }: PageProps) {
               </Alert>
             ) : null}
 
-            {data?.product ? <CrawlPanel product={data.product} crawlJob={data.crawlJob} crawlResult={data.crawlResult} isAdmin={data.isAdmin} /> : <ProductCreatePanel />}
+            {data?.product ? <CrawlPanel product={data.product} crawlJob={data.crawlJob} crawlResult={data.crawlResult} /> : <ProductCreatePanel />}
             {data.products.length ? <ExistingProductsPanel products={data.products} activeProductId={data.product?.id ?? null} /> : null}
           </div>
 
@@ -157,12 +156,10 @@ function CrawlPanel({
   product,
   crawlJob,
   crawlResult,
-  isAdmin,
 }: {
   product: Product;
   crawlJob: CrawlJob | null;
   crawlResult: CrawlResult | null;
-  isAdmin: boolean;
 }) {
   const crawlInFlight = crawlJob?.status === "queued" || crawlJob?.status === "running";
 
@@ -180,7 +177,7 @@ function CrawlPanel({
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
-        <StartCrawlForm productId={product.id} disabled={crawlInFlight} isAdmin={isAdmin} />
+        <StartCrawlForm productId={product.id} disabled={crawlInFlight} />
         <CrawlStatusRefresh enabled={crawlInFlight} />
         <CrawlWorkflowStatus crawlJob={crawlJob} />
         {crawlResult ? <CrawlResultPanel crawlResult={crawlResult} /> : null}
@@ -241,19 +238,18 @@ async function loadCrawlPageData(productId?: string): Promise<{
   product: Product | null;
   crawlJob: CrawlJob | null;
   crawlResult: CrawlResult | null;
-  isAdmin: boolean;
   error: string | null;
 }> {
   try {
     const supabase = await createSupabaseServerClient();
-    const user = await new AuthService(supabase).requireUser();
+    await new AuthService(supabase).requireUser();
     const productService = new ProductService(supabase);
     const crawlService = new CrawlService(supabase);
     const products = await productService.listProducts();
     const selectedProduct = productId ? await productService.getProduct({ productId }) : products[0] ?? null;
 
     if (!selectedProduct) {
-      return { products, product: null, crawlJob: null, crawlResult: null, isAdmin: isInternalAdmin(user), error: null };
+      return { products, product: null, crawlJob: null, crawlResult: null, error: null };
     }
 
     const [crawlJob, crawlResult] = await Promise.all([
@@ -261,14 +257,14 @@ async function loadCrawlPageData(productId?: string): Promise<{
       crawlService.getLatestCrawlResult({ productId: selectedProduct.id }),
     ]);
 
-    return { products, product: selectedProduct, crawlJob, crawlResult, isAdmin: isInternalAdmin(user), error: null };
+    return { products, product: selectedProduct, crawlJob, crawlResult, error: null };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { products: [], product: null, crawlJob: null, crawlResult: null, isAdmin: false, error: error.message };
+      return { products: [], product: null, crawlJob: null, crawlResult: null, error: error.message };
     }
 
     if (error instanceof ProductReadError || error instanceof CrawlReadError) {
-      return { products: [], product: null, crawlJob: null, crawlResult: null, isAdmin: false, error: error.message };
+      return { products: [], product: null, crawlJob: null, crawlResult: null, error: error.message };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
@@ -277,7 +273,6 @@ async function loadCrawlPageData(productId?: string): Promise<{
         product: null,
         crawlJob: null,
         crawlResult: null,
-        isAdmin: false,
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
       };
     }

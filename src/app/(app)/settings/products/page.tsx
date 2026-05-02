@@ -40,6 +40,7 @@ const productLimits: Record<string, string> = {
   free: "1 product",
   launch: "3 products",
   growth: "10 products",
+  god: "unlimited products",
 };
 
 export default async function ProductsSettingsPage({ searchParams }: PageProps) {
@@ -147,7 +148,6 @@ export default async function ProductsSettingsPage({ searchParams }: PageProps) 
                 product={selectedProduct}
                 isActive={activeProduct?.id === selectedProduct.id}
                 crawlJob={data.selectedCrawlJob}
-                isAdmin={data.isAdmin}
               />
             ) : null}
 
@@ -218,12 +218,10 @@ function SelectedProductPanel({
   product,
   isActive,
   crawlJob,
-  isAdmin,
 }: {
   product: Product;
   isActive: boolean;
   crawlJob: CrawlJob | null;
-  isAdmin: boolean;
 }) {
   const crawlInFlight = crawlJob?.status === "queued" || crawlJob?.status === "running";
 
@@ -265,12 +263,6 @@ function SelectedProductPanel({
       <div className="flex flex-wrap items-center gap-2 border-t px-5 py-4">
         <form action={crawlProductFromSettingsAction}>
           <input type="hidden" name="productId" value={product.id} />
-          {isAdmin ? (
-            <label className="mr-2 inline-flex items-center gap-2 text-sm text-muted-foreground">
-              <input name="adminOverride" value="1" type="checkbox" className="size-4" />
-              Testing mode
-            </label>
-          ) : null}
           <Button type="submit" variant="outline" disabled={crawlInFlight}>
             {crawlInFlight ? "Crawl in progress" : "Crawl site"}
           </Button>
@@ -345,7 +337,6 @@ async function loadProductsData(selectedProductId?: string): Promise<{
   selectedProduct: Product | null;
   selectedCrawlJob: CrawlJob | null;
   planTier: string | null;
-  isAdmin: boolean;
   error: string | null;
   authRequired: boolean;
 }> {
@@ -356,8 +347,11 @@ async function loadProductsData(selectedProductId?: string): Promise<{
     const [products, activeProduct, profile] = await Promise.all([
       productService.listProducts(),
       productService.getLatestProduct(),
-      supabase.from("users").select("plan_tier").maybeSingle(),
+      supabase.from("users").select("plan_tier,admin_account_mode").maybeSingle(),
     ]);
+    const isAdmin = isInternalAdmin(user);
+    const adminMode = isAdmin && typeof profile.data?.admin_account_mode === "string" ? profile.data.admin_account_mode : null;
+    const effectivePlanTier = adminMode ?? (typeof profile.data?.plan_tier === "string" ? profile.data.plan_tier : "free");
     const selectedProduct = selectedProductId
       ? products.find((product) => product.id === selectedProductId) ?? null
       : null;
@@ -371,18 +365,17 @@ async function loadProductsData(selectedProductId?: string): Promise<{
       activeProduct,
       selectedProduct,
       selectedCrawlJob,
-      planTier: typeof profile.data?.plan_tier === "string" ? profile.data.plan_tier : "free",
-      isAdmin: isInternalAdmin(user),
+      planTier: effectivePlanTier,
       error: profile.error ? profile.error.message : null,
       authRequired: false,
     };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { products: [], activeProduct: null, selectedProduct: null, selectedCrawlJob: null, planTier: null, isAdmin: false, error: null, authRequired: true };
+      return { products: [], activeProduct: null, selectedProduct: null, selectedCrawlJob: null, planTier: null, error: null, authRequired: true };
     }
 
     if (error instanceof ProductReadError || error instanceof CrawlReadError) {
-      return { products: [], activeProduct: null, selectedProduct: null, selectedCrawlJob: null, planTier: null, isAdmin: false, error: error.message, authRequired: false };
+      return { products: [], activeProduct: null, selectedProduct: null, selectedCrawlJob: null, planTier: null, error: error.message, authRequired: false };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
@@ -392,7 +385,6 @@ async function loadProductsData(selectedProductId?: string): Promise<{
         selectedProduct: null,
         selectedCrawlJob: null,
         planTier: null,
-        isAdmin: false,
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
         authRequired: false,
       };

@@ -89,7 +89,6 @@ export async function crawlProductFromSettingsAction(formData: FormData) {
     const supabase = await createSupabaseServerClient();
     const job = await new CrawlService(supabase).startCrawl({
       productId,
-      adminOverride: formData.get("adminOverride") === "1",
     });
 
     revalidateProductPaths();

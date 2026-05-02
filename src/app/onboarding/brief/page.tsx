@@ -12,7 +12,6 @@ import type { BriefGenerationJob } from "@/server/schemas/brief-generation-job";
 import type { MarketingBrief } from "@/server/schemas/brief";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError, AuthService } from "@/server/services/auth-service";
-import { isInternalAdmin } from "@/server/services/admin-service";
 import { BriefReadError, BriefService } from "@/server/services/brief-service";
 import { ProductReadError, ProductService } from "@/server/services/product-service";
 import { requestBriefGenerationAction, saveBriefEditAction } from "@/app/onboarding/brief/actions";
@@ -35,7 +34,7 @@ export default async function OnboardingBriefPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const data = params.productId
     ? await loadBriefData(params.productId)
-    : { product: null, brief: null, briefGenerationJob: null, isAdmin: false, error: "Missing product ID." };
+    : { product: null, brief: null, briefGenerationJob: null, error: "Missing product ID." };
   const generationInFlight = data.briefGenerationJob?.status === "queued" || data.briefGenerationJob?.status === "running";
 
   return (
@@ -119,12 +118,6 @@ export default async function OnboardingBriefPage({ searchParams }: PageProps) {
                   <Button type="submit" disabled={generationInFlight}>
                     {generationInFlight ? "Generation running" : "Request generation"}
                   </Button>
-                  {data.isAdmin ? (
-                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <input type="checkbox" name="adminOverride" value="1" className="size-4 rounded border" />
-                      Testing mode
-                    </label>
-                  ) : null}
                 </form>
                 <Button asChild variant="outline">
                   <Link href={`/onboarding/brief?productId=${data.product.id}`}>
@@ -349,12 +342,11 @@ async function loadBriefData(productId: string): Promise<{
   product: Product | null;
   brief: MarketingBrief | null;
   briefGenerationJob: BriefGenerationJob | null;
-  isAdmin: boolean;
   error: string | null;
 }> {
   try {
     const supabase = await createSupabaseServerClient();
-    const user = await new AuthService(supabase).requireUser();
+    await new AuthService(supabase).requireUser();
     const briefService = new BriefService(supabase);
     const [product, brief, briefGenerationJob] = await Promise.all([
       new ProductService(supabase).getProduct({ productId }),
@@ -362,14 +354,14 @@ async function loadBriefData(productId: string): Promise<{
       briefService.getLatestGenerationJob({ productId }),
     ]);
 
-    return { product, brief, briefGenerationJob, isAdmin: isInternalAdmin(user), error: null };
+    return { product, brief, briefGenerationJob, error: null };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { product: null, brief: null, briefGenerationJob: null, isAdmin: false, error: error.message };
+      return { product: null, brief: null, briefGenerationJob: null, error: error.message };
     }
 
     if (error instanceof ProductReadError || error instanceof BriefReadError) {
-      return { product: null, brief: null, briefGenerationJob: null, isAdmin: false, error: error.message };
+      return { product: null, brief: null, briefGenerationJob: null, error: error.message };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
@@ -377,7 +369,6 @@ async function loadBriefData(productId: string): Promise<{
         product: null,
         brief: null,
         briefGenerationJob: null,
-        isAdmin: false,
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
       };
     }

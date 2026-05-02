@@ -16,7 +16,6 @@ import type { CrawlJob } from "@/server/schemas/crawl";
 type Props = {
   productId: string;
   hasBrief: boolean;
-  isAdmin: boolean;
   crawlJob: CrawlJob | null;
   briefGenerationJob: BriefGenerationJob | null;
   currentBriefVersion: number | null;
@@ -27,7 +26,6 @@ type Props = {
 export function WorkflowActionPanel({
   productId,
   hasBrief,
-  isAdmin,
   crawlJob,
   briefGenerationJob,
   currentBriefVersion,
@@ -61,7 +59,6 @@ export function WorkflowActionPanel({
 
       <form action={crawlProductForBriefAction}>
         <input type="hidden" name="productId" value={productId} />
-        <AdminOverrideCheckbox isAdmin={isAdmin} />
         <CrawlSubmitArea
           disabled={crawlRunning}
           job={crawlJob}
@@ -71,7 +68,6 @@ export function WorkflowActionPanel({
 
       <form action={generateMarketingBriefNowAction}>
         <input type="hidden" name="productId" value={productId} />
-        <AdminOverrideCheckbox isAdmin={isAdmin} />
         <BriefSubmitArea
           disabled={briefRunning}
           job={briefGenerationJob}
@@ -79,12 +75,6 @@ export function WorkflowActionPanel({
           flashComplete={flashBriefComplete}
         />
       </form>
-
-      {isAdmin ? (
-        <div style={{ fontFamily: "var(--font-sans)", fontSize: "11.5px", color: "var(--lp-amber)", lineHeight: 1.5 }}>
-          Testing mode is enabled for this account.
-        </div>
-      ) : null}
 
       <Link href="/settings/products" style={ghostButtonStyle}>
         Manage product
@@ -174,19 +164,6 @@ function BriefSubmitArea({
     <button type="submit" style={primaryButtonStyle}>
       Regenerate from latest crawl
     </button>
-  );
-}
-
-function AdminOverrideCheckbox({ isAdmin }: { isAdmin: boolean }) {
-  if (!isAdmin) {
-    return null;
-  }
-
-  return (
-    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontFamily: "var(--font-sans)", fontSize: "11.5px", color: "var(--lp-muted)", marginBottom: "7px" }}>
-      <input name="adminOverride" value="1" type="checkbox" />
-      Testing mode
-    </label>
   );
 }
 

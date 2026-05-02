@@ -9,7 +9,6 @@ import type { BriefGenerationJob } from "@/server/schemas/brief-generation-job";
 import type { MarketingBrief } from "@/server/schemas/brief";
 import type { CrawlJob, CrawlResult } from "@/server/schemas/crawl";
 import type { Product } from "@/server/schemas/product";
-import { isInternalAdmin } from "@/server/services/admin-service";
 import { AuthRequiredError, AuthService } from "@/server/services/auth-service";
 import { BriefReadError, BriefService } from "@/server/services/brief-service";
 import { CrawlReadError, CrawlService } from "@/server/services/crawl-service";
@@ -109,7 +108,6 @@ export default async function MarketingBriefPage({ searchParams }: PageProps) {
               <WorkflowActionPanel
                 productId={data.product.id}
                 hasBrief={Boolean(data.brief)}
-                isAdmin={data.isAdmin}
                 crawlJob={data.crawlJob}
                 briefGenerationJob={data.briefGenerationJob}
                 currentBriefVersion={data.brief?.version ?? null}
@@ -404,17 +402,16 @@ async function loadMarketingBriefData(): Promise<{
   crawlResult: CrawlResult | null;
   briefGenerationJob: BriefGenerationJob | null;
   briefVersions: MarketingBrief[];
-  isAdmin: boolean;
   error: string | null;
   authRequired: boolean;
 }> {
   try {
     const supabase = await createSupabaseServerClient();
-    const user = await new AuthService(supabase).requireUser();
+    await new AuthService(supabase).requireUser();
     const product = await new ProductService(supabase).getLatestProduct();
 
     if (!product) {
-      return { product: null, brief: null, crawlJob: null, crawlResult: null, briefGenerationJob: null, briefVersions: [], isAdmin: isInternalAdmin(user), error: null, authRequired: false };
+      return { product: null, brief: null, crawlJob: null, crawlResult: null, briefGenerationJob: null, briefVersions: [], error: null, authRequired: false };
     }
 
     const crawlService = new CrawlService(supabase);
@@ -427,14 +424,14 @@ async function loadMarketingBriefData(): Promise<{
       briefService.listBriefVersions({ productId: product.id }),
     ]);
 
-    return { product, brief, crawlJob, crawlResult, briefGenerationJob, briefVersions, isAdmin: isInternalAdmin(user), error: null, authRequired: false };
+    return { product, brief, crawlJob, crawlResult, briefGenerationJob, briefVersions, error: null, authRequired: false };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { product: null, brief: null, crawlJob: null, crawlResult: null, briefGenerationJob: null, briefVersions: [], isAdmin: false, error: null, authRequired: true };
+      return { product: null, brief: null, crawlJob: null, crawlResult: null, briefGenerationJob: null, briefVersions: [], error: null, authRequired: true };
     }
 
     if (error instanceof ProductReadError || error instanceof BriefReadError || error instanceof CrawlReadError) {
-      return { product: null, brief: null, crawlJob: null, crawlResult: null, briefGenerationJob: null, briefVersions: [], isAdmin: false, error: error.message, authRequired: false };
+      return { product: null, brief: null, crawlJob: null, crawlResult: null, briefGenerationJob: null, briefVersions: [], error: error.message, authRequired: false };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
@@ -445,7 +442,6 @@ async function loadMarketingBriefData(): Promise<{
         crawlResult: null,
         briefGenerationJob: null,
         briefVersions: [],
-        isAdmin: false,
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
         authRequired: false,
       };

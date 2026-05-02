@@ -95,7 +95,6 @@ export async function startCrawlAction(
     const supabase = await createSupabaseServerClient();
     const job = await new CrawlService(supabase).startCrawl({
       productId,
-      adminOverride: formData.get("adminOverride") === "1",
     });
 
     redirect(`/onboarding/crawl?productId=${job.productId}&crawlJobId=${job.id}`);

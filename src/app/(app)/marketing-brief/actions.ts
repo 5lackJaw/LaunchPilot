@@ -18,7 +18,6 @@ export async function generateMarketingBriefNowAction(formData: FormData) {
     const supabase = await createSupabaseServerClient();
     await new BriefService(supabase).requestGeneration({
       productId,
-      adminOverride: formData.get("adminOverride") === "1",
     });
 
     revalidatePath("/marketing-brief");
@@ -86,7 +85,6 @@ export async function crawlProductForBriefAction(formData: FormData) {
     const supabase = await createSupabaseServerClient();
     const job = await new CrawlService(supabase).startCrawl({
       productId,
-      adminOverride: formData.get("adminOverride") === "1",
     });
 
     revalidatePath("/marketing-brief");

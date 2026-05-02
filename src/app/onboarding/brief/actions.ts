@@ -14,7 +14,6 @@ export async function requestBriefGenerationAction(formData: FormData) {
     const supabase = await createSupabaseServerClient();
     await new BriefService(supabase).requestGeneration({
       productId,
-      adminOverride: formData.get("adminOverride") === "1",
     });
   } catch (error) {
     const message = toBriefRequestMessage(error);

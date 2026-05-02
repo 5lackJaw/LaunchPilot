@@ -289,14 +289,6 @@ export class PlanLimitError extends Error {
   }
 }
 
-function parsePlanTier(value: unknown): PlanTier {
-  if (value === "launch" || value === "growth") {
-    return value;
-  }
-
-  return "free";
-}
-
 function getCurrentMonthStart() {
   const now = new Date();
   return new Date(
