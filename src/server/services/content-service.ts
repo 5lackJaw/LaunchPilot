@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { inngest } from "@/inngest/client";
 import {
+  buildContentGenerationSteps,
+  getContentGenerationState,
+  type ContentGenerationProvenance,
+} from "@/server/content/generation-state";
+import {
   contentAssetIdSchema,
   contentAssetSchema,
   listContentAssetsSchema,
@@ -211,15 +216,50 @@ export class ContentService {
       );
     }
 
-    await inngest.send({
-      name: "content/generation.requested",
-      data: {
-        contentAssetId: asset.id,
-        productId: asset.productId,
+    const generation = getContentGenerationState(asset.provenance);
+    if (generation?.status === "queued" || generation?.status === "running") {
+      throw new ContentGenerationRequestError(
+        "Article generation is already running for this draft.",
+      );
+    }
+
+    const queued = await this.updateContentGenerationState({
+      asset,
+      generation: {
+        status: "queued",
+        progressPercent: 5,
+        steps: buildContentGenerationSteps("Research search intent"),
+        requestedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       },
     });
 
-    return asset;
+    try {
+      await inngest.send({
+        name: "content/generation.requested",
+        data: {
+          contentAssetId: asset.id,
+          productId: asset.productId,
+        },
+      });
+    } catch (error) {
+      await this.updateContentGenerationState({
+        asset: queued,
+        generation: {
+          status: "failed",
+          progressPercent: 5,
+          steps: buildContentGenerationSteps("Research search intent").map((step, index) =>
+            index === 0 ? { ...step, status: "failed" } : step,
+          ),
+          requestedAt: getContentGenerationState(queued.provenance)?.requestedAt,
+          updatedAt: new Date().toISOString(),
+          errorMessage: error instanceof Error ? error.message.slice(0, 500) : "Content workflow could not be queued.",
+        },
+      });
+      throw error;
+    }
+
+    return queued;
   }
 
   async publishToGhost(input: unknown): Promise<ContentAsset> {
@@ -388,6 +428,29 @@ export class ContentService {
     }
 
     return data ? mapContentAsset(data) : null;
+  }
+
+  private async updateContentGenerationState(input: {
+    asset: ContentAsset;
+    generation: ContentGenerationProvenance;
+  }) {
+    const { data, error } = await this.supabase
+      .from("content_assets")
+      .update({
+        provenance: {
+          ...input.asset.provenance,
+          generation: input.generation,
+        },
+      })
+      .eq("id", input.asset.id)
+      .select(contentAssetSelect)
+      .single();
+
+    if (error) {
+      throw new ContentGenerationRequestError(error.message);
+    }
+
+    return mapContentAsset(data);
   }
 }
 

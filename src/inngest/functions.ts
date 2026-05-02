@@ -12,6 +12,11 @@ import {
   researchSearcherIntent,
   reviewArticleSeo,
 } from "@/server/content/build-article-draft";
+import {
+  buildContentGenerationSteps,
+  completeContentGenerationSteps,
+  getContentGenerationState,
+} from "@/server/content/generation-state";
 import { extractPageSignals } from "@/server/crawl/extract-page-signals";
 import { isWeeklyDigestEmailConfigured, sendWeeklyDigestEmail } from "@/server/email/weekly-digest-email";
 import { contentAssetSchema } from "@/server/schemas/content";
@@ -550,16 +555,56 @@ export const contentGenerationWorkflow = inngest.createFunction(
         userId: inputs.product.user_id,
       };
 
+      await step.run("mark-intent-research-running", async () =>
+        updateContentGenerationProgress({
+          supabase,
+          contentAssetId,
+          status: "running",
+          progressPercent: 12,
+          activeLabel: "Research search intent",
+        }),
+      );
+
       const searchIntent = await step.run("research-searcher-intent", async () =>
         researchSearcherIntent(articleInput),
+      );
+
+      await step.run("mark-outline-running", async () =>
+        updateContentGenerationProgress({
+          supabase,
+          contentAssetId,
+          status: "running",
+          progressPercent: 30,
+          activeLabel: "Generate article outline",
+        }),
       );
 
       const outline = await step.run("generate-article-outline", async () =>
         generateArticleOutline({ ...articleInput, searchIntent }),
       );
 
+      await step.run("mark-draft-running", async () =>
+        updateContentGenerationProgress({
+          supabase,
+          contentAssetId,
+          status: "running",
+          progressPercent: 55,
+          activeLabel: "Draft full article",
+        }),
+      );
+
       const articleBody = await step.run("draft-full-article", async () =>
         generateFullArticleDraft({ ...articleInput, searchIntent, outline }),
+      );
+
+      await step.run("mark-seo-review-running", async () =>
+        updateContentGenerationProgress({
+          supabase,
+          contentAssetId,
+          status: "running",
+          progressPercent: 82,
+          activeLabel: "Review SEO metadata",
+        }),
       );
 
       const seoReview = await step.run("review-article-seo", async () =>
@@ -574,6 +619,16 @@ export const contentGenerationWorkflow = inngest.createFunction(
         seoReview,
       });
 
+      await step.run("mark-review-item-running", async () =>
+        updateContentGenerationProgress({
+          supabase,
+          contentAssetId,
+          status: "running",
+          progressPercent: 95,
+          activeLabel: "Create review item",
+        }),
+      );
+
       const updated = await step.run("persist-content-asset", async () => {
       const { data, error } = await supabase
         .from("content_assets")
@@ -587,6 +642,14 @@ export const contentGenerationWorkflow = inngest.createFunction(
           provenance: {
             ...inputs.asset.provenance,
             ...draft.provenance,
+            generation: {
+              status: "completed",
+              progressPercent: 100,
+              steps: completeContentGenerationSteps(),
+              requestedAt: getGenerationRequestedAt(inputs.asset.provenance),
+              updatedAt: new Date().toISOString(),
+              completedAt: new Date().toISOString(),
+            },
           },
         })
         .eq("id", inputs.asset.id)
@@ -665,7 +728,11 @@ export const contentGenerationWorkflow = inngest.createFunction(
 
       logWorkflowEvent({ workflow, status: "succeeded", eventName: event.name, productId: updated.product_id, entityId: contentAssetId });
     } catch (error) {
-      await supabase.from("content_assets").update({ status: "failed" }).eq("id", contentAssetId);
+      await markContentGenerationFailed({
+        supabase,
+        contentAssetId,
+        errorMessage: error instanceof Error ? error.message : "Unknown content generation failure.",
+      });
       captureWorkflowException(error, { workflow, eventName: event.name, entityId: contentAssetId });
       throw error;
     }
@@ -962,4 +1029,90 @@ function normalizeWorkflowString(value: string) {
 
 function normalizeWorkflowStringArray(values: string[]) {
   return values.map(normalizeWorkflowString).filter(Boolean);
+}
+
+async function updateContentGenerationProgress(input: {
+  supabase: ReturnType<typeof createSupabaseAdminClient>;
+  contentAssetId: string;
+  status: "queued" | "running";
+  progressPercent: number;
+  activeLabel: string;
+}) {
+  const current = await input.supabase
+    .from("content_assets")
+    .select("provenance")
+    .eq("id", input.contentAssetId)
+    .single();
+
+  if (current.error) {
+    throw current.error;
+  }
+
+  const provenance =
+    current.data.provenance && typeof current.data.provenance === "object" && !Array.isArray(current.data.provenance)
+      ? (current.data.provenance as Record<string, unknown>)
+      : {};
+  const generation = getContentGenerationState(provenance);
+  const { error } = await input.supabase
+    .from("content_assets")
+    .update({
+      provenance: {
+        ...provenance,
+        generation: {
+          status: input.status,
+          progressPercent: input.progressPercent,
+          steps: buildContentGenerationSteps(input.activeLabel),
+          requestedAt: generation?.requestedAt,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    })
+    .eq("id", input.contentAssetId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+async function markContentGenerationFailed(input: {
+  supabase: ReturnType<typeof createSupabaseAdminClient>;
+  contentAssetId: string;
+  errorMessage: string;
+}) {
+  const current = await input.supabase
+    .from("content_assets")
+    .select("provenance")
+    .eq("id", input.contentAssetId)
+    .maybeSingle();
+
+  const provenance =
+    current.data?.provenance && typeof current.data.provenance === "object" && !Array.isArray(current.data.provenance)
+      ? (current.data.provenance as Record<string, unknown>)
+      : {};
+  const generation = getContentGenerationState(provenance);
+  const activeStep = generation?.steps.find((step) => step.status === "running")?.label ?? "Research search intent";
+
+  await input.supabase
+    .from("content_assets")
+    .update({
+      status: "failed",
+      provenance: {
+        ...provenance,
+        generation: {
+          status: "failed",
+          progressPercent: generation?.progressPercent ?? 0,
+          steps: buildContentGenerationSteps(activeStep).map((step) =>
+            step.label === activeStep ? { ...step, status: "failed" as const } : step,
+          ),
+          requestedAt: generation?.requestedAt,
+          updatedAt: new Date().toISOString(),
+          errorMessage: input.errorMessage.slice(0, 500),
+        },
+      },
+    })
+    .eq("id", input.contentAssetId);
+}
+
+function getGenerationRequestedAt(provenance: Record<string, unknown>) {
+  return getContentGenerationState(provenance)?.requestedAt;
 }

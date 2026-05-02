@@ -8,17 +8,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AppTopbar } from "@/components/layout/app-topbar";
+import { WorkflowStatusRefresh } from "@/components/workflow-status-refresh";
+import { DraftGenerationPanel } from "@/app/(app)/content/[assetId]/draft-generation-panel";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   publishContentAssetToGhostAction,
   publishContentAssetToWebflowAction,
   publishContentAssetToWordPressAction,
-  requestArticleGenerationAction,
   updateContentAssetAction,
 } from "@/app/(app)/content/[assetId]/actions";
 import { isGhostPublishingConfigured } from "@/server/publishing/ghost-adapter";
 import { isWebflowPublishingConfigured } from "@/server/publishing/webflow-adapter";
 import { isWordPressPublishingConfigured } from "@/server/publishing/wordpress-adapter";
+import { getContentGenerationState } from "@/server/content/generation-state";
 import type { ContentAsset } from "@/server/schemas/content";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { ContentAssetReadError, ContentService } from "@/server/services/content-service";
@@ -52,8 +54,13 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
     return <ContentAssetShell title="Content asset" errorTitle="Content asset could not be loaded" error={data.error ?? "Content asset was not found."} destructive />;
   }
 
+  const generation = getContentGenerationState(data.asset.provenance);
+  const generationRunning = generation?.status === "queued" || generation?.status === "running";
+  const flashGenerationComplete = Boolean(query.generationRequested && generation?.status === "completed");
+
   return (
     <main className="flex min-h-screen flex-col">
+      <WorkflowStatusRefresh enabled={generationRunning} />
       <AppTopbar
         title="Content Editor"
         eyebrow={`${data.asset.type} / ${data.asset.status}`}
@@ -79,12 +86,6 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
             <Alert>
               <AlertTitle>Content saved</AlertTitle>
               <AlertDescription>The draft fields were updated.</AlertDescription>
-            </Alert>
-          ) : null}
-          {query.generationRequested ? (
-            <Alert>
-              <AlertTitle>Generation requested</AlertTitle>
-              <AlertDescription>The content workflow will generate a draft and create an inbox review item.</AlertDescription>
             </Alert>
           ) : null}
           {query.ghostPublished ? (
@@ -197,17 +198,12 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
               <CardDescription>Generate body copy and send the draft to the approval inbox.</CardDescription>
             </CardHeader>
             <CardContent>
-              <form action={requestArticleGenerationAction}>
-                <input type="hidden" name="assetId" value={data.asset.id} />
-                <Button
-                  type="submit"
-                  size="sm"
-                  className="w-full"
-                  disabled={!["draft", "pending_review", "rejected", "failed"].includes(data.asset.status)}
-                >
-                  Generate draft
-                </Button>
-              </form>
+              <DraftGenerationPanel
+                assetId={data.asset.id}
+                assetStatus={data.asset.status}
+                generation={generation}
+                flashComplete={flashGenerationComplete}
+              />
             </CardContent>
           </Card>
 
