@@ -16,7 +16,7 @@ export const communityThreadIngestionWorkflow = inngest.createFunction(
 
     try {
       const inputs = await step.run("load-community-inputs", async () => {
-      const productResult = await supabase.from("products").select("id,name,current_marketing_brief_id").eq("id", productId).single();
+      const productResult = await supabase.from("products").select("id,name,user_id,current_marketing_brief_id").eq("id", productId).single();
 
       if (productResult.error) {
         throw productResult.error;
@@ -62,6 +62,9 @@ export const communityThreadIngestionWorkflow = inngest.createFunction(
 
       const candidates = await step.run("score-thread-candidates", async () =>
       buildThreadCandidates({
+        supabase,
+        productId,
+        userId: inputs.product.user_id,
         productName: inputs.product.name,
         brief: inputs.brief,
       }),
