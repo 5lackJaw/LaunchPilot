@@ -78,8 +78,14 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
         <div className="flex flex-col gap-3">
           {query.selected ? (
             <Alert>
-              <AlertTitle>Content draft queued</AlertTitle>
-              <AlertDescription>This content asset is now ready for draft generation or manual editing.</AlertDescription>
+              <AlertTitle>Content asset created</AlertTitle>
+              <AlertDescription>This content asset is ready for draft generation or manual editing.</AlertDescription>
+            </Alert>
+          ) : null}
+          {query.generationRequested ? (
+            <Alert>
+              <AlertTitle>Article generation started</AlertTitle>
+              <AlertDescription>The draft workflow is running. This page will refresh while the article is generated.</AlertDescription>
             </Alert>
           ) : null}
           {query.saved ? (

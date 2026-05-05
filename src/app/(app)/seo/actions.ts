@@ -5,7 +5,12 @@ import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthRequiredError } from "@/server/services/auth-service";
-import { ContentAssetCreateError, ContentAssetReadError, ContentService } from "@/server/services/content-service";
+import {
+  ContentAssetCreateError,
+  ContentAssetReadError,
+  ContentGenerationRequestError,
+  ContentService,
+} from "@/server/services/content-service";
 
 export async function selectKeywordOpportunityAction(formData: FormData) {
   const productId = String(formData.get("productId") ?? "");
@@ -14,11 +19,14 @@ export async function selectKeywordOpportunityAction(formData: FormData) {
 
   try {
     const supabase = await createSupabaseServerClient();
-    const asset = await new ContentService(supabase).selectKeywordOpportunity({ productId, opportunityId });
+    const asset = await new ContentService(supabase).selectKeywordOpportunityAndRequestGeneration({
+      productId,
+      opportunityId,
+    });
 
     revalidatePath("/seo");
     revalidatePath("/content");
-    redirectTo = `/content/${asset.id}?selected=1`;
+    redirectTo = `/content/${asset.id}?generationRequested=1`;
   } catch (error) {
     const message = toSelectionErrorMessage(error);
     redirectTo = `/seo?selectionError=${encodeURIComponent(message)}`;
@@ -36,7 +44,11 @@ function toSelectionErrorMessage(error: unknown) {
     return error.message;
   }
 
-  if (error instanceof ContentAssetCreateError || error instanceof ContentAssetReadError) {
+  if (
+    error instanceof ContentAssetCreateError ||
+    error instanceof ContentAssetReadError ||
+    error instanceof ContentGenerationRequestError
+  ) {
     return error.message;
   }
 

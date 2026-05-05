@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { selectKeywordOpportunityAction } from "@/app/(app)/seo/actions";
+import { DraftOpportunitySubmit } from "@/app/(app)/seo/draft-opportunity-submit";
 import type { ContentAsset, KeywordOpportunity } from "@/server/schemas/content";
 import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
@@ -12,7 +13,7 @@ import { ContentAssetReadError, ContentService } from "@/server/services/content
 import { ProductReadError, ProductService } from "@/server/services/product-service";
 
 type PageProps = {
-  searchParams: Promise<{ selected?: string; selectionError?: string }>;
+  searchParams: Promise<{ selectionError?: string }>;
 };
 
 export default async function SeoPage({ searchParams }: PageProps) {
@@ -89,12 +90,6 @@ export default async function SeoPage({ searchParams }: PageProps) {
         {/* ── MAIN COLUMN ── */}
         <div style={{ overflowY: "auto", padding: "22px 28px 40px", display: "flex", flexDirection: "column", gap: "22px" }}>
 
-          {params.selected && (
-            <Alert>
-              <AlertTitle>Content draft queued</AlertTitle>
-              <AlertDescription>The selected keyword now has a durable content asset placeholder for the generation workflow.</AlertDescription>
-            </Alert>
-          )}
           {params.selectionError && (
             <Alert variant="destructive">
               <AlertTitle>Selection failed</AlertTitle>
@@ -208,9 +203,7 @@ export default async function SeoPage({ searchParams }: PageProps) {
                                   <form action={selectKeywordOpportunityAction} style={{ display: "inline" }}>
                                     <input type="hidden" name="productId" value={opp.productId} />
                                     <input type="hidden" name="opportunityId" value={opp.id} />
-                                    <button type="submit" style={{ padding: "4px 10px", borderRadius: "5px", fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--lp-purple-l)", background: "var(--lp-purple-dim)", border: "1px solid rgba(124,111,247,0.2)", cursor: "pointer" }}>
-                                      + Draft
-                                    </button>
+                                    <DraftOpportunitySubmit />
                                   </form>
                                 ) : (
                                   <button style={{ padding: "4px 10px", borderRadius: "5px", fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--lp-muted2)", background: "transparent", border: "1px solid var(--lp-border)", cursor: "pointer" }}>
@@ -390,9 +383,7 @@ export default async function SeoPage({ searchParams }: PageProps) {
                   <form action={selectKeywordOpportunityAction}>
                     <input type="hidden" name="productId" value={product.id} />
                     <input type="hidden" name="opportunityId" value={opportunities.find((o) => getOppStatus(o) === "untracked")!.id} />
-                    <button type="submit" style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "7px", background: "var(--lp-purple)", color: "#fff", fontSize: "12.5px", fontWeight: 500, border: "none", cursor: "pointer" }}>
-                      + Draft top keyword
-                    </button>
+                    <DraftOpportunitySubmit label="+ Draft top keyword" variant="primary" />
                   </form>
                 )}
               </div>

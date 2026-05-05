@@ -61,6 +61,30 @@ export class ContentService {
 
   async selectKeywordOpportunity(input: unknown): Promise<ContentAsset> {
     const parsed = selectKeywordOpportunitySchema.parse(input);
+    const { asset } = await this.getOrCreateContentAssetForKeywordOpportunity(parsed);
+    return asset;
+  }
+
+  async selectKeywordOpportunityAndRequestGeneration(input: unknown): Promise<ContentAsset> {
+    const parsed = selectKeywordOpportunitySchema.parse(input);
+    const { asset, created } = await this.getOrCreateContentAssetForKeywordOpportunity(parsed);
+    const generation = getContentGenerationState(asset.provenance);
+
+    if (
+      asset.bodyMd.trim() ||
+      generation?.status === "queued" ||
+      generation?.status === "running" ||
+      generation?.status === "completed"
+    ) {
+      return asset;
+    }
+
+    return this.requestArticleGenerationForAsset(asset, { skipPlanCheck: created });
+  }
+
+  private async getOrCreateContentAssetForKeywordOpportunity(
+    parsed: { productId: string; opportunityId: string },
+  ): Promise<{ asset: ContentAsset; created: boolean }> {
     await new ProductService(this.supabase).getProduct({
       productId: parsed.productId,
     });
@@ -89,7 +113,7 @@ export class ContentService {
     });
 
     if (existing) {
-      return existing;
+      return { asset: existing, created: false };
     }
 
     await new PlanService(this.supabase).assertCanUseGeneratedAction({
@@ -124,7 +148,7 @@ export class ContentService {
       throw new ContentAssetCreateError(error.message);
     }
 
-    return mapContentAsset(data);
+    return { asset: mapContentAsset(data), created: true };
   }
 
   async listContentAssets(input: unknown): Promise<ContentAsset[]> {
@@ -200,13 +224,22 @@ export class ContentService {
   async requestArticleGeneration(input: unknown): Promise<ContentAsset> {
     const parsed = contentAssetIdSchema.parse(input);
     const asset = await this.getContentAsset({ assetId: parsed.assetId });
+    return this.requestArticleGenerationForAsset(asset);
+  }
+
+  private async requestArticleGenerationForAsset(
+    asset: ContentAsset,
+    options: { skipPlanCheck?: boolean } = {},
+  ): Promise<ContentAsset> {
     await new ProductService(this.supabase).getProduct({
       productId: asset.productId,
     });
-    await new PlanService(this.supabase).assertCanUseGeneratedAction({
-      productId: asset.productId,
-      actionLabel: "article generation",
-    });
+    if (!options.skipPlanCheck) {
+      await new PlanService(this.supabase).assertCanUseGeneratedAction({
+        productId: asset.productId,
+        actionLabel: "article generation",
+      });
+    }
 
     if (
       !["draft", "pending_review", "rejected", "failed"].includes(asset.status)
