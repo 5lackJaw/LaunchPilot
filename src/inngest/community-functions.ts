@@ -1,6 +1,6 @@
 import { inngest } from "@/inngest/client";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { buildCommunityReplyDraft } from "@/server/community/build-reply-draft";
+import { buildCommunityReplyDraft, scoreCommunityReplyGuardrails } from "@/server/community/build-reply-draft";
 import { buildThreadCandidates } from "@/server/community/build-thread-candidates";
 import { marketingBriefSchema } from "@/server/schemas/brief";
 import { communityThreadSchema } from "@/server/schemas/community";
@@ -149,7 +149,7 @@ export const communityReplyGenerationWorkflow = inngest.createFunction(
         throw new Error("Community thread is not eligible for reply generation.");
       }
 
-      const productResult = await supabase.from("products").select("id,name,current_marketing_brief_id").eq("id", thread.productId).single();
+      const productResult = await supabase.from("products").select("id,name,user_id,current_marketing_brief_id").eq("id", thread.productId).single();
 
       if (productResult.error) {
         throw productResult.error;
@@ -196,28 +196,45 @@ export const communityReplyGenerationWorkflow = inngest.createFunction(
 
       const draft = await step.run("draft-reply-and-score-guardrails", async () =>
       buildCommunityReplyDraft({
+        supabase,
+        productId: inputs.product.id,
+        userId: inputs.product.user_id,
         productName: inputs.product.name,
         brief: inputs.brief,
         thread: inputs.thread,
       }),
       );
 
+      const guardrail = await step.run("score-reply-authenticity-and-promotion", async () =>
+        scoreCommunityReplyGuardrails({
+          supabase,
+          productId: inputs.product.id,
+          userId: inputs.product.user_id,
+          productName: inputs.product.name,
+          brief: inputs.brief,
+          thread: inputs.thread,
+          draft,
+        }),
+      );
+
       const updated = await step.run("persist-reply-draft", async () => {
-      const blocked = draft.promotionalScore > 0.45;
+      const blocked = !guardrail.passes;
       const { data, error } = await supabase
         .from("community_threads")
         .update({
           reply_draft: draft.body,
-          promotional_score: draft.promotionalScore,
+          promotional_score: guardrail.promotionalScore,
           status: blocked ? "blocked" : "pending_review",
           provenance: {
             ...inputs.thread.provenance,
             replyDraft: {
-              generator: "deterministic-community-reply-v0",
+              generator: "ai-router-community-reply-v1",
               generatedAt: new Date().toISOString(),
               rationale: draft.rationale,
               confidence: draft.confidence,
-              guardrail: blocked ? "blocked_promotional_risk" : "review_required",
+              guardrail: blocked ? "blocked_authenticity_or_promotional_risk" : "review_required",
+              authenticityScore: guardrail.authenticityScore,
+              guardrailRationale: guardrail.rationale,
             },
           },
         })
@@ -251,8 +268,8 @@ export const communityReplyGenerationWorkflow = inngest.createFunction(
 
       const trustLevel = Number(data?.trust_level ?? 1);
       const dailyLimit = Number(data?.daily_auto_action_limit ?? 0);
-      const eligibleForLevel2 = draft.confidence >= 0.88 && draft.promotionalScore <= 0.2;
-      const eligibleForLevel3 = draft.confidence >= 0.8 && draft.promotionalScore <= 0.3;
+      const eligibleForLevel2 = draft.confidence >= 0.88 && guardrail.authenticityScore >= 0.85 && guardrail.promotionalScore <= 0.2;
+      const eligibleForLevel3 = draft.confidence >= 0.8 && guardrail.authenticityScore >= 0.75 && guardrail.promotionalScore <= 0.3;
       const todayStart = new Date();
       todayStart.setUTCHours(0, 0, 0, 0);
       const usage = await supabase
@@ -284,10 +301,12 @@ export const communityReplyGenerationWorkflow = inngest.createFunction(
             provenance: {
               ...inputs.thread.provenance,
               replyDraft: {
-                generator: "deterministic-community-reply-v0",
+                generator: "ai-router-community-reply-v1",
                 generatedAt: new Date().toISOString(),
                 rationale: draft.rationale,
                 confidence: draft.confidence,
+                authenticityScore: guardrail.authenticityScore,
+                promotionalScore: guardrail.promotionalScore,
                 guardrail: "auto_executed_by_trust_level",
               },
               posting: {
