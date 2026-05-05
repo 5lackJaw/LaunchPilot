@@ -73,94 +73,6 @@ export default async function OutreachPage({ searchParams }: PageProps) {
         new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime(),
     );
 
-  const demoFollowUps = [
-    { name: "Indie Hackers Weekly", scheduledFor: "2026-05-05" },
-    { name: "The SaaS Dispatch", scheduledFor: "2026-05-08" },
-    { name: "Hacker Newsletter", scheduledFor: "2026-05-12" },
-  ];
-
-  const demoContacts: Array<{
-    name: string;
-    email: string;
-    publication: string;
-    score: number;
-    status: string;
-    sent: string;
-    followUp: string;
-  }> = [
-    {
-      name: "Lenny Rachitsky",
-      email: "lenny@lennysnewsletter.com",
-      publication: "Lenny's Newsletter",
-      score: 94,
-      status: "replied",
-      sent: "Apr 14",
-      followUp: "—",
-    },
-    {
-      name: "IndieHackers Editorial",
-      email: "editor@indiehackers.com",
-      publication: "Indie Hackers Weekly",
-      score: 87,
-      status: "opened",
-      sent: "Apr 16",
-      followUp: "May 5",
-    },
-    {
-      name: "Product Hunt Daily",
-      email: "hello@producthunt.com",
-      publication: "Product Hunt Newsletter",
-      score: 81,
-      status: "sent",
-      sent: "Apr 18",
-      followUp: "May 8",
-    },
-    {
-      name: "SaaS Dispatch",
-      email: "team@saasdispatch.io",
-      publication: "The SaaS Dispatch",
-      score: 76,
-      status: "drafted",
-      sent: "—",
-      followUp: "—",
-    },
-    {
-      name: "Hacker Newsletter",
-      email: "peter@hackernewsletter.com",
-      publication: "Hacker Newsletter",
-      score: 72,
-      status: "identified",
-      sent: "—",
-      followUp: "—",
-    },
-    {
-      name: "Bootstrapped Founder",
-      email: "arvid@bootstrappedfounder.com",
-      publication: "Bootstrapped Founder",
-      score: 68,
-      status: "identified",
-      sent: "—",
-      followUp: "—",
-    },
-    {
-      name: "Swipe Files",
-      email: "corey@swipefiles.com",
-      publication: "Swipe Files",
-      score: 61,
-      status: "suppressed",
-      sent: "—",
-      followUp: "—",
-    },
-    {
-      name: "Marketing Examples",
-      email: "harry@marketingexamples.com",
-      publication: "Marketing Examples",
-      score: 58,
-      status: "identified",
-      sent: "—",
-      followUp: "—",
-    },
-  ];
 
   return (
     <main
@@ -686,10 +598,10 @@ export default async function OutreachPage({ searchParams }: PageProps) {
                   fontWeight: 400,
                 }}
               >
-                {contacts.length > 0 ? contacts.length : demoContacts.length}
+                {contacts.length}
               </span>
             </div>
-            {contacts.length === 0 && data.product && (
+            {contacts.length === 0 && data.product ? (
               <span
                 style={{
                   fontFamily: "var(--font-mono)",
@@ -701,9 +613,9 @@ export default async function OutreachPage({ searchParams }: PageProps) {
                   borderRadius: "5px",
                 }}
               >
-                sample data
+                no prospects yet
               </span>
-            )}
+            ) : null}
           </div>
           <div style={{ overflowX: "auto" }}>
             <table
@@ -746,16 +658,27 @@ export default async function OutreachPage({ searchParams }: PageProps) {
                 </tr>
               </thead>
               <tbody>
-                {contacts.length > 0
-                  ? contacts.map((contact) => (
-                      <ContactRow key={contact.id} contact={contact} />
-                    ))
-                  : data.product
-                    ? demoContacts.map((row, i) => (
-                        <DemoContactRow key={i} row={row} />
-                      ))
-                    : null}
-                {!data.product && (
+                {contacts.length > 0 ? (
+                  contacts.map((contact) => (
+                    <ContactRow key={contact.id} contact={contact} />
+                  ))
+                ) : data.product ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      style={{
+                        padding: "40px 18px",
+                        textAlign: "center",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "12px",
+                        color: "var(--lp-muted)",
+                      }}
+                    >
+                      No outreach prospects yet. Use Find prospects to research real publication and writer URLs from the current Marketing Brief.
+                    </td>
+                  </tr>
+                ) : null}
+                {!data.product ? (
                   <tr>
                     <td
                       colSpan={7}
@@ -771,7 +694,7 @@ export default async function OutreachPage({ searchParams }: PageProps) {
                       identify outreach prospects.
                     </td>
                   </tr>
-                )}
+                ) : null}
               </tbody>
             </table>
           </div>
@@ -944,92 +867,19 @@ export default async function OutreachPage({ searchParams }: PageProps) {
                     background: "var(--lp-bg2)",
                     border: "1px solid var(--lp-border)",
                     borderRadius: "8px",
-                    overflow: "hidden",
+                    padding: "24px 18px",
+                    textAlign: "center",
                   }}
                 >
                   <div
                     style={{
-                      borderBottom: "1px solid var(--lp-border)",
-                      padding: "12px 16px",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "12px",
+                      color: "var(--lp-muted)",
+                      lineHeight: 1.7,
                     }}
                   >
-                    {[
-                      { label: "To", value: "lenny@lennysnewsletter.com" },
-                      {
-                        label: "Subject",
-                        value: "Covering OnChainInvoice — partnership opportunity",
-                      },
-                      {
-                        label: "From",
-                        value: "LaunchBeacon <outreach@launchbeacon.app>",
-                      },
-                    ].map((row) => (
-                      <div
-                        key={row.label}
-                        style={{
-                          display: "flex",
-                          gap: "10px",
-                          marginBottom: "6px",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontFamily: "var(--font-mono)",
-                            fontSize: "10px",
-                            color: "var(--lp-muted)",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.06em",
-                            minWidth: "52px",
-                            paddingTop: "1px",
-                          }}
-                        >
-                          {row.label}
-                        </span>
-                        <span
-                          style={{
-                            fontFamily: "var(--font-mono)",
-                            fontSize: "11.5px",
-                            color: "var(--lp-text)",
-                            opacity: 0.55,
-                          }}
-                        >
-                          {row.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ padding: "14px 16px", opacity: 0.55 }}>
-                    <p
-                      style={{
-                        fontSize: "12.5px",
-                        color: "var(--lp-muted2)",
-                        lineHeight: 1.7,
-                        margin: 0,
-                      }}
-                    >
-                      Hi Lenny,
-                      <br />
-                      <br />
-                      I&apos;m reaching out because your newsletter readers would
-                      benefit from{" "}
-                      <strong style={{ color: "var(--lp-text)", fontWeight: 500 }}>
-                        OnChainInvoice
-                      </strong>
-                      . We&apos;re automating crypto invoicing for freelancers and
-                      agencies, and I&apos;d love to explore coverage.
-                    </p>
-                    <div
-                      style={{
-                        marginTop: "14px",
-                        paddingTop: "12px",
-                        borderTop: "1px solid var(--lp-border)",
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "10px",
-                        color: "var(--lp-muted)",
-                      }}
-                    >
-                      Sample preview · no pitches sent yet
-                    </div>
+                    No sent pitches yet. Draft and approve an outreach item from a real prospect to see the latest pitch here.
                   </div>
                 </div>
               )}
@@ -1069,10 +919,7 @@ export default async function OutreachPage({ searchParams }: PageProps) {
                   fontWeight: 400,
                 }}
               >
-                {followUps.length > 0
-                  ? followUps.length
-                  : demoFollowUps.length}{" "}
-                upcoming
+                {followUps.length} upcoming
               </span>
             </div>
             <div style={{ padding: "16px 18px" }}>
@@ -1084,8 +931,7 @@ export default async function OutreachPage({ searchParams }: PageProps) {
                   position: "relative",
                 }}
               >
-                {(followUps.length > 0 ? followUps : demoFollowUps).map(
-                  (fu, i, arr) => (
+                {followUps.map((fu, i, arr) => (
                     <div
                       key={i}
                       style={{
@@ -1154,9 +1000,8 @@ export default async function OutreachPage({ searchParams }: PageProps) {
                         </div>
                       </div>
                     </div>
-                  ),
-                )}
-                {followUps.length === 0 && contacts.length > 0 && (
+                ))}
+                {followUps.length === 0 && (
                   <div
                     style={{
                       fontFamily: "var(--font-mono)",
@@ -1166,8 +1011,9 @@ export default async function OutreachPage({ searchParams }: PageProps) {
                       padding: "20px 0",
                     }}
                   >
-                    No follow-ups scheduled. Use the Follow up button on sent
-                    contacts.
+                    {contacts.length > 0
+                      ? "No follow-ups scheduled. Use the Follow up button on sent contacts."
+                      : "No follow-ups yet. Sent or opened pitches can be scheduled here."}
                   </div>
                 )}
               </div>
@@ -1278,7 +1124,7 @@ function ContactRow({ contact }: { contact: OutreachContact }) {
             whiteSpace: "nowrap",
           }}
         >
-          {contact.email ?? contact.url ?? "no contact detail"}
+          {contact.email ?? "Contact needed"}
         </div>
       </td>
       <td
@@ -1369,7 +1215,7 @@ function ContactRow({ contact }: { contact: OutreachContact }) {
                   whiteSpace: "nowrap",
                 }}
               >
-                Draft
+                {contact.email ? "Draft" : "Draft pitch"}
               </button>
             </form>
           )}
@@ -1448,115 +1294,6 @@ function ContactRow({ contact }: { contact: OutreachContact }) {
   );
 }
 
-function DemoContactRow({
-  row,
-}: {
-  row: {
-    name: string;
-    email: string;
-    publication: string;
-    score: number;
-    status: string;
-    sent: string;
-    followUp: string;
-  };
-}) {
-  return (
-    <tr
-      style={{ borderBottom: "1px solid var(--lp-border)", opacity: 0.65 }}
-    >
-      <td style={{ padding: "12px 18px", verticalAlign: "middle", maxWidth: "220px" }}>
-        <div
-          style={{
-            fontSize: "13px",
-            color: "var(--lp-text)",
-            fontWeight: 600,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {row.name}
-        </div>
-        <div
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "10.5px",
-            color: "var(--lp-muted)",
-            marginTop: "2px",
-          }}
-        >
-          {row.email}
-        </div>
-      </td>
-      <td
-        style={{
-          padding: "12px 18px",
-          verticalAlign: "middle",
-          fontSize: "13px",
-          color: "var(--lp-muted2)",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {row.publication}
-      </td>
-      <td
-        style={{
-          padding: "12px 18px",
-          verticalAlign: "middle",
-          fontFamily: "var(--font-mono)",
-          fontSize: "13px",
-          color: scoreColor(row.score),
-          fontWeight: 600,
-        }}
-      >
-        {row.score}
-      </td>
-      <td style={{ padding: "12px 18px", verticalAlign: "middle" }}>
-        <ContactStatusPill status={row.status} />
-      </td>
-      <td
-        style={{
-          padding: "12px 18px",
-          verticalAlign: "middle",
-          fontFamily: "var(--font-mono)",
-          fontSize: "12px",
-          color: "var(--lp-muted2)",
-        }}
-      >
-        {row.sent}
-      </td>
-      <td
-        style={{
-          padding: "12px 18px",
-          verticalAlign: "middle",
-          fontFamily: "var(--font-mono)",
-          fontSize: "12px",
-          color: row.followUp !== "—" ? "var(--lp-purple-l)" : "var(--lp-muted2)",
-        }}
-      >
-        {row.followUp}
-      </td>
-      <td
-        style={{
-          padding: "12px 18px",
-          verticalAlign: "middle",
-          textAlign: "right",
-        }}
-      >
-        <span
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "11px",
-            color: "var(--lp-muted)",
-          }}
-        >
-          —
-        </span>
-      </td>
-    </tr>
-  );
-}
 
 async function loadOutreachData(): Promise<{
   product: Product | null;

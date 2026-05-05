@@ -16,7 +16,7 @@ export const prospectIdentificationWorkflow = inngest.createFunction(
 
     try {
       const inputs = await step.run("load-outreach-inputs", async () => {
-      const productResult = await supabase.from("products").select("id,name,url,current_marketing_brief_id").eq("id", productId).single();
+      const productResult = await supabase.from("products").select("id,name,url,user_id,current_marketing_brief_id").eq("id", productId).single();
 
       if (productResult.error) {
         throw productResult.error;
@@ -62,6 +62,9 @@ export const prospectIdentificationWorkflow = inngest.createFunction(
 
       const candidates = await step.run("identify-prospect-candidates", async () =>
       buildProspectCandidates({
+        supabase,
+        productId,
+        userId: inputs.product.user_id,
         productName: inputs.product.name,
         productUrl: inputs.product.url,
         brief: inputs.brief,
