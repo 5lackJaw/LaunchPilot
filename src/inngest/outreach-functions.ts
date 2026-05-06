@@ -139,7 +139,7 @@ export const outreachDraftGenerationWorkflow = inngest.createFunction(
         throw new Error("Outreach contact is not eligible for draft generation.");
       }
 
-      const productResult = await supabase.from("products").select("id,name,url,current_marketing_brief_id").eq("id", contact.productId).single();
+      const productResult = await supabase.from("products").select("id,name,url,user_id,current_marketing_brief_id").eq("id", contact.productId).single();
 
       if (productResult.error) {
         throw productResult.error;
@@ -186,6 +186,9 @@ export const outreachDraftGenerationWorkflow = inngest.createFunction(
 
       const draft = await step.run("compose-outreach-draft", async () =>
       buildOutreachDraft({
+        supabase,
+        productId: inputs.product.id,
+        userId: inputs.product.user_id,
         productName: inputs.product.name,
         productUrl: inputs.product.url,
         brief: inputs.brief,
@@ -201,7 +204,7 @@ export const outreachDraftGenerationWorkflow = inngest.createFunction(
           provenance: {
             ...inputs.contact.provenance,
             outreachDraft: {
-              generator: "deterministic-outreach-draft-v0",
+              generator: "ai-router-outreach-draft-v1",
               generatedAt: new Date().toISOString(),
               rationale: draft.rationale,
               confidence: draft.confidence,
@@ -251,10 +254,13 @@ export const outreachDraftGenerationWorkflow = inngest.createFunction(
             recipient: updated.name,
             publication: updated.publication,
             subject: draft.subject,
-            suggestedAction: "Review the outreach email before sending.",
+            suggestedAction: updated.email
+              ? "Review the outreach email before sending."
+              : "Find a contact email, then review the outreach email before sending.",
             metadata: {
               contactUrl: updated.url,
               email: updated.email,
+              contactNeeded: !updated.email,
               contactScore: Number(updated.score),
             },
           },
