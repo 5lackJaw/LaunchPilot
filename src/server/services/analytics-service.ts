@@ -22,6 +22,7 @@ type TrafficRow = {
   source_type: string;
   visits: number | string;
   conversions: number | string;
+  provenance?: Record<string, unknown> | null;
   recorded_at: string;
 };
 
@@ -172,14 +173,18 @@ export class AnalyticsService {
       this.listPendingInboxRows(productId),
     ]);
 
-    const visitors = sumTraffic(currentTraffic, "visits");
-    const previousVisitors = sumTraffic(previousTraffic, "visits");
-    const conversions = sumTraffic(currentTraffic, "conversions");
-    const previousConversions = sumTraffic(previousTraffic, "conversions");
+    const currentSourceTraffic = currentTraffic.filter(isSourceTrafficRow);
+    const previousSourceTraffic = previousTraffic.filter(isSourceTrafficRow);
+    const sourceTraffic30d = traffic30d.filter(isSourceTrafficRow);
+    const visitors = sumTraffic(currentSourceTraffic, "visits");
+    const previousVisitors = sumTraffic(previousSourceTraffic, "visits");
+    const conversions = sumTraffic(currentSourceTraffic, "conversions");
+    const previousConversions = sumTraffic(previousSourceTraffic, "conversions");
     const keywordMovement = deriveKeywordMovement(rankRows);
     const contentPerformance = deriveContentPerformance(
       contentRows,
       keywordMovement,
+      traffic30d,
     );
     const publishedAssets = countPublishedAssets(
       contentRows,
@@ -208,13 +213,13 @@ export class AnalyticsService {
           0,
         ) / 60,
       ),
-      sourceBreakdown: deriveSourceBreakdown(traffic30d),
+      sourceBreakdown: deriveSourceBreakdown(sourceTraffic30d),
       keywordMovement,
       contentPerformance,
       weeklyInsight: deriveWeeklyInsight({
         visitors,
         previousVisitors,
-        sourceBreakdown: deriveSourceBreakdown(currentTraffic),
+        sourceBreakdown: deriveSourceBreakdown(currentSourceTraffic),
         keywordMovement,
         pendingInboxItems: pendingInboxRows.length,
       }),
@@ -228,7 +233,7 @@ export class AnalyticsService {
   ) {
     let query = this.supabase
       .from("traffic_snapshots")
-      .select("source_type,visits,conversions,recorded_at")
+      .select("source_type,visits,conversions,provenance,recorded_at")
       .eq("product_id", productId)
       .gte("recorded_at", startsAt)
       .order("recorded_at", { ascending: false });
@@ -484,6 +489,10 @@ function deriveSourceBreakdown(rows: TrafficRow[]): TrafficSourceBreakdown[] {
     .sort((a, b) => b.visits - a.visits);
 }
 
+function isSourceTrafficRow(row: TrafficRow) {
+  return row.provenance?.dimension !== "event:page";
+}
+
 function deriveKeywordMovement(rows: KeywordRankRow[]): KeywordMovement[] {
   const byKeyword = new Map<string, KeywordRankRow[]>();
 
@@ -528,6 +537,7 @@ function deriveKeywordMovement(rows: KeywordRankRow[]): KeywordMovement[] {
 function deriveContentPerformance(
   rows: ContentAssetRow[],
   keywordMovement: KeywordMovement[],
+  trafficRows: TrafficRow[],
 ): ContentPerformance[] {
   const movementByKeyword = new Map(
     keywordMovement.map((movement) => [
@@ -535,6 +545,7 @@ function deriveContentPerformance(
       movement,
     ]),
   );
+  const trafficByContentAsset = deriveContentTraffic(trafficRows);
 
   return rows.slice(0, 12).map((row) => {
     const movement = row.target_keyword
@@ -548,13 +559,35 @@ function deriveContentPerformance(
       status: row.status,
       targetKeyword: row.target_keyword,
       publishedUrl: row.published_url,
-      visits: 0,
-      conversions: 0,
+      visits: trafficByContentAsset.get(row.id)?.visits ?? 0,
+      conversions: trafficByContentAsset.get(row.id)?.conversions ?? 0,
       currentPosition: movement?.currentPosition ?? null,
       rankChange: movement?.change ?? null,
       createdAt: row.created_at,
     };
   });
+}
+
+function deriveContentTraffic(rows: TrafficRow[]) {
+  const byAsset = new Map<string, { visits: number; conversions: number }>();
+
+  rows.forEach((row) => {
+    const contentAssetId = row.provenance?.contentAssetId;
+
+    if (typeof contentAssetId !== "string") {
+      return;
+    }
+
+    const current = byAsset.get(contentAssetId) ?? {
+      visits: 0,
+      conversions: 0,
+    };
+    current.visits += Number(row.visits);
+    current.conversions += Number(row.conversions);
+    byAsset.set(contentAssetId, current);
+  });
+
+  return byAsset;
 }
 
 function countPublishedAssets(
