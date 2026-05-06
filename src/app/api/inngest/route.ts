@@ -1,4 +1,5 @@
 import { serve } from "inngest/next";
+import { plausibleAnalyticsIngestionWorkflow } from "@/inngest/analytics-functions";
 import { communityReplyGenerationWorkflow, communityThreadIngestionWorkflow } from "@/inngest/community-functions";
 import { directoryPackageGenerationWorkflow } from "@/inngest/directory-functions";
 import { functions } from "@/inngest/functions";
@@ -16,5 +17,6 @@ export const { GET, POST, PUT } = serve({
     communityReplyGenerationWorkflow,
     prospectIdentificationWorkflow,
     outreachDraftGenerationWorkflow,
+    plausibleAnalyticsIngestionWorkflow,
   ],
 });

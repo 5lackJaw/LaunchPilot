@@ -24,6 +24,8 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: optionalNonEmptyString,
   GEMINI_API_KEY: optionalNonEmptyString,
   OPENAI_API_KEY: optionalNonEmptyString,
+  PLAUSIBLE_SITE_ID: optionalNonEmptyString,
+  PLAUSIBLE_API_KEY: optionalNonEmptyString,
   INNGEST_EVENT_KEY: optionalNonEmptyString,
   INNGEST_SIGNING_KEY: optionalNonEmptyString,
   INTERNAL_ADMIN_USER_IDS: optionalNonEmptyString,

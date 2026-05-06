@@ -80,7 +80,7 @@ const providerCatalog: Array<{
     category: "Analytics",
     description: "Import traffic source and conversion snapshots.",
     defaultScopes: ["stats:read"],
-    envConfigured: () => false,
+    envConfigured: () => Boolean(env.PLAUSIBLE_SITE_ID && env.PLAUSIBLE_API_KEY),
   },
   {
     provider: "resend",
