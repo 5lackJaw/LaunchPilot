@@ -114,6 +114,16 @@ export class AnalyticsService {
     return data ? mapWeeklyBrief(data) : null;
   }
 
+  async getKeywordTracking(input: unknown): Promise<KeywordMovement[]> {
+    const parsed = listAnalyticsSchema.parse(input);
+    await new ProductService(this.supabase).getProduct({
+      productId: parsed.productId,
+    });
+
+    const rows = await this.listKeywordRows(parsed.productId);
+    return deriveKeywordMovement(rows, 300);
+  }
+
   async upsertWeeklyBrief(input: {
     productId: string;
     weekStart: string;
@@ -526,7 +536,10 @@ function isSourceTrafficRow(row: TrafficRow) {
   return row.provenance?.dimension !== "event:page";
 }
 
-function deriveKeywordMovement(rows: KeywordRankRow[]): KeywordMovement[] {
+function deriveKeywordMovement(
+  rows: KeywordRankRow[],
+  limit = 12,
+): KeywordMovement[] {
   const byKeyword = new Map<string, KeywordRankRow[]>();
 
   rows.forEach((row) => {
@@ -564,7 +577,7 @@ function deriveKeywordMovement(rows: KeywordRankRow[]): KeywordMovement[] {
       };
     })
     .sort((a, b) => a.currentPosition - b.currentPosition)
-    .slice(0, 12);
+    .slice(0, limit);
 }
 
 function deriveContentPerformance(
