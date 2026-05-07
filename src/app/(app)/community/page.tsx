@@ -61,68 +61,6 @@ export default async function CommunityPage({ searchParams }: PageProps) {
   }
   const platforms = Object.entries(platformMap);
 
-  const demoPlatforms = [
-    { name: "reddit", total: 12, posted: 3 },
-    { name: "hacker_news", total: 7, posted: 1 },
-    { name: "indie_hackers", total: 4, posted: 0 },
-    { name: "x", total: 2, posted: 0 },
-  ];
-
-  const demoThreads: Array<{
-    platform: string;
-    title: string;
-    author: string;
-    relevance: number;
-    status: string;
-    promScore: string;
-    postedAt: string;
-  }> = [
-    {
-      platform: "reddit",
-      title: "Best tools for finding PMF in niche B2B markets?",
-      author: "u/startupgrinder",
-      relevance: 91,
-      status: "posted",
-      promScore: "18%",
-      postedAt: "Apr 18",
-    },
-    {
-      platform: "hacker_news",
-      title: "Ask HN: How do you validate SaaS ideas before building?",
-      author: "hn/throwawayfound",
-      relevance: 84,
-      status: "drafted",
-      promScore: "22%",
-      postedAt: "—",
-    },
-    {
-      platform: "indie_hackers",
-      title: "Struggling with early-stage content marketing — any wins?",
-      author: "ih/launchday",
-      relevance: 77,
-      status: "observed",
-      promScore: "—",
-      postedAt: "—",
-    },
-    {
-      platform: "reddit",
-      title: "What's the actual ROI of community engagement for SaaS?",
-      author: "u/growthops",
-      relevance: 68,
-      status: "observed",
-      promScore: "—",
-      postedAt: "—",
-    },
-    {
-      platform: "x",
-      title: "Thread: 5 underrated marketing channels for early-stage startups",
-      author: "@product_lens",
-      relevance: 61,
-      status: "skipped",
-      promScore: "34%",
-      postedAt: "—",
-    },
-  ];
 
   return (
     <main
@@ -617,24 +555,9 @@ export default async function CommunityPage({ searchParams }: PageProps) {
                   fontWeight: 400,
                 }}
               >
-                {threads.length > 0 ? threads.length : demoThreads.length}
+                {threads.length}
               </span>
             </div>
-            {threads.length === 0 && data.product && (
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "10px",
-                  color: "var(--lp-amber)",
-                  padding: "2px 8px",
-                  background: "rgba(240,164,41,0.10)",
-                  border: "1px solid rgba(240,164,41,0.20)",
-                  borderRadius: "5px",
-                }}
-              >
-                sample data
-              </span>
-            )}
           </div>
           <div style={{ overflowX: "auto" }}>
             <table
@@ -681,11 +604,25 @@ export default async function CommunityPage({ searchParams }: PageProps) {
                   ? threads.map((thread) => (
                       <ThreadRow key={thread.id} thread={thread} />
                     ))
-                  : data.product
-                    ? demoThreads.map((row, i) => (
-                        <DemoThreadRow key={i} row={row} />
-                      ))
-                    : null}
+                  : null}
+                {data.product && threads.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      style={{
+                        padding: "40px 18px",
+                        textAlign: "center",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "12px",
+                        color: "var(--lp-muted)",
+                      }}
+                    >
+                      No community threads have been scanned yet. Use Scan
+                      threads to ingest Reddit and Hacker News discussions from
+                      the current Marketing Brief.
+                    </td>
+                  </tr>
+                )}
                 {!data.product && (
                   <tr>
                     <td
@@ -749,19 +686,16 @@ export default async function CommunityPage({ searchParams }: PageProps) {
                   fontWeight: 400,
                 }}
               >
-                {platforms.length > 0 ? platforms.length : demoPlatforms.length}{" "}
-                platforms
+                {platforms.length} platforms
               </span>
             </div>
             <div style={{ padding: "6px 0" }}>
-              {(platforms.length > 0
-                ? platforms.map(([name, counts]) => ({
+              {platforms.length > 0 ? (
+                platforms.map(([name, counts]) => ({
                     name,
                     total: counts.total,
                     posted: counts.posted,
-                  }))
-                : demoPlatforms
-              ).map((p, i) => (
+                  })).map((p, i) => (
                 <div
                   key={i}
                   style={{
@@ -821,7 +755,20 @@ export default async function CommunityPage({ searchParams }: PageProps) {
                     </span>
                   </div>
                 </div>
-              ))}
+                ))
+              ) : (
+                <div
+                  style={{
+                    padding: "28px 18px",
+                    textAlign: "center",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "12px",
+                    color: "var(--lp-muted)",
+                  }}
+                >
+                  Platform counts will appear after the first thread scan.
+                </div>
+              )}
             </div>
           </div>
 
@@ -1181,125 +1128,6 @@ function ThreadRow({ thread }: { thread: CommunityThread }) {
   );
 }
 
-function DemoThreadRow({
-  row,
-}: {
-  row: {
-    platform: string;
-    title: string;
-    author: string;
-    relevance: number;
-    status: string;
-    promScore: string;
-    postedAt: string;
-  };
-}) {
-  return (
-    <tr
-      style={{
-        borderBottom: "1px solid var(--lp-border)",
-        opacity: 0.65,
-      }}
-    >
-      <td
-        style={{
-          padding: "12px 18px",
-          verticalAlign: "middle",
-          fontFamily: "var(--font-mono)",
-          fontSize: "11px",
-          color: "var(--lp-muted2)",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {row.platform.replace(/_/g, " ")}
-      </td>
-      <td
-        style={{
-          padding: "12px 18px",
-          verticalAlign: "middle",
-          maxWidth: "300px",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "13px",
-            color: "var(--lp-text)",
-            fontWeight: 500,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {row.title}
-        </div>
-        <div
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "10.5px",
-            color: "var(--lp-muted)",
-            marginTop: "2px",
-          }}
-        >
-          {row.author}
-        </div>
-      </td>
-      <td
-        style={{
-          padding: "12px 18px",
-          verticalAlign: "middle",
-          fontFamily: "var(--font-mono)",
-          fontSize: "13px",
-          color: relevanceColor(row.relevance),
-          fontWeight: 600,
-        }}
-      >
-        {row.relevance}%
-      </td>
-      <td style={{ padding: "12px 18px", verticalAlign: "middle" }}>
-        <StatusPill status={row.status} />
-      </td>
-      <td
-        style={{
-          padding: "12px 18px",
-          verticalAlign: "middle",
-          fontFamily: "var(--font-mono)",
-          fontSize: "12px",
-          color: "var(--lp-muted2)",
-        }}
-      >
-        {row.promScore}
-      </td>
-      <td
-        style={{
-          padding: "12px 18px",
-          verticalAlign: "middle",
-          fontFamily: "var(--font-mono)",
-          fontSize: "12px",
-          color: "var(--lp-muted2)",
-        }}
-      >
-        {row.postedAt}
-      </td>
-      <td
-        style={{
-          padding: "12px 18px",
-          verticalAlign: "middle",
-          textAlign: "right",
-        }}
-      >
-        <span
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "11px",
-            color: "var(--lp-muted)",
-          }}
-        >
-          —
-        </span>
-      </td>
-    </tr>
-  );
-}
 
 async function loadCommunityData(): Promise<{
   product: Product | null;
