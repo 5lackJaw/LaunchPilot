@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { requestArticleGenerationAction } from "@/app/(app)/content/[assetId]/actions";
+import {
+  cancelArticleGenerationAction,
+  requestArticleGenerationAction,
+} from "@/app/(app)/content/[assetId]/actions";
 import type { ContentGenerationProvenance } from "@/server/content/generation-state";
 
 type Props = {
@@ -88,6 +91,7 @@ function DraftGenerationSubmitArea({
         progressPercent={generation.progressPercent}
         stepIndex={getCurrentStepIndex(generation.steps)}
         stepCount={generation.steps.length || 5}
+        canCancel
       />
     );
   }
@@ -134,12 +138,14 @@ function InlineProgress({
   progressPercent,
   stepIndex,
   stepCount,
+  canCancel,
 }: {
   title: string;
   stepLabel: string;
   progressPercent: number;
   stepIndex: number;
   stepCount: number;
+  canCancel?: boolean;
 }) {
   return (
     <div style={progressBoxStyle}>
@@ -163,17 +169,27 @@ function InlineProgress({
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
         <span style={{ fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--lp-muted2)" }}>{stepLabel}</span>
-        <span
-          aria-hidden="true"
-          style={{
-            width: "6px",
-            height: "6px",
-            borderRadius: "9999px",
-            background: "var(--lp-purple)",
-            opacity: 0.75,
-            animation: "pulse 1.2s ease-in-out infinite",
-          }}
-        />
+        {canCancel ? (
+          <button
+            type="submit"
+            formAction={cancelArticleGenerationAction}
+            style={{ border: "none", background: "transparent", color: "var(--lp-muted)", fontFamily: "var(--font-sans)", fontSize: "11.5px", padding: 0, cursor: "pointer" }}
+          >
+            Cancel
+          </button>
+        ) : (
+          <span
+            aria-hidden="true"
+            style={{
+              width: "6px",
+              height: "6px",
+              borderRadius: "9999px",
+              background: "var(--lp-purple)",
+              opacity: 0.75,
+              animation: "pulse 1.2s ease-in-out infinite",
+            }}
+          />
+        )}
       </div>
     </div>
   );

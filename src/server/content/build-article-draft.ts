@@ -346,6 +346,13 @@ export async function generateArticleOutline(
     temperature: 0.5,
     responseJsonSchema: outlineJsonSchema,
     schema: outlineSchema,
+    normalize: (value) =>
+      normalizeArticleOutline({
+        value,
+        searchIntent: input.searchIntent,
+        title: input.asset.title,
+        targetKeyword: input.asset.targetKeyword,
+      }),
     label: "article outline",
     metadata: {
       stage: "article_outline",
@@ -564,6 +571,7 @@ async function generateParsedJson<T>(input: {
   temperature: number;
   schema: z.ZodType<T>;
   responseJsonSchema: unknown;
+  normalize?: (value: unknown) => unknown;
   label: string;
   metadata: Record<string, unknown>;
 }) {
@@ -583,7 +591,7 @@ async function generateParsedJson<T>(input: {
 
   try {
     return {
-      data: parseJsonResult(result.text, input.schema, input.label),
+      data: parseJsonResult(result.text, input.schema, input.label, input.normalize),
       result,
     };
   } catch (error) {
@@ -614,7 +622,7 @@ async function generateParsedJson<T>(input: {
     });
 
     return {
-      data: parseJsonResult(retry.text, input.schema, input.label),
+      data: parseJsonResult(retry.text, input.schema, input.label, input.normalize),
       result: retry,
     };
   }
@@ -624,8 +632,11 @@ function parseJsonResult<T>(
   text: string,
   schema: z.ZodType<T>,
   label: string,
+  normalize?: (value: unknown) => unknown,
 ): T {
-  const parsed = safeJsonParse(extractJsonObject(text), label);
+  const parsed = normalize
+    ? normalize(safeJsonParse(extractJsonObject(text), label))
+    : safeJsonParse(extractJsonObject(text), label);
   const result = schema.safeParse(parsed);
 
   if (!result.success) {
@@ -651,6 +662,67 @@ function extractJsonObject(text: string) {
   }
 
   return trimmed;
+}
+
+function normalizeArticleOutline(input: {
+  value: unknown;
+  searchIntent: SearchIntent;
+  title: string;
+  targetKeyword: string | null;
+}) {
+  if (!input.value || typeof input.value !== "object" || Array.isArray(input.value)) {
+    return input.value;
+  }
+
+  const value = input.value as Record<string, unknown>;
+  const sections = Array.isArray(value.sections) && value.sections.length > 0
+    ? value.sections
+    : buildFallbackOutlineSections(input.searchIntent, input.targetKeyword ?? input.title);
+
+  return {
+    ...value,
+    title: typeof value.title === "string" ? value.title : input.title,
+    metaTitle: typeof value.metaTitle === "string" ? value.metaTitle : input.title,
+    editorialBrief:
+      typeof value.editorialBrief === "string"
+        ? value.editorialBrief
+        : typeof value.introHook === "string"
+          ? value.introHook
+          : input.searchIntent.differentiationHook,
+    sections,
+    internalLinkSuggestions: Array.isArray(value.internalLinkSuggestions)
+      ? value.internalLinkSuggestions
+      : [],
+  };
+}
+
+function buildFallbackOutlineSections(searchIntent: SearchIntent, topic: string) {
+  const points = [
+    ...searchIntent.mustCover,
+    ...searchIntent.questionsToAnswer,
+    ...searchIntent.readerProblems,
+  ].filter(Boolean);
+  const fallbackPoints = points.length >= 10 ? points : [
+    ...points,
+    searchIntent.jobToBeDone,
+    searchIntent.contentAngle,
+    searchIntent.differentiationHook,
+  ];
+  const headings = [
+    `What ${topic} needs to solve`,
+    "The practical workflow",
+    "Checks before you choose an approach",
+    "Where the product fits",
+    "Next step",
+  ];
+
+  return headings.map((heading, index) => ({
+    heading,
+    points: [
+      fallbackPoints[index * 2] ?? searchIntent.primaryIntent,
+      fallbackPoints[index * 2 + 1] ?? searchIntent.differentiationHook,
+    ],
+  }));
 }
 
 function safeJsonParse(value: string, label: string): unknown {

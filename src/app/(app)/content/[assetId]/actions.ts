@@ -97,6 +97,22 @@ export async function requestArticleGenerationAction(formData: FormData) {
   redirect(redirectTo);
 }
 
+export async function cancelArticleGenerationAction(formData: FormData) {
+  const assetId = String(formData.get("assetId") ?? "");
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const asset = await new ContentService(supabase).cancelArticleGeneration({ assetId });
+
+    revalidatePath("/content");
+    revalidatePath(`/content/${asset.id}`);
+  } catch {
+    // Best effort. The workflow runner remains server-authoritative.
+  }
+
+  redirect(assetId ? `/content/${encodeURIComponent(assetId)}` : "/content");
+}
+
 export async function updateContentAssetAction(formData: FormData) {
   const assetId = String(formData.get("assetId") ?? "");
   const title = String(formData.get("title") ?? "");

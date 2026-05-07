@@ -465,7 +465,12 @@ export const productCrawlPlaceholder = inngest.createFunction(
 );
 
 export const contentGenerationWorkflow = inngest.createFunction(
-  { id: "content-generation-workflow", triggers: [{ event: "content/generation.requested" }] },
+  {
+    id: "content-generation-workflow",
+    triggers: [{ event: "content/generation.requested" }],
+    retries: 0,
+    singleton: { key: "event.data.contentAssetId", mode: "skip" },
+  },
   async ({ event, step }) => {
     const workflow = "content_generation";
     const contentAssetId = event.data.contentAssetId as string;
@@ -564,6 +569,7 @@ export const contentGenerationWorkflow = inngest.createFunction(
           activeLabel: "Research search intent",
         }),
       );
+      await assertContentGenerationNotCancelled({ supabase, contentAssetId });
 
       const searchIntent = await step.run("research-searcher-intent", async () =>
         researchSearcherIntent(articleInput),
@@ -578,6 +584,7 @@ export const contentGenerationWorkflow = inngest.createFunction(
           activeLabel: "Generate article outline",
         }),
       );
+      await assertContentGenerationNotCancelled({ supabase, contentAssetId });
 
       const outline = await step.run("generate-article-outline", async () =>
         generateArticleOutline({ ...articleInput, searchIntent }),
@@ -592,6 +599,7 @@ export const contentGenerationWorkflow = inngest.createFunction(
           activeLabel: "Draft full article",
         }),
       );
+      await assertContentGenerationNotCancelled({ supabase, contentAssetId });
 
       const articleBody = await step.run("draft-full-article", async () =>
         generateFullArticleDraft({ ...articleInput, searchIntent, outline }),
@@ -606,6 +614,7 @@ export const contentGenerationWorkflow = inngest.createFunction(
           activeLabel: "Review SEO metadata",
         }),
       );
+      await assertContentGenerationNotCancelled({ supabase, contentAssetId });
 
       const seoReview = await step.run("review-article-seo", async () =>
         reviewArticleSeo({ ...articleInput, searchIntent, outline, draft: articleBody }),
@@ -1071,6 +1080,31 @@ async function updateContentGenerationProgress(input: {
 
   if (error) {
     throw error;
+  }
+}
+
+async function assertContentGenerationNotCancelled(input: {
+  supabase: ReturnType<typeof createSupabaseAdminClient>;
+  contentAssetId: string;
+}) {
+  const current = await input.supabase
+    .from("content_assets")
+    .select("provenance")
+    .eq("id", input.contentAssetId)
+    .single();
+
+  if (current.error) {
+    throw current.error;
+  }
+
+  const provenance =
+    current.data.provenance && typeof current.data.provenance === "object" && !Array.isArray(current.data.provenance)
+      ? (current.data.provenance as Record<string, unknown>)
+      : {};
+  const generation = getContentGenerationState(provenance);
+
+  if (generation?.status === "failed" && generation.errorMessage === "Article generation was cancelled.") {
+    throw new Error("Article generation was cancelled.");
   }
 }
 

@@ -231,6 +231,49 @@ export class ContentService {
     return this.requestArticleGenerationForAsset(asset);
   }
 
+  async cancelArticleGeneration(input: unknown): Promise<ContentAsset> {
+    const parsed = contentAssetIdSchema.parse(input);
+    const asset = await this.getContentAsset({ assetId: parsed.assetId });
+    const generation = getContentGenerationState(asset.provenance);
+
+    if (generation?.status !== "queued" && generation?.status !== "running") {
+      return asset;
+    }
+
+    const activeStep =
+      generation.steps.find((step) => step.status === "running")?.label ??
+      generation.steps.find((step) => step.status === "pending")?.label ??
+      "Research search intent";
+
+    const { data, error } = await this.supabase
+      .from("content_assets")
+      .update({
+        status: "failed",
+        provenance: {
+          ...asset.provenance,
+          generation: {
+            status: "failed",
+            progressPercent: generation.progressPercent,
+            steps: buildContentGenerationSteps(activeStep).map((step) =>
+              step.label === activeStep ? { ...step, status: "failed" as const } : step,
+            ),
+            requestedAt: generation.requestedAt,
+            updatedAt: new Date().toISOString(),
+            errorMessage: "Article generation was cancelled.",
+          },
+        },
+      })
+      .eq("id", asset.id)
+      .select(contentAssetSelect)
+      .single();
+
+    if (error) {
+      throw new ContentGenerationRequestError(error.message);
+    }
+
+    return mapContentAsset(data);
+  }
+
   private async requestArticleGenerationForAsset(
     asset: ContentAsset,
     options: { skipPlanCheck?: boolean } = {},
