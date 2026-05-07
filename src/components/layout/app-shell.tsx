@@ -20,6 +20,7 @@ import {
   Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WorkflowNotifications } from "@/components/layout/workflow-notifications";
 
 const navGroups = [
   {
@@ -180,6 +181,7 @@ export function AppShell({
 
       {/* ── Main content ──────────────────────────────────────────────── */}
       <div className="min-w-0">{children}</div>
+      <WorkflowNotifications />
     </div>
   );
 }
