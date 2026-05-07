@@ -150,7 +150,7 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
               <CardDescription>{data.asset.targetKeyword ?? "No target keyword"}</CardDescription>
             </CardHeader>
             <CardContent>
-              <form action={updateContentAssetAction} className="flex flex-col gap-4">
+              <form key={data.asset.updatedAt} action={updateContentAssetAction} className="flex flex-col gap-4">
                 <input type="hidden" name="assetId" value={data.asset.id} />
                 <div className="grid gap-2">
                   <Label htmlFor="title">Title</Label>

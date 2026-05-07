@@ -43,18 +43,18 @@ const outlineSchema = z.object({
 });
 
 const articleDraftSchema = z.object({
-  title: z.string().min(10).max(140),
-  metaTitle: z.string().min(10).max(120),
-  metaDescription: z.string().min(80).max(300),
-  bodyMd: z.string().min(2500).max(30000),
+  title: z.string().min(10).max(180),
+  metaTitle: z.string().min(10).max(140),
+  metaDescription: z.string().min(80).max(500),
+  bodyMd: z.string().min(2500).max(60000),
 });
 
 const seoReviewSchema = z.object({
   aiConfidence: z.number().min(0).max(1),
   passes: z.boolean(),
-  finalTitle: z.string().min(10).max(140),
-  finalMetaTitle: z.string().min(10).max(120),
-  finalMetaDescription: z.string().min(80).max(300),
+  finalTitle: z.string().min(10).max(180),
+  finalMetaTitle: z.string().min(10).max(140),
+  finalMetaDescription: z.string().min(80).max(500),
   notes: z.array(z.string()).max(8),
 });
 
@@ -203,10 +203,10 @@ export function assembleArticleDraft(input: {
   seoReview: SeoReview;
 }) {
   const { draft, outline, searchIntent, seoReview } = input;
-  const title = seoReview.finalTitle || draft.title;
-  const metaTitle = seoReview.finalMetaTitle || draft.metaTitle;
+  const title = clampText(seoReview.finalTitle || draft.title, 180);
+  const metaTitle = clampText(seoReview.finalMetaTitle || draft.metaTitle, 120);
   const metaDescription =
-    seoReview.finalMetaDescription || draft.metaDescription;
+    clampText(seoReview.finalMetaDescription || draft.metaDescription, 300);
 
   return {
     title,
@@ -465,7 +465,7 @@ async function generateParsedJson<T>(input: {
       result,
     };
   } catch (error) {
-    if (!(error instanceof ArticleAiParseError)) {
+    if (!(error instanceof ArticleAiParseError) || error.kind !== "json") {
       throw error;
     }
 
@@ -537,8 +537,18 @@ function safeJsonParse(value: string, label: string): unknown {
   } catch (error) {
     throw new ArticleAiParseError(
       `${label} response was not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      "json",
     );
   }
+}
+
+function clampText(value: string, maxLength: number) {
+  const normalized = value.trim().replace(/\s+/g, " ");
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return normalized.slice(0, maxLength - 1).trimEnd() + ".";
 }
 
 function buildArticleSchema(input: {
@@ -559,7 +569,7 @@ function buildArticleSchema(input: {
 }
 
 export class ArticleAiParseError extends Error {
-  constructor(message: string) {
+  constructor(message: string, readonly kind: "json" | "schema" = "schema") {
     super(`Article AI output could not be parsed: ${message}`);
     this.name = "ArticleAiParseError";
   }
