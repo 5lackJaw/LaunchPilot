@@ -137,43 +137,6 @@ const searchIntentJsonSchema = {
   ],
 };
 
-const seoReviewJsonSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    titleIncludesKeyword: { type: "boolean" },
-    introAddressesIntent: { type: "boolean" },
-    outlineFollowed: { type: "boolean" },
-    containsForbiddenPhrases: {
-      type: "array",
-      maxItems: 12,
-      items: { type: "string" },
-    },
-    containsUnsupportedClaims: {
-      type: "array",
-      maxItems: 12,
-      items: { type: "string" },
-    },
-    passes: { type: "boolean" },
-    finalTitle: { type: "string" },
-    finalMetaTitle: { type: "string" },
-    finalMetaDescription: { type: "string" },
-    revisionsNeeded: { type: "array", maxItems: 8, items: { type: "string" } },
-  },
-  required: [
-    "titleIncludesKeyword",
-    "introAddressesIntent",
-    "outlineFollowed",
-    "containsForbiddenPhrases",
-    "containsUnsupportedClaims",
-    "passes",
-    "finalTitle",
-    "finalMetaTitle",
-    "finalMetaDescription",
-    "revisionsNeeded",
-  ],
-};
-
 const outlineJsonSchema = {
   type: "object",
   additionalProperties: false,
@@ -428,42 +391,14 @@ export async function reviewArticleSeo(
     draft: ArticleDraft;
   },
 ) {
-  const prompt = [
-    "Review this article draft for SEO basics and editorial quality.",
-    "This is a review pass, not a rewrite pass. Return concrete pass/fail criteria and improved metadata only.",
-    "Set passes=false if the title misses the target keyword or close variant, the intro does not answer the inferred intent, the outline was not followed, forbidden AI-style phrases appear, or unsupported claims are present.",
-    "Forbidden phrases include: In today's, In the world of, When it comes to, It's important to note, It's worth mentioning, Let's dive in, That said, At the end of the day, seamless, powerful, robust, revolutionize, unlock, leverage, cutting-edge, game-changer.",
-    "revisionsNeeded must be actionable. Do not write vague notes such as 'make it better' or 'improve specificity'.",
-    "Return JSON only. Do not rewrite the full article body.",
-    buildArticleInputBlock(input),
-    "Searcher intent:",
-    JSON.stringify(input.searchIntent, null, 2),
-    "Outline:",
-    JSON.stringify(input.outline, null, 2),
-    "Draft:",
-    JSON.stringify(input.draft, null, 2),
-  ].join("\n\n");
-
-  const result = await generateParsedJson({
-    supabase: input.supabase,
-    productId: input.asset.productId,
-    userId: input.userId,
-    taskClass: "seo_review",
-    system: buildArticleSystemPrompt(),
-    prompt,
-    maxOutputTokens: 1200,
-    temperature: 0.15,
-    responseJsonSchema: seoReviewJsonSchema,
-    schema: seoReviewSchema,
-    label: "SEO review",
-    metadata: {
-      stage: "seo_review",
-      contentAssetId: input.asset.id,
-      targetKeyword: input.asset.targetKeyword,
-    },
-  });
-
-  return result.data;
+  return seoReviewSchema.parse(
+    buildDeterministicSeoReview({
+      searchIntent: input.searchIntent,
+      outline: input.outline,
+      draft: input.draft,
+      targetKeyword: input.asset.targetKeyword ?? input.asset.title,
+    }),
+  );
 }
 
 function buildArticleSystemPrompt() {
@@ -554,6 +489,162 @@ function scoreSeoReview(review: SeoReview) {
   ].filter(Boolean).length;
 
   return Math.max(0.45, Math.min(0.95, 0.95 - failedCriteria * 0.08));
+}
+
+function normalizeKeyword(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function includesKeywordVariant(text: string, keyword: string) {
+  const haystack = normalizeKeyword(text);
+  const needle = normalizeKeyword(keyword);
+  return haystack.includes(needle) || needle.split(" ").some((part) => part.length > 4 && haystack.includes(part));
+}
+
+function extractIntroText(bodyMd: string) {
+  const withoutHeadings = bodyMd.replace(/^#{1,6}\s+.*$/gm, "");
+  return withoutHeadings.trim().slice(0, 900);
+}
+
+function introMentionsIntent(intro: string, searchIntent: SearchIntent, targetKeyword: string) {
+  const text = normalizeKeyword(intro);
+  const signals = [
+    targetKeyword,
+    searchIntent.primaryIntent,
+    searchIntent.jobToBeDone,
+    searchIntent.contentAngle,
+  ].map(normalizeKeyword);
+
+  return signals.some((signal) => signal.length > 4 && text.includes(signal));
+}
+
+function findForbiddenPhrases(text: string) {
+  const patterns = [
+    /in today'?s/gi,
+    /in the world of/gi,
+    /when it comes to/gi,
+    /it'?s important to note/gi,
+    /it'?s worth mentioning/gi,
+    /let'?s dive in/gi,
+    /that said/gi,
+    /at the end of the day/gi,
+    /seamless/gi,
+    /powerful/gi,
+    /robust/gi,
+    /revolutionize/gi,
+    /unlock/gi,
+    /leverage/gi,
+    /cutting-edge/gi,
+    /game-changer/gi,
+  ];
+
+  return matchPatterns(text, patterns);
+}
+
+function findUnsupportedClaims(text: string) {
+  const patterns = [
+    /guaranteed/gi,
+    /always/gi,
+    /never/gi,
+    /proven/gi,
+    /best-in-class/gi,
+    /world-class/gi,
+    /industry-leading/gi,
+    /future-proof/gi,
+  ];
+
+  return matchPatterns(text, patterns);
+}
+
+function matchPatterns(text: string, patterns: RegExp[]) {
+  const matches = new Set<string>();
+
+  for (const pattern of patterns) {
+    const found = text.match(pattern);
+    if (!found) {
+      continue;
+    }
+
+    for (const item of found) {
+      matches.add(item.toLowerCase());
+    }
+  }
+
+  return Array.from(matches);
+}
+
+function chooseFinalTitle(title: string, targetKeyword: string, includesKeyword: boolean) {
+  if (includesKeyword) {
+    return clampText(title, 180);
+  }
+
+  const prefix = targetKeyword || "";
+  if (!prefix) {
+    return clampText(title, 180);
+  }
+
+  return clampText(`${prefix}: ${title}`, 180);
+}
+
+function buildDeterministicSeoReview(input: {
+  searchIntent: SearchIntent;
+  outline: ArticleOutline;
+  draft: ArticleDraft;
+  targetKeyword: string;
+}): SeoReview {
+  const forbiddenPhrases = findForbiddenPhrases(
+    [input.draft.title, input.draft.metaTitle, input.draft.metaDescription, input.draft.bodyMd].join("\n"),
+  );
+  const unsupportedClaims = findUnsupportedClaims(
+    [input.draft.title, input.draft.metaTitle, input.draft.metaDescription, input.draft.bodyMd].join("\n"),
+  );
+  const targetKeyword = normalizeKeyword(input.targetKeyword);
+  const titleIncludesKeyword = includesKeywordVariant(input.draft.title, targetKeyword);
+  const intro = extractIntroText(input.draft.bodyMd);
+  const introAddressesIntent = introMentionsIntent(intro, input.searchIntent, targetKeyword);
+  const outlineFollowed = input.outline.sections.every((section) =>
+    input.draft.bodyMd.includes(`## ${section.heading}`) ||
+    input.draft.bodyMd.includes(`### ${section.heading}`),
+  );
+  const revisionsNeeded: string[] = [];
+
+  if (!titleIncludesKeyword) {
+    revisionsNeeded.push("Include the target keyword or a close variant in the title.");
+  }
+
+  if (!introAddressesIntent) {
+    revisionsNeeded.push("Rewrite the opening paragraph so it answers the search intent immediately.");
+  }
+
+  if (!outlineFollowed) {
+    revisionsNeeded.push("Keep the article aligned to the outline headings and do not add missing H2 sections.");
+  }
+
+  if (forbiddenPhrases.length > 0) {
+    revisionsNeeded.push(`Remove AI-slop phrasing such as: ${forbiddenPhrases.slice(0, 3).join(", ")}.`);
+  }
+
+  if (unsupportedClaims.length > 0) {
+    revisionsNeeded.push(`Remove unsupported claims such as: ${unsupportedClaims.slice(0, 3).join(", ")}.`);
+  }
+
+  return {
+    titleIncludesKeyword,
+    introAddressesIntent,
+    outlineFollowed,
+    containsForbiddenPhrases: forbiddenPhrases,
+    containsUnsupportedClaims: unsupportedClaims,
+    passes:
+      titleIncludesKeyword &&
+      introAddressesIntent &&
+      outlineFollowed &&
+      forbiddenPhrases.length === 0 &&
+      unsupportedClaims.length === 0,
+    finalTitle: chooseFinalTitle(input.draft.title, targetKeyword, titleIncludesKeyword),
+    finalMetaTitle: clampText(input.draft.metaTitle, 120),
+    finalMetaDescription: clampText(input.draft.metaDescription, 170),
+    revisionsNeeded: revisionsNeeded.slice(0, 8),
+  };
 }
 
 async function generateParsedJson<T>(input: {
