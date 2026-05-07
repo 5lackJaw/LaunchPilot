@@ -17,6 +17,21 @@ type PageProps = {
   }>;
 };
 
+type AiGenerationLog = {
+  id: string;
+  taskClass: string;
+  provider: string;
+  model: string;
+  status: string;
+  promptText: string | null;
+  responseText: string | null;
+  errorMessage: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  actualCostUsd: number | null;
+  createdAt: string;
+};
+
 export default async function PreferencesPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const data = await loadPreferencesData();
@@ -81,6 +96,18 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
                 <button type="submit" style={smallButtonStyle}>Save</button>
               </div>
             </form>
+          </SectionBlock>
+        ) : null}
+
+        {data.isAdmin ? (
+          <SectionBlock label="AI generation logs">
+            {data.aiLogs.length > 0 ? (
+              data.aiLogs.map((log) => <AiGenerationLogRow key={log.id} log={log} />)
+            ) : (
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--lp-muted)", lineHeight: 1.55 }}>
+                No admin AI logs have been captured yet. New generations from this admin account will record prompt, raw output, tokens, and cost here.
+              </div>
+            )}
           </SectionBlock>
         ) : null}
 
@@ -248,11 +275,55 @@ function TrustLevelRow({ label, selected, description }: { label: string; select
   );
 }
 
+function AiGenerationLogRow({ log }: { log: AiGenerationLog }) {
+  return (
+    <div style={{ border: "1px solid var(--lp-border)", borderRadius: "7px", background: "var(--lp-bg2)", overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "14px", padding: "10px 12px", borderBottom: "1px solid var(--lp-border)" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontFamily: "var(--font-sans)", fontSize: "12.5px", color: "var(--lp-text)", fontWeight: 500 }}>
+            {formatTaskClass(log.taskClass)}
+          </div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", marginTop: "3px" }}>
+            {log.provider} / {log.model} · {formatDateTime(log.createdAt)}
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0, fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)" }}>
+          <span style={{ color: log.status === "succeeded" ? "var(--lp-teal)" : "var(--lp-red)" }}>{log.status}</span>
+          <span>{formatTokenCount(log.inputTokens)} in</span>
+          <span>{formatTokenCount(log.outputTokens)} out</span>
+          <span>${formatCost(log.actualCostUsd)}</span>
+        </div>
+      </div>
+      <div style={{ padding: "9px 12px", display: "grid", gap: "8px" }}>
+        <LogDetails label="Prompt" value={log.promptText} />
+        <LogDetails label="Raw output" value={log.responseText} />
+        <LogDetails label="Error" value={log.errorMessage} />
+      </div>
+    </div>
+  );
+}
+
+function LogDetails({ label, value }: { label: string; value: string | null }) {
+  if (!value) {
+    return null;
+  }
+
+  return (
+    <details style={{ fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--lp-muted2)" }}>
+      <summary style={{ cursor: "pointer", color: "var(--lp-muted)" }}>{label}</summary>
+      <pre style={{ marginTop: "7px", maxHeight: "220px", overflow: "auto", whiteSpace: "pre-wrap", background: "var(--lp-bg)", border: "1px solid var(--lp-border)", borderRadius: "6px", padding: "9px", lineHeight: 1.5 }}>
+        {value}
+      </pre>
+    </details>
+  );
+}
+
 async function loadPreferencesData(): Promise<{
   product: Product | null;
   preferences: AutomationPreference[];
   isAdmin: boolean;
   adminAccountMode: AdminAccountMode | null;
+  aiLogs: AiGenerationLog[];
   error: string | null;
 }> {
   try {
@@ -268,18 +339,21 @@ async function loadPreferencesData(): Promise<{
       : null;
 
     if (!product) {
-      return { product: null, preferences: [], isAdmin, adminAccountMode, error: profile?.error?.message ?? null };
+      return { product: null, preferences: [], isAdmin, adminAccountMode, aiLogs: [], error: profile?.error?.message ?? null };
     }
 
-    const preferences = await new PreferencesService(supabase).listAutomationPreferences({ productId: product.id });
-    return { product, preferences, isAdmin, adminAccountMode, error: profile?.error?.message ?? null };
+    const [preferences, aiLogs] = await Promise.all([
+      new PreferencesService(supabase).listAutomationPreferences({ productId: product.id }),
+      isAdmin ? loadAdminAiLogs(supabase, product.id) : Promise.resolve([]),
+    ]);
+    return { product, preferences, isAdmin, adminAccountMode, aiLogs, error: profile?.error?.message ?? null };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { product: null, preferences: [], isAdmin: false, adminAccountMode: null, error: error.message };
+      return { product: null, preferences: [], isAdmin: false, adminAccountMode: null, aiLogs: [], error: error.message };
     }
 
     if (error instanceof ProductReadError || error instanceof PreferencesReadError) {
-      return { product: null, preferences: [], isAdmin: false, adminAccountMode: null, error: error.message };
+      return { product: null, preferences: [], isAdmin: false, adminAccountMode: null, aiLogs: [], error: error.message };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
@@ -288,12 +362,44 @@ async function loadPreferencesData(): Promise<{
         preferences: [],
         isAdmin: false,
         adminAccountMode: null,
+        aiLogs: [],
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
       };
     }
 
     throw error;
   }
+}
+
+async function loadAdminAiLogs(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  productId: string,
+): Promise<AiGenerationLog[]> {
+  const { data, error } = await supabase
+    .from("ai_generation_logs")
+    .select("id,task_class,provider,model,status,prompt_text,response_text,error_message,input_tokens,output_tokens,actual_cost_usd,created_at")
+    .eq("product_id", productId)
+    .order("created_at", { ascending: false })
+    .limit(8);
+
+  if (error) {
+    return [];
+  }
+
+  return data.map((item) => ({
+    id: item.id as string,
+    taskClass: item.task_class as string,
+    provider: item.provider as string,
+    model: item.model as string,
+    status: item.status as string,
+    promptText: typeof item.prompt_text === "string" ? item.prompt_text : null,
+    responseText: typeof item.response_text === "string" ? item.response_text : null,
+    errorMessage: typeof item.error_message === "string" ? item.error_message : null,
+    inputTokens: typeof item.input_tokens === "number" ? item.input_tokens : null,
+    outputTokens: typeof item.output_tokens === "number" ? item.output_tokens : null,
+    actualCostUsd: typeof item.actual_cost_usd === "number" ? item.actual_cost_usd : Number(item.actual_cost_usd ?? 0),
+    createdAt: item.created_at as string,
+  }));
 }
 
 function parseAdminAccountMode(value: unknown): AdminAccountMode | null {
@@ -310,6 +416,27 @@ function formatAdminMode(value: string) {
   }
 
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatTaskClass(value: string) {
+  return value.replace(/_/g, " ");
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatTokenCount(value: number | null) {
+  return value === null ? "n/a" : value.toLocaleString("en");
+}
+
+function formatCost(value: number | null) {
+  return (value ?? 0).toFixed(4);
 }
 
 const smallButtonStyle = {

@@ -20,16 +20,28 @@ const searchIntentSchema = z.object({
     "decision",
     "navigational",
   ]),
+  jobToBeDone: z.string().min(20),
+  serpArchetype: z.enum([
+    "definition_explainer",
+    "how_to_tutorial",
+    "comparison_listicle",
+    "tool_recommendation",
+    "case_study",
+    "reference_doc",
+    "troubleshooting",
+  ]),
   readerProblems: z.array(z.string().min(6)).min(3).max(6),
   questionsToAnswer: z.array(z.string().min(6)).min(4).max(10),
   mustCover: z.array(z.string().min(6)).min(4).max(10),
+  mustAvoid: z.array(z.string().min(6)).min(2).max(6),
   contentAngle: z.string().min(12),
+  differentiationHook: z.string().min(20),
 });
 
 const outlineSchema = z.object({
   title: z.string().min(10).max(120),
   metaTitle: z.string().min(10).max(120),
-  introHook: z.string().min(20).max(2000),
+  editorialBrief: z.string().min(20).max(2000),
   sections: z
     .array(
       z.object({
@@ -39,7 +51,7 @@ const outlineSchema = z.object({
     )
     .min(5)
     .max(10),
-  internalLinkSuggestions: z.array(z.string().min(4)).min(2).max(8),
+  internalLinkSuggestions: z.array(z.string().min(4)).max(8),
 });
 
 const articleDraftSchema = z.object({
@@ -50,12 +62,16 @@ const articleDraftSchema = z.object({
 });
 
 const seoReviewSchema = z.object({
-  aiConfidence: z.number().min(0).max(1),
+  titleIncludesKeyword: z.boolean(),
+  introAddressesIntent: z.boolean(),
+  outlineFollowed: z.boolean(),
+  containsForbiddenPhrases: z.array(z.string()).max(12),
+  containsUnsupportedClaims: z.array(z.string()).max(12),
   passes: z.boolean(),
   finalTitle: z.string().min(10).max(180),
   finalMetaTitle: z.string().min(10).max(140),
   finalMetaDescription: z.string().min(80).max(500),
-  notes: z.array(z.string()).max(8),
+  revisionsNeeded: z.array(z.string()).max(8),
 });
 
 const searchIntentJsonSchema = {
@@ -66,6 +82,19 @@ const searchIntentJsonSchema = {
     searchStage: {
       type: "string",
       enum: ["awareness", "consideration", "decision", "navigational"],
+    },
+    jobToBeDone: { type: "string" },
+    serpArchetype: {
+      type: "string",
+      enum: [
+        "definition_explainer",
+        "how_to_tutorial",
+        "comparison_listicle",
+        "tool_recommendation",
+        "case_study",
+        "reference_doc",
+        "troubleshooting",
+      ],
     },
     readerProblems: {
       type: "array",
@@ -85,15 +114,26 @@ const searchIntentJsonSchema = {
       maxItems: 10,
       items: { type: "string" },
     },
+    mustAvoid: {
+      type: "array",
+      minItems: 2,
+      maxItems: 6,
+      items: { type: "string" },
+    },
     contentAngle: { type: "string" },
+    differentiationHook: { type: "string" },
   },
   required: [
     "primaryIntent",
     "searchStage",
+    "jobToBeDone",
+    "serpArchetype",
     "readerProblems",
     "questionsToAnswer",
     "mustCover",
+    "mustAvoid",
     "contentAngle",
+    "differentiationHook",
   ],
 };
 
@@ -101,20 +141,36 @@ const seoReviewJsonSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    aiConfidence: { type: "number" },
+    titleIncludesKeyword: { type: "boolean" },
+    introAddressesIntent: { type: "boolean" },
+    outlineFollowed: { type: "boolean" },
+    containsForbiddenPhrases: {
+      type: "array",
+      maxItems: 12,
+      items: { type: "string" },
+    },
+    containsUnsupportedClaims: {
+      type: "array",
+      maxItems: 12,
+      items: { type: "string" },
+    },
     passes: { type: "boolean" },
     finalTitle: { type: "string" },
     finalMetaTitle: { type: "string" },
     finalMetaDescription: { type: "string" },
-    notes: { type: "array", maxItems: 8, items: { type: "string" } },
+    revisionsNeeded: { type: "array", maxItems: 8, items: { type: "string" } },
   },
   required: [
-    "aiConfidence",
+    "titleIncludesKeyword",
+    "introAddressesIntent",
+    "outlineFollowed",
+    "containsForbiddenPhrases",
+    "containsUnsupportedClaims",
     "passes",
     "finalTitle",
     "finalMetaTitle",
     "finalMetaDescription",
-    "notes",
+    "revisionsNeeded",
   ],
 };
 
@@ -124,7 +180,7 @@ const outlineJsonSchema = {
   properties: {
     title: { type: "string" },
     metaTitle: { type: "string" },
-    introHook: { type: "string" },
+    editorialBrief: { type: "string" },
     sections: {
       type: "array",
       minItems: 5,
@@ -146,7 +202,6 @@ const outlineJsonSchema = {
     },
     internalLinkSuggestions: {
       type: "array",
-      minItems: 2,
       maxItems: 8,
       items: { type: "string" },
     },
@@ -154,7 +209,7 @@ const outlineJsonSchema = {
   required: [
     "title",
     "metaTitle",
-    "introHook",
+    "editorialBrief",
     "sections",
     "internalLinkSuggestions",
   ],
@@ -213,7 +268,7 @@ export function assembleArticleDraft(input: {
     bodyMd: draft.bodyMd,
     metaTitle,
     metaDescription,
-    aiConfidence: seoReview.aiConfidence,
+    aiConfidence: scoreSeoReview(seoReview),
     provenance: {
       generator: "ai-router-content-v1",
       generatedAt: new Date().toISOString(),
@@ -233,8 +288,12 @@ export function assembleArticleDraft(input: {
 
 export async function researchSearcherIntent(input: ArticleDraftPipelineInput) {
   const prompt = [
-    "Research the searcher intent for this target keyword using only the supplied product and Marketing Brief context.",
-    "Return practical SEO planning information. Do not invent search volume or cite sources you cannot access.",
+    "Infer the searcher intent for this target keyword using the supplied product and Marketing Brief context.",
+    "You cannot access the live SERP. Use pattern recognition: what archetype of content usually ranks for queries shaped like this?",
+    "The jobToBeDone field must describe what the searcher is trying to accomplish, not just what topic they typed.",
+    "The differentiationHook must propose a specific angle a competitor article would not take, grounded in the product's actual position from the brief.",
+    "The mustAvoid list should name generic tropes or sections that competing articles commonly include but that add little value.",
+    "Do not invent search volume or cite sources you cannot access.",
     "Return JSON only.",
     buildArticleInputBlock(input),
   ].join("\n\n");
@@ -266,10 +325,11 @@ export async function generateArticleOutline(
 ) {
   const prompt = [
     "Create an SEO article outline for the target keyword.",
-    "Use H2/H3 structure, include internal linking suggestions, and make the angle specific to the product.",
-    "Keep introHook to one planning paragraph. It is guidance for the article intro, not the article body.",
+    "Use H2 structure, include internal linking suggestions as anchor text or topic ideas only, and make the angle specific to the product.",
+    "The editorialBrief field is guidance for the writer. It is not article copy and must not be quoted by the draft stage.",
+    "Internal link suggestions must not invent URLs. Suggest anchor text and target topic only unless a known URL is supplied.",
     "Return only JSON matching this shape:",
-    "{ title: string; metaTitle: string; introHook: string; sections: Array<{ heading: string; points: string[] }>; internalLinkSuggestions: string[] }",
+    "{ title: string; metaTitle: string; editorialBrief: string; sections: Array<{ heading: string; points: string[] }>; internalLinkSuggestions: string[] }",
     buildArticleInputBlock(input),
     "Searcher intent:",
     JSON.stringify(input.searchIntent, null, 2),
@@ -283,7 +343,7 @@ export async function generateArticleOutline(
     system: buildArticleSystemPrompt(),
     prompt,
     maxOutputTokens: 1800,
-    temperature: 0.3,
+    temperature: 0.5,
     responseJsonSchema: outlineJsonSchema,
     schema: outlineSchema,
     label: "article outline",
@@ -305,16 +365,31 @@ export async function generateFullArticleDraft(
 ) {
   const prompt = [
     "Draft the full SEO article in Markdown.",
-    "Target 1,800-2,400 words. Use the outline, answer the reader's practical questions, and keep claims grounded in the supplied brief.",
-    "Include a strong intro, useful H2/H3 sections, concise examples, and a practical conclusion.",
-    "Mention the product naturally where it helps, but do not make the article read like a sales page.",
+    "STRUCTURAL CONTRACT:",
+    "- Use every H2 heading from the outline, in order, with the exact wording.",
+    "- Do not add H2 sections not in the outline. You may add H3 subsections within them.",
+    "- Length is determined by the searcher intent, not a target word count. Stop when the intent is satisfied.",
+    "",
+    "INTRO:",
+    "- First sentence states the specific problem or question, not the topic in general.",
+    "- No throat-clearing. The reader knows what they searched for.",
+    "- Within the first 100 words, state what this article gives them that generic SERP results do not.",
+    "",
+    "BODY:",
+    "- Every claim must be either verifiable from the brief, common knowledge in the domain, or clearly framed as opinion.",
+    "- Use code blocks, tables, or numbered steps where they reduce ambiguity. Do not use them for decoration.",
+    "- Mention the product where genuinely relevant. If the mention feels forced, omit it.",
+    "",
+    "CONCLUSION:",
+    "- Either give the reader the next concrete step, or omit the conclusion entirely.",
+    "- Do not summarize what the article said.",
     "Return only JSON matching this shape:",
     "{ title: string; metaTitle: string; metaDescription: string; bodyMd: string }",
     buildArticleInputBlock(input),
     "Searcher intent:",
     JSON.stringify(input.searchIntent, null, 2),
-    "Approved outline:",
-    JSON.stringify(input.outline, null, 2),
+    "Approved outline (follow the section structure exactly):",
+    JSON.stringify(buildDraftOutline(input.outline), null, 2),
   ].join("\n\n");
 
   const result = await generateParsedJson({
@@ -325,7 +400,7 @@ export async function generateFullArticleDraft(
     system: buildArticleSystemPrompt(),
     prompt,
     maxOutputTokens: 6200,
-    temperature: 0.45,
+    temperature: 0.6,
     responseJsonSchema: articleDraftJsonSchema,
     schema: articleDraftSchema,
     label: "article draft",
@@ -347,8 +422,11 @@ export async function reviewArticleSeo(
   },
 ) {
   const prompt = [
-    "Review this article draft for SEO basics and metadata quality.",
-    "Check that the target keyword appears in the title or close variant, the intro satisfies the intent, and the meta description is useful.",
+    "Review this article draft for SEO basics and editorial quality.",
+    "This is a review pass, not a rewrite pass. Return concrete pass/fail criteria and improved metadata only.",
+    "Set passes=false if the title misses the target keyword or close variant, the intro does not answer the inferred intent, the outline was not followed, forbidden AI-style phrases appear, or unsupported claims are present.",
+    "Forbidden phrases include: In today's, In the world of, When it comes to, It's important to note, It's worth mentioning, Let's dive in, That said, At the end of the day, seamless, powerful, robust, revolutionize, unlock, leverage, cutting-edge, game-changer.",
+    "revisionsNeeded must be actionable. Do not write vague notes such as 'make it better' or 'improve specificity'.",
     "Return JSON only. Do not rewrite the full article body.",
     buildArticleInputBlock(input),
     "Searcher intent:",
@@ -383,8 +461,30 @@ export async function reviewArticleSeo(
 
 function buildArticleSystemPrompt() {
   return buildLaunchBeaconSystemPrompt({
-    extraInstructions:
-      "You are a senior SEO content strategist for solo developers and small SaaS teams. Use plain language. Be specific. Avoid hype, filler, and unsupported claims. Output strict JSON when requested.",
+    extraInstructions: [
+      "You are an SEO content writer for solo-developer and small SaaS teams.",
+      "",
+      "VOICE:",
+      "- Direct, technical, specific. Write like a senior engineer explaining to a peer.",
+      "- First person plural ('we') is allowed when describing the product's perspective.",
+      "- No marketing voice. No hype words: seamless, powerful, robust, revolutionize, unlock, leverage, cutting-edge, game-changer.",
+      "",
+      "FORBIDDEN PATTERNS:",
+      "- Opening with 'In today's...', 'In the world of...', or 'When it comes to...'.",
+      "- Phrases: 'It's important to note', 'It's worth mentioning', 'Let's dive in', 'That said', 'At the end of the day'.",
+      "- Tricolon openers.",
+      "- 'Whether you're X or Y' constructions.",
+      "- Conclusion paragraphs that restate the introduction.",
+      "- Empty transitional sentences.",
+      "- Bulleted lists where the bullets are full sentences with no parallel structure.",
+      "",
+      "REQUIRED:",
+      "- Specifics over generics: name versions, numbers, libraries, tradeoffs, and operational details when they are known.",
+      "- If you cannot be specific about a claim, omit the claim.",
+      "- Every section must add information not present in the previous section.",
+      "",
+      "Output strict JSON when requested. No markdown fences around JSON.",
+    ].join("\n"),
   });
 }
 
@@ -425,6 +525,28 @@ function buildArticleInputBlock(input: ArticleDraftPipelineInput) {
       2,
     ),
   ].join("\n");
+}
+
+function buildDraftOutline(outline: ArticleOutline) {
+  return {
+    title: outline.title,
+    metaTitle: outline.metaTitle,
+    sections: outline.sections,
+    internalLinkSuggestions: outline.internalLinkSuggestions,
+  };
+}
+
+function scoreSeoReview(review: SeoReview) {
+  const failedCriteria = [
+    !review.titleIncludesKeyword,
+    !review.introAddressesIntent,
+    !review.outlineFollowed,
+    review.containsForbiddenPhrases.length > 0,
+    review.containsUnsupportedClaims.length > 0,
+    !review.passes,
+  ].filter(Boolean).length;
+
+  return Math.max(0.45, Math.min(0.95, 0.95 - failedCriteria * 0.08));
 }
 
 async function generateParsedJson<T>(input: {

@@ -1,12 +1,14 @@
 import { getAnthropicClient, getGeminiClient, getOpenAIClient } from "@/server/ai/clients";
 import { AiBudgetService } from "@/server/ai/budget-service";
 import { AiGenerationError } from "@/server/ai/errors";
+import { AiGenerationLogService } from "@/server/ai/log-service";
 import {
   estimateCostUsd,
   estimateTextTokens,
   resolveModelForTask,
   type AiModelConfig,
 } from "@/server/ai/model-registry";
+import { isInternalAdminIdentity } from "@/server/services/admin-service";
 import type {
   AiEmbedInput,
   AiEmbedResult,
@@ -37,6 +39,10 @@ export class AiRouter {
       taskClass: input.taskClass,
       estimatedCostUsd,
     });
+    const captureLog = await this.shouldCaptureRawLog({
+      supabase: input.supabase,
+      userId: prepared.userId,
+    });
 
     try {
       const result = await this.callTextProvider({ input, model });
@@ -60,6 +66,25 @@ export class AiRouter {
         status: "succeeded",
         metadata: sanitizeMetadata(input.metadata),
       });
+
+      if (captureLog) {
+        await new AiGenerationLogService(input.supabase).create({
+          usageEventId,
+          userId: prepared.userId,
+          productId: input.productId,
+          taskClass: input.taskClass,
+          provider: model.provider,
+          model: model.model,
+          status: "succeeded",
+          system: input.system,
+          prompt: input.prompt,
+          responseText: result.text,
+          usage: result.usage,
+          estimatedCostUsd,
+          actualCostUsd,
+          metadata: input.metadata,
+        });
+      }
 
       return {
         text: result.text,
@@ -93,10 +118,32 @@ export class AiRouter {
           }),
         });
 
+        if (captureLog) {
+          await new AiGenerationLogService(input.supabase).create({
+            usageEventId,
+            userId: prepared.userId,
+            productId: input.productId,
+            taskClass: input.taskClass,
+            provider: fallbackResult.provider,
+            model: fallbackResult.model,
+            status: "succeeded",
+            system: input.system,
+            prompt: input.prompt,
+            responseText: fallbackResult.text,
+            usage: fallbackResult.usage,
+            estimatedCostUsd: fallbackResult.estimatedCostUsd,
+            actualCostUsd: fallbackResult.actualCostUsd,
+            metadata: {
+              ...input.metadata,
+              fallbackFrom: model.model,
+            },
+          });
+        }
+
         return { ...fallbackResult, usageEventId };
       }
 
-      await budget.recordUsage({
+      const usageEventId = await budget.recordUsage({
         userId: prepared.userId,
         productId: input.productId,
         taskClass: input.taskClass,
@@ -113,6 +160,24 @@ export class AiRouter {
           error: error instanceof Error ? error.message : String(error),
         }),
       });
+
+      if (captureLog) {
+        await new AiGenerationLogService(input.supabase).create({
+          usageEventId,
+          userId: prepared.userId,
+          productId: input.productId,
+          taskClass: input.taskClass,
+          provider: model.provider,
+          model: model.model,
+          status: "failed",
+          system: input.system,
+          prompt: input.prompt,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          estimatedCostUsd,
+          actualCostUsd: 0,
+          metadata: input.metadata,
+        });
+      }
 
       throw new AiGenerationError(
         error instanceof Error ? error.message : String(error),
@@ -205,6 +270,26 @@ export class AiRouter {
         { cause: error },
       );
     }
+  }
+
+  private async shouldCaptureRawLog(input: {
+    supabase: AiGenerateTextInput["supabase"];
+    userId: string;
+  }) {
+    const { data, error } = await input.supabase
+      .from("users")
+      .select("email")
+      .eq("id", input.userId)
+      .maybeSingle();
+
+    if (error) {
+      return false;
+    }
+
+    return isInternalAdminIdentity({
+      id: input.userId,
+      email: typeof data?.email === "string" ? data.email : null,
+    });
   }
 
   private async maybeFallback(input: {
