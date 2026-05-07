@@ -86,8 +86,6 @@ export default async function DirectoriesPage({ searchParams }: PageProps) {
         eyebrow={data.product ? `Submission tracker / ${data.product.name}` : "Submission tracker"}
         actions={
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <GhostBtn>↓ Export list</GhostBtn>
-            <SecBtn>⟳ Check statuses</SecBtn>
             {data.product && (
               <form action={requestDirectoryPackagesAction} style={{ display: "inline" }}>
                 <PriBtn type="submit">+ Generate packages</PriBtn>
@@ -147,7 +145,7 @@ export default async function DirectoriesPage({ searchParams }: PageProps) {
                 { label: "Total directories", value: String(items.length), delta: "in database", deltaColor: "var(--lp-muted)" },
                 { label: "Live listings", value: String(live.length), delta: live.length > 0 ? "↑ active" : "none yet", deltaColor: live.length > 0 ? "var(--lp-teal)" : "var(--lp-muted)" },
                 { label: "Submitted · pending", value: String(submitted.length), delta: "avg review: varies", deltaColor: "var(--lp-muted)" },
-                { label: "Referral visits / 30d", value: "—", delta: "no analytics connected", deltaColor: "var(--lp-muted)" },
+                { label: "Packages ready", value: String(packageReady.length), delta: packageReady.length > 0 ? "ready for review" : "none waiting", deltaColor: packageReady.length > 0 ? "var(--lp-purple-l)" : "var(--lp-muted)" },
               ].map((kpi) => (
                 <div key={kpi.label} style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px", padding: "16px 18px" }}>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: "9.5px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "6px" }}>{kpi.label}</div>
@@ -189,7 +187,7 @@ export default async function DirectoriesPage({ searchParams }: PageProps) {
                   {highestDA
                     ? `${highestDA.directory.name} is your highest-authority directory (DA ${highestDA.directory.avgDa ?? "—"}).`
                     : live.length > 0
-                      ? `${live.length} directories are live and driving referral traffic.`
+                      ? `${live.length} directories are live. Add analytics attribution later to measure referral impact.`
                       : "Start submitting to directories to build referral traffic and backlinks."}
                 </div>
                 <div style={{ fontSize: "12.5px", color: "var(--lp-muted2)", lineHeight: 1.6 }}>
@@ -269,10 +267,10 @@ export default async function DirectoriesPage({ searchParams }: PageProps) {
             {/* Bottom grid */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
 
-              {/* Top referrers */}
+              {/* Directory priority */}
               <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px", overflow: "hidden" }}>
                 <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--lp-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", fontWeight: 500, color: "var(--lp-text)" }}>Top referrers · 30 days</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", fontWeight: 500, color: "var(--lp-text)" }}>Highest-authority live listings</div>
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--lp-muted)", padding: "2px 7px", background: "var(--lp-bg4)", borderRadius: "4px" }}>by DA</span>
                 </div>
                 <div>
@@ -481,22 +479,6 @@ function DirActions({ item, canAutoSubmit }: { item: DirectoryTrackerItem; canAu
   );
 }
 
-function GhostBtn({ children }: { children: React.ReactNode }) {
-  return (
-    <button style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "0 14px", height: "32px", borderRadius: "7px", fontSize: "12.5px", fontWeight: 500, background: "transparent", color: "var(--lp-muted2)", border: "1px solid var(--lp-border)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-      {children}
-    </button>
-  );
-}
-
-function SecBtn({ children }: { children: React.ReactNode }) {
-  return (
-    <button style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "0 14px", height: "32px", borderRadius: "7px", fontSize: "12.5px", fontWeight: 500, background: "var(--lp-bg3)", color: "var(--lp-text)", border: "1px solid var(--lp-border)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-      {children}
-    </button>
-  );
-}
-
 function PriBtn({ children, type }: { children: React.ReactNode; type?: "button" | "submit" }) {
   return (
     <button type={type ?? "button"} style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "0 14px", height: "32px", borderRadius: "7px", fontSize: "12.5px", fontWeight: 500, background: "var(--lp-purple)", color: "#fff", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
@@ -549,3 +531,4 @@ async function loadDirectoryData(): Promise<{
     throw error;
   }
 }
+
