@@ -275,16 +275,35 @@ export class AiRouter {
     model: AiModelConfig,
   ): Promise<{ text: string; usage: AiUsage }> {
     const client = getAnthropicClient();
+    const jsonSchema =
+      input.responseMimeType === "application/json" && input.responseJsonSchema
+        ? input.responseJsonSchema
+        : null;
+
     const response = await client.messages.create({
       model: model.model as never,
       max_tokens: input.maxOutputTokens ?? 1200,
       temperature: input.temperature,
       system: input.system,
       messages: [{ role: "user", content: input.prompt }],
-    });
+      ...(jsonSchema
+        ? {
+            tools: [
+              {
+                name: "return_json",
+                description: "Return the requested structured JSON payload.",
+                input_schema: jsonSchema,
+              },
+            ],
+            tool_choice: { type: "tool", name: "return_json" },
+          }
+        : {}),
+    } as never);
 
     return {
-      text: extractAnthropicText(response.content),
+      text: jsonSchema
+        ? extractAnthropicToolJson(response.content)
+        : extractAnthropicText(response.content),
       usage: {
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,
@@ -350,6 +369,20 @@ function extractAnthropicText(content: Array<{ type: string; text?: string }>): 
     .map((block) => (block.type === "text" ? block.text : ""))
     .filter(Boolean)
     .join("\n");
+}
+
+function extractAnthropicToolJson(
+  content: Array<{ type: string; name?: string; input?: unknown; text?: string }>,
+): string {
+  const toolUse = content.find(
+    (block) => block.type === "tool_use" && block.name === "return_json",
+  );
+
+  if (toolUse) {
+    return JSON.stringify(toolUse.input ?? {});
+  }
+
+  return extractAnthropicText(content);
 }
 
 function sanitizeMetadata(

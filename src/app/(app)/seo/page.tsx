@@ -57,9 +57,9 @@ export default async function SeoPage({ searchParams }: PageProps) {
   const firstCluster = clusters[0]?.[0] ?? "—";
   const firstClusterOpps = clusters[0]?.[1] ?? [];
 
-  function getOppStatus(opp: KeywordOpportunity): "untracked" | "queued" | "drafted" | "published" {
+  function getOppStatus(opp: KeywordOpportunity): "not_drafted" | "queued" | "drafted" | "published" {
     const match = recentAssets.find((a) => a.targetKeyword === opp.targetKeyword);
-    if (!match) return "untracked";
+    if (!match) return "not_drafted";
     if (match.status === "published") return "published";
     if (match.status === "approved") return "queued";
     return "drafted";
@@ -117,7 +117,7 @@ export default async function SeoPage({ searchParams }: PageProps) {
                       <>
                         You have{" "}
                         <strong style={{ color: "var(--lp-purple-l)", fontWeight: 500 }}>{opportunities.length} keyword opportunities</strong>{" "}
-                        across {clusters.length} cluster{clusters.length !== 1 ? "s" : ""}. Focus on your highest-priority untracked keywords to build topical authority before competitors do.
+                        across {clusters.length} cluster{clusters.length !== 1 ? "s" : ""}. Draft the highest-priority opportunities to build topical authority before competitors do.
                       </>
                     ) : (
                       <>No keyword opportunities yet. Complete the Marketing Brief to surface content seeds from your product positioning.</>
@@ -126,7 +126,7 @@ export default async function SeoPage({ searchParams }: PageProps) {
                   <div style={{ display: "flex", alignItems: "center", gap: "14px", marginTop: "10px", fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--lp-muted)" }}>
                     <span>Based on your current keyword research</span>
                     <span>·</span>
-                    <span>{recentAssets.length} content assets tracked</span>
+                    <span>{recentAssets.length} content assets planned</span>
                   </div>
                 </div>
               </div>
@@ -139,7 +139,7 @@ export default async function SeoPage({ searchParams }: PageProps) {
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", fontWeight: 500, color: "var(--lp-text)" }}>
                       ◈ Keyword opportunities
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--lp-muted)", padding: "2px 7px", background: "var(--lp-bg4)", borderRadius: "4px", fontWeight: 400 }}>
-                        {opportunities.length} tracked
+                        {opportunities.length} opportunities
                       </span>
                     </div>
                   </div>
@@ -199,7 +199,7 @@ export default async function SeoPage({ searchParams }: PageProps) {
                                 <OppStatus status={status} />
                               </td>
                               <td style={{ padding: "12px 18px", textAlign: "right", verticalAlign: "middle" }}>
-                                {status === "untracked" ? (
+                                {status === "not_drafted" ? (
                                   <form action={selectKeywordOpportunityAction} style={{ display: "inline" }}>
                                     <input type="hidden" name="productId" value={opp.productId} />
                                     <input type="hidden" name="opportunityId" value={opp.id} />
@@ -207,7 +207,7 @@ export default async function SeoPage({ searchParams }: PageProps) {
                                   </form>
                                 ) : (
                                   <button style={{ padding: "4px 10px", borderRadius: "5px", fontFamily: "var(--font-mono)", fontSize: "10.5px", color: "var(--lp-muted2)", background: "transparent", border: "1px solid var(--lp-border)", cursor: "pointer" }}>
-                                    {status === "published" ? "View article" : status === "drafted" ? "Open in inbox" : "Move up"}
+                                    {status === "published" ? "View article" : status === "drafted" ? "Open draft" : "Queued"}
                                   </button>
                                 )}
                               </td>
@@ -317,7 +317,7 @@ export default async function SeoPage({ searchParams }: PageProps) {
                 {firstCluster}
               </div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--lp-muted)", marginBottom: "16px" }}>
-                {firstClusterOpps.length} keywords tracked
+                {firstClusterOpps.length} content opportunities
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1px", background: "var(--lp-border)", border: "1px solid var(--lp-border)", borderRadius: "8px", overflow: "hidden", marginBottom: "14px" }}>
@@ -375,15 +375,15 @@ export default async function SeoPage({ searchParams }: PageProps) {
               <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "9px", padding: "14px 16px" }}>
                 <div style={{ fontSize: "13px", color: "var(--lp-text)", lineHeight: 1.6, marginBottom: "12px" }}>
                   <strong style={{ color: "var(--lp-purple-l)", fontWeight: 500 }}>
-                    {opportunities.filter((o) => getOppStatus(o) === "untracked").length} untracked keywords
+                    {opportunities.filter((o) => getOppStatus(o) === "not_drafted").length} opportunities
                   </strong>{" "}
-                  could be drafted now — starting with your highest priority cluster.
+                  could be drafted now, starting with your highest-priority cluster.
                 </div>
-                {opportunities.find((o) => getOppStatus(o) === "untracked") && (
+                {opportunities.find((o) => getOppStatus(o) === "not_drafted") && (
                   <form action={selectKeywordOpportunityAction}>
                     <input type="hidden" name="productId" value={product.id} />
-                    <input type="hidden" name="opportunityId" value={opportunities.find((o) => getOppStatus(o) === "untracked")!.id} />
-                    <DraftOpportunitySubmit label="+ Draft top keyword" variant="primary" />
+                    <input type="hidden" name="opportunityId" value={opportunities.find((o) => getOppStatus(o) === "not_drafted")!.id} />
+                    <DraftOpportunitySubmit label="+ Draft top article" variant="primary" />
                   </form>
                 )}
               </div>
@@ -464,9 +464,9 @@ function TabBtn({ children, active }: { children: React.ReactNode; active?: bool
   );
 }
 
-function OppStatus({ status }: { status: "untracked" | "queued" | "drafted" | "published" }) {
+function OppStatus({ status }: { status: "not_drafted" | "queued" | "drafted" | "published" }) {
   const cfg = {
-    untracked: { color: "var(--lp-muted)", dot: "var(--lp-subtle)", label: "untracked" },
+    not_drafted: { color: "var(--lp-muted)", dot: "var(--lp-subtle)", label: "not drafted" },
     queued:    { color: "var(--lp-purple-l)", dot: "var(--lp-purple)", label: "queued" },
     drafted:   { color: "var(--lp-amber)", dot: "var(--lp-amber)", label: "drafted" },
     published: { color: "var(--lp-teal)", dot: "var(--lp-teal)", label: "published" },
