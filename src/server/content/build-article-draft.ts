@@ -29,7 +29,7 @@ const searchIntentSchema = z.object({
 const outlineSchema = z.object({
   title: z.string().min(10).max(120),
   metaTitle: z.string().min(10).max(120),
-  introHook: z.string().min(20).max(500),
+  introHook: z.string().min(20).max(2000),
   sections: z
     .array(
       z.object({
@@ -267,6 +267,7 @@ export async function generateArticleOutline(
   const prompt = [
     "Create an SEO article outline for the target keyword.",
     "Use H2/H3 structure, include internal linking suggestions, and make the angle specific to the product.",
+    "Keep introHook to one planning paragraph. It is guidance for the article intro, not the article body.",
     "Return only JSON matching this shape:",
     "{ title: string; metaTitle: string; introHook: string; sections: Array<{ heading: string; points: string[] }>; internalLinkSuggestions: string[] }",
     buildArticleInputBlock(input),
