@@ -214,6 +214,7 @@ export class AnalyticsService {
         ) / 60,
       ),
       sourceBreakdown: deriveSourceBreakdown(sourceTraffic30d),
+      trafficTrend: deriveTrafficTrend(currentSourceTraffic, periods.current.startsAt),
       keywordMovement,
       contentPerformance,
       weeklyInsight: deriveWeeklyInsight({
@@ -487,6 +488,38 @@ function deriveSourceBreakdown(rows: TrafficRow[]): TrafficSourceBreakdown[] {
         totalVisits === 0 ? 0 : Math.round((source.visits / totalVisits) * 100),
     }))
     .sort((a, b) => b.visits - a.visits);
+}
+
+function deriveTrafficTrend(rows: TrafficRow[], startsAt: string) {
+  const start = new Date(startsAt);
+  const buckets = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(start.getTime() + index * dayMs);
+    return {
+      key: date.toISOString().slice(0, 10),
+      label: date.toLocaleDateString("en-US", { weekday: "short" }),
+      visits: 0,
+      conversions: 0,
+    };
+  });
+  const bucketByDate = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+
+  rows.forEach((row) => {
+    const key = new Date(row.recorded_at).toISOString().slice(0, 10);
+    const bucket = bucketByDate.get(key);
+
+    if (!bucket) {
+      return;
+    }
+
+    bucket.visits += Number(row.visits);
+    bucket.conversions += Number(row.conversions);
+  });
+
+  return buckets.map((bucket) => ({
+    label: bucket.label,
+    visits: bucket.visits,
+    conversions: bucket.conversions,
+  }));
 }
 
 function isSourceTrafficRow(row: TrafficRow) {

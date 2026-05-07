@@ -6,10 +6,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requestWeeklyDigestAction } from "@/app/(app)/dashboard/actions";
 import type { DashboardSummary, KeywordMovement, TrafficSourceBreakdown } from "@/server/schemas/analytics";
 import type { InboxItem } from "@/server/schemas/inbox";
+import type { AutomationPreference } from "@/server/schemas/preferences";
 import type { Product } from "@/server/schemas/product";
 import { AnalyticsReadError, AnalyticsService, formatSourceLabel } from "@/server/services/analytics-service";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { InboxItemReadError, InboxService } from "@/server/services/inbox-service";
+import { PreferencesReadError, PreferencesService } from "@/server/services/preferences-service";
 import { ProductReadError, ProductService } from "@/server/services/product-service";
 
 type PageProps = {
@@ -85,7 +87,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
 
         <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <MetricCard label="Visitors" period={summary.currentPeriod.label} value={summary.visitors.toLocaleString()} delta={formatDelta(summary.visitorDeltaPercent, "wk-over-wk")} tone="up">
-            <SparklineLine values={sparklineFromTotal(summary.visitors)} />
+            <SparklineLine values={summary.trafficTrend.map((point) => point.visits)} />
           </MetricCard>
           <MetricCard
             label="Published assets"
@@ -94,10 +96,10 @@ export default async function DashboardPage({ searchParams }: PageProps) {
             delta={`${summary.publishedAssetDelta >= 0 ? "+" : ""}${summary.publishedAssetDelta} vs prior week`}
             tone={summary.publishedAssetDelta >= 0 ? "up" : "down"}
           >
-            <SparklineBar values={sparklineFromTotal(Math.max(summary.publishedAssets, 1))} />
+            <SparklineBar values={[Math.max(0, summary.publishedAssets - summary.publishedAssetDelta), summary.publishedAssets]} />
           </MetricCard>
           <MetricCard label="Conversions" period={summary.currentPeriod.label} value={summary.conversions.toLocaleString()} delta={formatDelta(summary.conversionDeltaPercent, "wk-over-wk")} tone="up">
-            <SparklineBar values={sparklineFromTotal(summary.conversions)} teal />
+            <SparklineBar values={summary.trafficTrend.map((point) => point.conversions)} teal />
           </MetricCard>
           <MetricCard
             label="Inbox pending"
@@ -120,7 +122,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
           <aside className="flex flex-col gap-4">
             <ChannelHealth summary={summary} />
             <TrafficSources sources={summary.sourceBreakdown} />
-            <AutopilotPanel />
+            <AutopilotPanel preferences={data.preferences} />
           </aside>
         </section>
       </div>
@@ -198,16 +200,28 @@ function MetricCard({
 }
 
 function SparklineLine({ values }: { values: number[] }) {
+  if (!values.some((value) => value > 0)) {
+    return <div className="mt-3 h-7 rounded border border-dashed border-border/70" aria-label="No traffic trend data yet" />;
+  }
+
+  const max = Math.max(...values, 1);
   const points = values.map((value, index) => `${(index / (values.length - 1)) * 120},${28 - value}`).join(" ");
+  const normalizedPoints = values
+    .map((value, index) => `${(index / (values.length - 1)) * 120},${28 - (value / max) * 26}`)
+    .join(" ");
 
   return (
     <svg viewBox="0 0 120 28" fill="none" aria-hidden className="mt-3 h-7 w-full">
-      <polyline points={points} stroke="hsl(var(--accent))" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={normalizedPoints || points} stroke="hsl(var(--accent))" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
 function SparklineBar({ values, teal }: { values: number[]; teal?: boolean }) {
+  if (!values.some((value) => value > 0)) {
+    return <div className="mt-3 h-7 rounded border border-dashed border-border/70" aria-label="No conversion trend data yet" />;
+  }
+
   const max = Math.max(...values, 1);
   const barWidth = 14;
   const gap = (120 - barWidth * values.length) / (values.length - 1);
@@ -442,11 +456,11 @@ function TrafficSources({ sources }: { sources: TrafficSourceBreakdown[] }) {
   );
 }
 
-function AutopilotPanel() {
+function AutopilotPanel({ preferences }: { preferences: AutomationPreference[] }) {
   const rows = [
-    { label: "SEO content", level: "L1", sub: "review first" },
-    { label: "Community replies", level: "off", sub: "not implemented yet" },
-    { label: "Outreach", level: "off", sub: "not implemented yet" },
+    preferenceRow(preferences, "content", "SEO content"),
+    preferenceRow(preferences, "community", "Community replies"),
+    preferenceRow(preferences, "outreach", "Outreach"),
   ];
 
   return (
@@ -469,10 +483,26 @@ function AutopilotPanel() {
   );
 }
 
+function preferenceRow(
+  preferences: AutomationPreference[],
+  channel: AutomationPreference["channel"],
+  label: string,
+) {
+  const preference = preferences.find((item) => item.channel === channel);
+  const level = preference ? `L${preference.trustLevel}` : "L1";
+  const sub =
+    preference && preference.dailyAutoActionLimit > 0
+      ? `${preference.dailyAutoActionLimit}/day auto limit`
+      : "review first";
+
+  return { label, level, sub };
+}
+
 async function loadDashboardData(): Promise<{
   product: Product | null;
   summary: DashboardSummary | null;
   pendingInboxItems: InboxItem[];
+  preferences: AutomationPreference[];
   error: string | null;
   authRequired: boolean;
 }> {
@@ -481,22 +511,23 @@ async function loadDashboardData(): Promise<{
     const product = await new ProductService(supabase).getLatestProduct();
 
     if (!product) {
-      return { product: null, summary: null, pendingInboxItems: [], error: null, authRequired: false };
+      return { product: null, summary: null, pendingInboxItems: [], preferences: [], error: null, authRequired: false };
     }
 
-    const [summary, pendingInboxItems] = await Promise.all([
+    const [summary, pendingInboxItems, preferences] = await Promise.all([
       new AnalyticsService(supabase).getDashboardSummary({ productId: product.id }),
       new InboxService(supabase).listItems({ productId: product.id, status: "pending" }),
+      new PreferencesService(supabase).listAutomationPreferences({ productId: product.id }),
     ]);
 
-    return { product, summary, pendingInboxItems, error: null, authRequired: false };
+    return { product, summary, pendingInboxItems, preferences, error: null, authRequired: false };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { product: null, summary: null, pendingInboxItems: [], error: null, authRequired: true };
+      return { product: null, summary: null, pendingInboxItems: [], preferences: [], error: null, authRequired: true };
     }
 
-    if (error instanceof ProductReadError || error instanceof AnalyticsReadError || error instanceof InboxItemReadError) {
-      return { product: null, summary: null, pendingInboxItems: [], error: error.message, authRequired: false };
+    if (error instanceof ProductReadError || error instanceof AnalyticsReadError || error instanceof InboxItemReadError || error instanceof PreferencesReadError) {
+      return { product: null, summary: null, pendingInboxItems: [], preferences: [], error: error.message, authRequired: false };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
@@ -504,6 +535,7 @@ async function loadDashboardData(): Promise<{
         product: null,
         summary: null,
         pendingInboxItems: [],
+        preferences: [],
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
         authRequired: false,
       };
@@ -554,9 +586,4 @@ function formatRelativeTime(value: string) {
   }
 
   return `${Math.floor(hours / 24)}d ago`;
-}
-
-function sparklineFromTotal(total: number) {
-  const normalized = Math.max(total, 1);
-  return [0.5, 0.45, 0.55, 0.62, 0.58, 0.72].map((factor) => Math.max(2, Math.round((normalized * factor) % 26)));
 }

@@ -13,6 +13,12 @@ export const trafficSourceBreakdownSchema = z.object({
   sharePercent: z.number().min(0).max(100),
 });
 
+export const trafficTrendPointSchema = z.object({
+  label: z.string(),
+  visits: z.number().int().min(0),
+  conversions: z.number().int().min(0),
+});
+
 export const keywordMovementSchema = z.object({
   keyword: z.string(),
   currentPosition: z.number().int().positive(),
@@ -50,6 +56,7 @@ export const dashboardSummarySchema = z.object({
   pendingInboxItems: z.number().int().min(0),
   estimatedReviewMinutes: z.number().int().min(0),
   sourceBreakdown: z.array(trafficSourceBreakdownSchema),
+  trafficTrend: z.array(trafficTrendPointSchema),
   keywordMovement: z.array(keywordMovementSchema),
   contentPerformance: z.array(contentPerformanceSchema),
   weeklyInsight: z.object({
@@ -81,6 +88,7 @@ export const listAnalyticsSchema = z.object({
 });
 
 export type TrafficSourceBreakdown = z.infer<typeof trafficSourceBreakdownSchema>;
+export type TrafficTrendPoint = z.infer<typeof trafficTrendPointSchema>;
 export type KeywordMovement = z.infer<typeof keywordMovementSchema>;
 export type ContentPerformance = z.infer<typeof contentPerformanceSchema>;
 export type DashboardSummary = z.infer<typeof dashboardSummarySchema>;
