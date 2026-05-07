@@ -43,6 +43,27 @@ export async function revokeConnectionAction(formData: FormData) {
   redirect(`/settings/connections?revoked=${encodeURIComponent(provider)}`);
 }
 
+export async function saveConnectionCredentialsAction(formData: FormData) {
+  const provider = String(formData.get("provider") ?? "");
+  const input = Object.fromEntries(formData.entries());
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    await new ConnectionsService(supabase).saveCredentials({ ...input, provider });
+    revalidatePath("/settings/connections");
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    redirect(
+      `/settings/connections?connectionError=${encodeURIComponent(error instanceof Error ? error.message : "Connection could not be saved.")}`,
+    );
+  }
+
+  redirect(`/settings/connections?connected=${encodeURIComponent(provider)}`);
+}
+
 function isRedirectError(error: unknown) {
   return (
     error instanceof Error &&

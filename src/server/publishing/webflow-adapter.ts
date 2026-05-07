@@ -16,12 +16,27 @@ type WebflowItemResponse = {
   details?: unknown;
 };
 
+export type WebflowPublishingCredentials = {
+  apiToken: string;
+  collectionId: string;
+  bodyFieldSlug?: string;
+  summaryFieldSlug?: string;
+  metaTitleFieldSlug?: string;
+  metaDescriptionFieldSlug?: string;
+};
+
 export function isWebflowPublishingConfigured() {
   return isWebflowLegacyEnvConfigured();
 }
 
-export async function publishContentAssetToWebflow(asset: ContentAsset) {
-  if (!isWebflowLegacyEnvConfigured() || !env.WEBFLOW_API_TOKEN || !env.WEBFLOW_COLLECTION_ID) {
+export async function publishContentAssetToWebflow(
+  asset: ContentAsset,
+  credentials?: WebflowPublishingCredentials | null,
+) {
+  const apiToken = credentials?.apiToken ?? env.WEBFLOW_API_TOKEN;
+  const collectionId = credentials?.collectionId ?? env.WEBFLOW_COLLECTION_ID;
+
+  if (!apiToken || !collectionId || (!credentials && !isWebflowLegacyEnvConfigured())) {
     throw new WebflowPublishError("Webflow publishing requires a connected user account.");
   }
 
@@ -29,17 +44,17 @@ export async function publishContentAssetToWebflow(asset: ContentAsset) {
     throw new WebflowPublishError("Content asset has no Markdown body to publish.");
   }
 
-  const endpoint = new URL(`https://api.webflow.com/v2/collections/${env.WEBFLOW_COLLECTION_ID}/items/bulk`);
+  const endpoint = new URL(`https://api.webflow.com/v2/collections/${collectionId}/items/bulk`);
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
-      authorization: `Bearer ${env.WEBFLOW_API_TOKEN}`,
+      authorization: `Bearer ${apiToken}`,
       "content-type": "application/json",
     },
     body: JSON.stringify({
       isArchived: false,
       isDraft: true,
-      fieldData: buildFieldData(asset),
+      fieldData: buildFieldData(asset, credentials),
     }),
   });
 
@@ -68,21 +83,21 @@ export class WebflowPublishError extends Error {
   }
 }
 
-function buildFieldData(asset: ContentAsset) {
+function buildFieldData(asset: ContentAsset, credentials?: WebflowPublishingCredentials | null) {
   const fieldData: Record<string, string> = {
     name: asset.title,
     slug: slugify(asset.title),
   };
 
-  fieldData[env.WEBFLOW_BODY_FIELD_SLUG] = markdownToBasicHtml(asset.bodyMd);
+  fieldData[credentials?.bodyFieldSlug ?? env.WEBFLOW_BODY_FIELD_SLUG] = markdownToBasicHtml(asset.bodyMd);
 
   if (asset.metaDescription) {
-    fieldData[env.WEBFLOW_SUMMARY_FIELD_SLUG] = asset.metaDescription;
-    fieldData[env.WEBFLOW_META_DESCRIPTION_FIELD_SLUG] = asset.metaDescription;
+    fieldData[credentials?.summaryFieldSlug ?? env.WEBFLOW_SUMMARY_FIELD_SLUG] = asset.metaDescription;
+    fieldData[credentials?.metaDescriptionFieldSlug ?? env.WEBFLOW_META_DESCRIPTION_FIELD_SLUG] = asset.metaDescription;
   }
 
   if (asset.metaTitle) {
-    fieldData[env.WEBFLOW_META_TITLE_FIELD_SLUG] = asset.metaTitle;
+    fieldData[credentials?.metaTitleFieldSlug ?? env.WEBFLOW_META_TITLE_FIELD_SLUG] = asset.metaTitle;
   }
 
   return fieldData;

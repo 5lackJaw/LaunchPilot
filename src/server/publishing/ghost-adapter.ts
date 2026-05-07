@@ -15,12 +15,25 @@ type GhostPostResponse = {
   }>;
 };
 
+export type GhostPublishingCredentials = {
+  adminUrl: string;
+  adminApiKey: string;
+  apiVersion?: string;
+};
+
 export function isGhostPublishingConfigured() {
   return isGhostLegacyEnvConfigured();
 }
 
-export async function publishContentAssetToGhost(asset: ContentAsset) {
-  if (!isGhostLegacyEnvConfigured() || !env.GHOST_ADMIN_URL || !env.GHOST_ADMIN_API_KEY) {
+export async function publishContentAssetToGhost(
+  asset: ContentAsset,
+  credentials?: GhostPublishingCredentials | null,
+) {
+  const adminUrl = credentials?.adminUrl ?? env.GHOST_ADMIN_URL;
+  const adminApiKey = credentials?.adminApiKey ?? env.GHOST_ADMIN_API_KEY;
+  const apiVersion = credentials?.apiVersion ?? env.GHOST_API_VERSION;
+
+  if (!adminUrl || !adminApiKey || (!credentials && !isGhostLegacyEnvConfigured())) {
     throw new GhostPublishError("Ghost publishing requires a connected user account.");
   }
 
@@ -28,15 +41,15 @@ export async function publishContentAssetToGhost(asset: ContentAsset) {
     throw new GhostPublishError("Content asset has no Markdown body to publish.");
   }
 
-  const token = createGhostAdminToken(env.GHOST_ADMIN_API_KEY);
-  const endpoint = new URL("/ghost/api/admin/posts/", normalizeGhostUrl(env.GHOST_ADMIN_URL));
+  const token = createGhostAdminToken(adminApiKey);
+  const endpoint = new URL("/ghost/api/admin/posts/", normalizeGhostUrl(adminUrl));
   endpoint.searchParams.set("source", "html");
 
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       authorization: `Ghost ${token}`,
-      "accept-version": env.GHOST_API_VERSION,
+      "accept-version": apiVersion,
       "content-type": "application/json",
     },
     body: JSON.stringify({

@@ -1,18 +1,25 @@
+import { createHmac } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/config/env";
 import {
   connectionProviderInputSchema,
   externalConnectionSchema,
+  saveConnectionCredentialsSchema,
 } from "@/server/schemas/connections";
 import type {
   ConnectionProvider,
   ExternalConnection,
+  SaveConnectionCredentialsInput,
 } from "@/server/schemas/connections";
 import {
   isGhostLegacyEnvConfigured,
   isWebflowLegacyEnvConfigured,
   isWordPressLegacyEnvConfigured,
 } from "@/server/publishing/legacy-env-fallback";
+import {
+  decryptConnectionCredentials,
+  encryptConnectionCredentials,
+} from "@/server/security/encrypted-credentials";
 import { AuthService } from "@/server/services/auth-service";
 
 const connectionSelect =
@@ -180,6 +187,47 @@ export class ConnectionsService {
     return mapDatabaseConnection(data, provider);
   }
 
+  async saveCredentials(input: unknown): Promise<ExternalConnection> {
+    const parsed = saveConnectionCredentialsSchema.parse(input);
+    const user = await new AuthService(this.supabase).requireUser();
+    const provider = providerCatalog.find(
+      (item) => item.provider === parsed.provider,
+    );
+
+    if (!provider) {
+      throw new ConnectionsUpdateError("Provider is not supported.");
+    }
+
+    await validateProviderCredentials(parsed);
+
+    const credentials = serializeProviderCredentials(parsed);
+    const { data, error } = await this.supabase
+      .from("external_connections")
+      .upsert(
+        {
+          user_id: user.id,
+          provider: parsed.provider,
+          credentials_encrypted: encryptConnectionCredentials(credentials),
+          scopes: provider.defaultScopes,
+          status: "connected",
+          last_validated_at: new Date().toISOString(),
+          metadata: {
+            configuredAt: new Date().toISOString(),
+            configuredFields: Object.keys(credentials),
+          },
+        },
+        { onConflict: "user_id,provider" },
+      )
+      .select(connectionSelect)
+      .single();
+
+    if (error) {
+      throw new ConnectionsUpdateError(error.message);
+    }
+
+    return mapDatabaseConnection(data, provider);
+  }
+
   async revokeConnection(input: unknown): Promise<ExternalConnection> {
     const parsed = connectionProviderInputSchema.parse(input);
     const user = await new AuthService(this.supabase).requireUser();
@@ -215,6 +263,140 @@ export class ConnectionsService {
 
     return mapDatabaseConnection(data, provider);
   }
+
+  async getConnectedCredentials(provider: ConnectionProvider) {
+    const user = await new AuthService(this.supabase).requireUser();
+    const { data, error } = await this.supabase
+      .from("external_connections")
+      .select("credentials_encrypted")
+      .eq("user_id", user.id)
+      .eq("provider", provider)
+      .eq("status", "connected")
+      .maybeSingle();
+
+    if (error) {
+      throw new ConnectionsReadError(error.message);
+    }
+
+    if (!data?.credentials_encrypted) {
+      return null;
+    }
+
+    return decryptConnectionCredentials(data.credentials_encrypted);
+  }
+}
+
+async function validateProviderCredentials(input: SaveConnectionCredentialsInput) {
+  if (input.provider === "ghost") {
+    const response = await fetch(new URL("/ghost/api/admin/site/", normalizeUrl(input.adminUrl)), {
+      headers: {
+        authorization: `Ghost ${createGhostAdminToken(input.adminApiKey)}`,
+        "accept-version": input.apiVersion,
+      },
+    });
+
+    if (!response.ok) {
+      throw new ConnectionsUpdateError(`Ghost rejected the credentials with HTTP ${response.status}.`);
+    }
+  }
+
+  if (input.provider === "wordpress") {
+    const response = await fetch(new URL("/wp-json/wp/v2/users/me", normalizeUrl(input.siteUrl)), {
+      headers: {
+        authorization: `Basic ${Buffer.from(`${input.username}:${input.applicationPassword}`).toString("base64")}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new ConnectionsUpdateError(`WordPress rejected the credentials with HTTP ${response.status}.`);
+    }
+  }
+
+  if (input.provider === "webflow") {
+    const response = await fetch(`https://api.webflow.com/v2/collections/${input.collectionId}`, {
+      headers: {
+        authorization: `Bearer ${input.apiToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new ConnectionsUpdateError(`Webflow rejected the credentials with HTTP ${response.status}.`);
+    }
+  }
+
+  if (input.provider === "plausible") {
+    const response = await fetch("https://plausible.io/api/v2/query", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${input.apiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        site_id: input.siteId,
+        metrics: ["visitors"],
+        date_range: "7d",
+      }),
+    });
+
+    if (!response.ok) {
+      throw new ConnectionsUpdateError(`Plausible rejected the credentials with HTTP ${response.status}.`);
+    }
+  }
+}
+
+function serializeProviderCredentials(input: SaveConnectionCredentialsInput) {
+  if (input.provider === "ghost") {
+    return {
+      adminUrl: input.adminUrl,
+      adminApiKey: input.adminApiKey,
+      apiVersion: input.apiVersion,
+    };
+  }
+
+  if (input.provider === "wordpress") {
+    return {
+      siteUrl: input.siteUrl,
+      username: input.username,
+      applicationPassword: input.applicationPassword,
+    };
+  }
+
+  if (input.provider === "webflow") {
+    return {
+      apiToken: input.apiToken,
+      collectionId: input.collectionId,
+      bodyFieldSlug: input.bodyFieldSlug,
+      summaryFieldSlug: input.summaryFieldSlug,
+      metaTitleFieldSlug: input.metaTitleFieldSlug,
+      metaDescriptionFieldSlug: input.metaDescriptionFieldSlug,
+    };
+  }
+
+  return {
+    siteId: input.siteId,
+    apiKey: input.apiKey,
+  };
+}
+
+function createGhostAdminToken(apiKey: string) {
+  const [id, secret] = apiKey.split(":");
+
+  if (!id || !secret) {
+    throw new ConnectionsUpdateError("Ghost Admin API key must use the id:secret format.");
+  }
+
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", kid: id, typ: "JWT" })).toString("base64url");
+  const now = Math.floor(Date.now() / 1000);
+  const payload = Buffer.from(JSON.stringify({ aud: "/admin/", exp: now + 5 * 60, iat: now })).toString("base64url");
+  const signature = createHmac("sha256", Buffer.from(secret, "hex"))
+    .update(`${header}.${payload}`)
+    .digest("base64url");
+
+  return `${header}.${payload}.${signature}`;
+}
+
+function normalizeUrl(value: string) {
+  return value.endsWith("/") ? value : `${value}/`;
 }
 
 export class ConnectionsReadError extends Error {

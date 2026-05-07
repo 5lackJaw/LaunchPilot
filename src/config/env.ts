@@ -30,6 +30,7 @@ const envSchema = z.object({
   INNGEST_SIGNING_KEY: optionalNonEmptyString,
   INTERNAL_ADMIN_USER_IDS: optionalNonEmptyString,
   INTERNAL_ADMIN_EMAILS: optionalNonEmptyString,
+  CONNECTION_CREDENTIALS_ENCRYPTION_KEY: optionalNonEmptyString,
   ENABLE_DEV_INBOX_SEED: optionalNonEmptyString,
   ENABLE_LEGACY_PUBLISHING_ENV_FALLBACK: optionalNonEmptyString,
   GHOST_ADMIN_URL: optionalUrl,

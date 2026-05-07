@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   requestConnectionSetupAction,
   revokeConnectionAction,
+  saveConnectionCredentialsAction,
 } from "@/app/(app)/settings/connections/actions";
 import type { ExternalConnection } from "@/server/schemas/connections";
 import { AuthRequiredError } from "@/server/services/auth-service";
@@ -15,6 +16,7 @@ import {
 type PageProps = {
   searchParams: Promise<{
     setupRequested?: string;
+    connected?: string;
     revoked?: string;
     connectionError?: string;
   }>;
@@ -48,6 +50,7 @@ const CONNECTION_CATALOG: CatalogEntry[] = [
 ];
 
 const CATEGORIES = ["Publishing", "Analytics", "Social", "Email", "Payments"];
+const CREDENTIAL_PROVIDERS = new Set(["ghost", "wordpress", "webflow", "plausible"]);
 
 export default async function ConnectionsPage({ searchParams }: PageProps) {
   const params = await searchParams;
@@ -79,6 +82,12 @@ export default async function ConnectionsPage({ searchParams }: PageProps) {
             <AlertDescription>The provider is marked pending until OAuth or encrypted credential capture is enabled.</AlertDescription>
           </Alert>
         )}
+        {params.connected && (
+          <Alert>
+            <AlertTitle>Connection saved</AlertTitle>
+            <AlertDescription>The credentials were validated server-side and stored encrypted.</AlertDescription>
+          </Alert>
+        )}
         {params.revoked && (
           <Alert>
             <AlertTitle>Connection revoked</AlertTitle>
@@ -88,7 +97,7 @@ export default async function ConnectionsPage({ searchParams }: PageProps) {
         {(params.connectionError || data.error) && (
           <Alert variant="destructive">
             <AlertTitle>Connections could not be loaded</AlertTitle>
-            <AlertDescription>{data.error ?? "Try again after confirming Supabase configuration."}</AlertDescription>
+            <AlertDescription>{data.error ?? decodeURIComponent(params.connectionError ?? "Try again after confirming Supabase configuration.")}</AlertDescription>
           </Alert>
         )}
 
@@ -138,7 +147,7 @@ export default async function ConnectionsPage({ searchParams }: PageProps) {
                       <div style={{ display: "flex", justifyContent: "flex-end" }}>
                         {isServerManaged ? (
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--lp-muted)", background: "var(--lp-bg4)", border: "1px solid var(--lp-border)", borderRadius: "5px", padding: "4px 10px" }}>Server managed</span>
-                        ) : isConnected ? (
+                        ) : isConnected && !CREDENTIAL_PROVIDERS.has(entry.provider) ? (
                           <div style={{ display: "flex", gap: "6px" }}>
                             {live && (
                               <form action={revokeConnectionAction}>
@@ -152,22 +161,25 @@ export default async function ConnectionsPage({ searchParams }: PageProps) {
                               Configure →
                             </span>
                           </div>
-                        ) : isPending && live ? (
+                        ) : isPending && live && !CREDENTIAL_PROVIDERS.has(entry.provider) ? (
                           <form action={revokeConnectionAction}>
                             <input type="hidden" name="provider" value={live.provider} />
                             <button type="submit" style={{ fontFamily: "var(--font-sans)", fontSize: "12px", color: "var(--lp-muted)", background: "transparent", border: "1px solid var(--lp-border)", borderRadius: "5px", padding: "4px 10px", cursor: "pointer" }}>
                               Cancel setup
                             </button>
                           </form>
-                        ) : (
+                        ) : !CREDENTIAL_PROVIDERS.has(entry.provider) ? (
                           <form action={requestConnectionSetupAction}>
                             <input type="hidden" name="provider" value={entry.provider} />
                             <button type="submit" style={{ fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "#fff", background: "var(--lp-purple)", border: "none", borderRadius: "5px", padding: "5px 12px", cursor: "pointer" }}>
                               Connect
                             </button>
                           </form>
-                        )}
+                        ) : null}
                       </div>
+                      {!isServerManaged && CREDENTIAL_PROVIDERS.has(entry.provider) ? (
+                        <CredentialForm provider={entry.provider} isConnected={isConnected} live={live} />
+                      ) : null}
                     </div>
                   );
                 })}
@@ -177,6 +189,97 @@ export default async function ConnectionsPage({ searchParams }: PageProps) {
         })}
       </div>
     </main>
+  );
+}
+
+function CredentialForm({
+  provider,
+  isConnected,
+  live,
+}: {
+  provider: string;
+  isConnected: boolean;
+  live?: ExternalConnection;
+}) {
+  return (
+    <form action={saveConnectionCredentialsAction} style={{ marginTop: "14px", borderTop: "1px solid var(--lp-border)", paddingTop: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+      <input type="hidden" name="provider" value={provider} />
+      {provider === "ghost" ? (
+        <>
+          <ConnectionInput name="adminUrl" label="Admin URL" placeholder="https://your-site.com" />
+          <ConnectionInput name="adminApiKey" label="Admin API key" placeholder="id:secret" secret />
+          <ConnectionInput name="apiVersion" label="API version" placeholder="v6.0" defaultValue="v6.0" />
+        </>
+      ) : null}
+      {provider === "wordpress" ? (
+        <>
+          <ConnectionInput name="siteUrl" label="Site URL" placeholder="https://your-site.com" />
+          <ConnectionInput name="username" label="Username" placeholder="editor@example.com" />
+          <ConnectionInput name="applicationPassword" label="Application password" placeholder="xxxx xxxx xxxx xxxx" secret />
+        </>
+      ) : null}
+      {provider === "webflow" ? (
+        <>
+          <ConnectionInput name="apiToken" label="API token" placeholder="Webflow API token" secret />
+          <ConnectionInput name="collectionId" label="Collection ID" placeholder="CMS collection ID" />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+            <ConnectionInput name="bodyFieldSlug" label="Body field" placeholder="body" defaultValue="body" />
+            <ConnectionInput name="summaryFieldSlug" label="Summary field" placeholder="summary" defaultValue="summary" />
+            <ConnectionInput name="metaTitleFieldSlug" label="Meta title field" placeholder="meta-title" defaultValue="meta-title" />
+            <ConnectionInput name="metaDescriptionFieldSlug" label="Meta description field" placeholder="meta-description" defaultValue="meta-description" />
+          </div>
+        </>
+      ) : null}
+      {provider === "plausible" ? (
+        <>
+          <ConnectionInput name="siteId" label="Site ID" placeholder="example.com" />
+          <ConnectionInput name="apiKey" label="API key" placeholder="Plausible API key" secret />
+        </>
+      ) : null}
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", paddingTop: "4px" }}>
+        {live ? (
+          <button formAction={revokeConnectionAction} formNoValidate type="submit" style={{ fontFamily: "var(--font-sans)", fontSize: "12px", color: "var(--lp-muted)", background: "transparent", border: "1px solid var(--lp-border)", borderRadius: "5px", padding: "5px 10px", cursor: "pointer" }}>
+            {isConnected ? "Revoke" : "Cancel setup"}
+          </button>
+        ) : (
+          <span />
+        )}
+        <button type="submit" style={{ fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 500, color: "#fff", background: "var(--lp-purple)", border: "none", borderRadius: "5px", padding: "5px 12px", cursor: "pointer" }}>
+          {isConnected ? "Update credentials" : "Save connection"}
+        </button>
+      </div>
+      {isConnected ? (
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)" }}>Stored credentials are encrypted. Existing values are never shown.</span>
+      ) : null}
+    </form>
+  );
+}
+
+function ConnectionInput({
+  name,
+  label,
+  placeholder,
+  defaultValue,
+  secret = false,
+}: {
+  name: string;
+  label: string;
+  placeholder: string;
+  defaultValue?: string;
+  secret?: boolean;
+}) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+      <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--lp-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</span>
+      <input
+        name={name}
+        type={secret ? "password" : "text"}
+        placeholder={placeholder}
+        defaultValue={defaultValue}
+        required
+        style={{ height: "32px", borderRadius: "6px", border: "1px solid var(--lp-border)", background: "var(--lp-bg2)", color: "var(--lp-text)", padding: "0 9px", fontFamily: "var(--font-sans)", fontSize: "12px", outline: "none" }}
+      />
+    </label>
   );
 }
 

@@ -17,13 +17,14 @@ import {
   publishContentAssetToWordPressAction,
   updateContentAssetAction,
 } from "@/app/(app)/content/[assetId]/actions";
-import { isGhostPublishingConfigured } from "@/server/publishing/ghost-adapter";
-import { isWebflowPublishingConfigured } from "@/server/publishing/webflow-adapter";
-import { isWordPressPublishingConfigured } from "@/server/publishing/wordpress-adapter";
 import { getContentGenerationState } from "@/server/content/generation-state";
 import type { ContentAsset } from "@/server/schemas/content";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { ContentAssetReadError, ContentService } from "@/server/services/content-service";
+import { ConnectionsReadError, ConnectionsService } from "@/server/services/connections-service";
+import { isGhostPublishingConfigured } from "@/server/publishing/ghost-adapter";
+import { isWebflowPublishingConfigured } from "@/server/publishing/webflow-adapter";
+import { isWordPressPublishingConfigured } from "@/server/publishing/wordpress-adapter";
 
 type PageProps = {
   params: Promise<{ assetId: string }>;
@@ -241,12 +242,12 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
                   type="submit"
                   size="sm"
                   className="w-full"
-                  disabled={!isGhostPublishingConfigured() || !data.asset.bodyMd.trim() || !["approved", "pending_review"].includes(data.asset.status)}
+                  disabled={!data.publishing.ghost || !data.asset.bodyMd.trim() || !["approved", "pending_review"].includes(data.asset.status)}
                 >
                   Send draft to Ghost
                 </Button>
               </form>
-              {!isGhostPublishingConfigured() ? (
+              {!data.publishing.ghost ? (
                 <p className="text-xs text-muted-foreground">Connect Ghost in Settings before publishing drafts.</p>
               ) : null}
               <form action={publishContentAssetToWordPressAction}>
@@ -255,12 +256,12 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
                   type="submit"
                   size="sm"
                   className="w-full"
-                  disabled={!isWordPressPublishingConfigured() || !data.asset.bodyMd.trim() || !["approved", "pending_review"].includes(data.asset.status)}
+                  disabled={!data.publishing.wordpress || !data.asset.bodyMd.trim() || !["approved", "pending_review"].includes(data.asset.status)}
                 >
                   Send draft to WordPress
                 </Button>
               </form>
-              {!isWordPressPublishingConfigured() ? (
+              {!data.publishing.wordpress ? (
                 <p className="text-xs text-muted-foreground">Connect WordPress in Settings before publishing drafts.</p>
               ) : null}
               <form action={publishContentAssetToWebflowAction}>
@@ -269,12 +270,12 @@ export default async function ContentAssetPage({ params, searchParams }: PagePro
                   type="submit"
                   size="sm"
                   className="w-full"
-                  disabled={!isWebflowPublishingConfigured() || !data.asset.bodyMd.trim() || !["approved", "pending_review"].includes(data.asset.status)}
+                  disabled={!data.publishing.webflow || !data.asset.bodyMd.trim() || !["approved", "pending_review"].includes(data.asset.status)}
                 >
                   Send draft to Webflow
                 </Button>
               </form>
-              {!isWebflowPublishingConfigured() ? (
+              {!data.publishing.webflow ? (
                 <p className="text-xs text-muted-foreground">Connect Webflow in Settings before publishing drafts.</p>
               ) : null}
             </CardContent>
@@ -330,25 +331,39 @@ function ContentAssetShell({
 
 async function loadContentAsset(assetId: string): Promise<{
   asset: ContentAsset | null;
+  publishing: { ghost: boolean; wordpress: boolean; webflow: boolean };
   error: string | null;
   authRequired: boolean;
 }> {
   try {
     const supabase = await createSupabaseServerClient();
-    const asset = await new ContentService(supabase).getContentAsset({ assetId });
-    return { asset, error: null, authRequired: false };
+    const [asset, connections] = await Promise.all([
+      new ContentService(supabase).getContentAsset({ assetId }),
+      new ConnectionsService(supabase).listConnections(),
+    ]);
+    return {
+      asset,
+      publishing: {
+        ghost: isGhostPublishingConfigured() || isConnectionAvailable(connections, "ghost"),
+        wordpress: isWordPressPublishingConfigured() || isConnectionAvailable(connections, "wordpress"),
+        webflow: isWebflowPublishingConfigured() || isConnectionAvailable(connections, "webflow"),
+      },
+      error: null,
+      authRequired: false,
+    };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { asset: null, error: null, authRequired: true };
+      return { asset: null, publishing: emptyPublishingState(), error: null, authRequired: true };
     }
 
-    if (error instanceof ContentAssetReadError) {
-      return { asset: null, error: error.message, authRequired: false };
+    if (error instanceof ContentAssetReadError || error instanceof ConnectionsReadError) {
+      return { asset: null, publishing: emptyPublishingState(), error: error.message, authRequired: false };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
       return {
         asset: null,
+        publishing: emptyPublishingState(),
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
         authRequired: false,
       };
@@ -356,4 +371,16 @@ async function loadContentAsset(assetId: string): Promise<{
 
     throw error;
   }
+}
+
+function isConnectionAvailable(
+  connections: Awaited<ReturnType<ConnectionsService["listConnections"]>>,
+  provider: "ghost" | "wordpress" | "webflow",
+) {
+  const connection = connections.find((item) => item.provider === provider);
+  return connection?.status === "connected" && connection.source === "database";
+}
+
+function emptyPublishingState() {
+  return { ghost: false, wordpress: false, webflow: false };
 }

@@ -11,16 +11,29 @@ type WordPressPostResponse = {
   code?: string;
 };
 
+export type WordPressPublishingCredentials = {
+  siteUrl: string;
+  username: string;
+  applicationPassword: string;
+};
+
 export function isWordPressPublishingConfigured() {
   return isWordPressLegacyEnvConfigured();
 }
 
-export async function publishContentAssetToWordPress(asset: ContentAsset) {
+export async function publishContentAssetToWordPress(
+  asset: ContentAsset,
+  credentials?: WordPressPublishingCredentials | null,
+) {
+  const siteUrl = credentials?.siteUrl ?? env.WORDPRESS_SITE_URL;
+  const username = credentials?.username ?? env.WORDPRESS_USERNAME;
+  const applicationPassword = credentials?.applicationPassword ?? env.WORDPRESS_APPLICATION_PASSWORD;
+
   if (
-    !isWordPressLegacyEnvConfigured() ||
-    !env.WORDPRESS_SITE_URL ||
-    !env.WORDPRESS_USERNAME ||
-    !env.WORDPRESS_APPLICATION_PASSWORD
+    !siteUrl ||
+    !username ||
+    !applicationPassword ||
+    (!credentials && !isWordPressLegacyEnvConfigured())
   ) {
     throw new WordPressPublishError("WordPress publishing requires a connected user account.");
   }
@@ -29,11 +42,11 @@ export async function publishContentAssetToWordPress(asset: ContentAsset) {
     throw new WordPressPublishError("Content asset has no Markdown body to publish.");
   }
 
-  const endpoint = new URL("/wp-json/wp/v2/posts", normalizeWordPressUrl(env.WORDPRESS_SITE_URL));
+  const endpoint = new URL("/wp-json/wp/v2/posts", normalizeWordPressUrl(siteUrl));
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
-      authorization: `Basic ${Buffer.from(`${env.WORDPRESS_USERNAME}:${env.WORDPRESS_APPLICATION_PASSWORD}`).toString("base64")}`,
+      authorization: `Basic ${Buffer.from(`${username}:${applicationPassword}`).toString("base64")}`,
       "content-type": "application/json",
     },
     body: JSON.stringify({

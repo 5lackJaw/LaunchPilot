@@ -22,15 +22,19 @@ import type { MarketingBrief } from "@/server/schemas/brief";
 import {
   isGhostPublishingConfigured,
   publishContentAssetToGhost,
+  type GhostPublishingCredentials,
 } from "@/server/publishing/ghost-adapter";
 import {
   isWebflowPublishingConfigured,
   publishContentAssetToWebflow,
+  type WebflowPublishingCredentials,
 } from "@/server/publishing/webflow-adapter";
 import {
   isWordPressPublishingConfigured,
   publishContentAssetToWordPress,
+  type WordPressPublishingCredentials,
 } from "@/server/publishing/wordpress-adapter";
+import { ConnectionsService } from "@/server/services/connections-service";
 import { BriefService } from "@/server/services/brief-service";
 import { PlanService } from "@/server/services/plan-service";
 import { ProductService } from "@/server/services/product-service";
@@ -306,7 +310,8 @@ export class ContentService {
       actionLabel: "content publishing",
     });
 
-    if (!isGhostPublishingConfigured()) {
+    const credentials = await new ConnectionsService(this.supabase).getConnectedCredentials("ghost");
+    if (!credentials && !isGhostPublishingConfigured()) {
       throw new ContentPublishError("Ghost publishing is not configured.");
     }
 
@@ -316,7 +321,7 @@ export class ContentService {
       );
     }
 
-    const published = await publishContentAssetToGhost(asset);
+    const published = await publishContentAssetToGhost(asset, credentials as GhostPublishingCredentials);
     const provenance = {
       ...asset.provenance,
       ghost: {
@@ -355,7 +360,8 @@ export class ContentService {
       actionLabel: "content publishing",
     });
 
-    if (!isWordPressPublishingConfigured()) {
+    const credentials = await new ConnectionsService(this.supabase).getConnectedCredentials("wordpress");
+    if (!credentials && !isWordPressPublishingConfigured()) {
       throw new ContentPublishError("WordPress publishing is not configured.");
     }
 
@@ -365,7 +371,7 @@ export class ContentService {
       );
     }
 
-    const published = await publishContentAssetToWordPress(asset);
+    const published = await publishContentAssetToWordPress(asset, credentials as WordPressPublishingCredentials);
     const provenance = {
       ...asset.provenance,
       wordpress: {
@@ -404,7 +410,8 @@ export class ContentService {
       actionLabel: "content publishing",
     });
 
-    if (!isWebflowPublishingConfigured()) {
+    const credentials = await new ConnectionsService(this.supabase).getConnectedCredentials("webflow");
+    if (!credentials && !isWebflowPublishingConfigured()) {
       throw new ContentPublishError("Webflow publishing is not configured.");
     }
 
@@ -414,7 +421,7 @@ export class ContentService {
       );
     }
 
-    const published = await publishContentAssetToWebflow(asset);
+    const published = await publishContentAssetToWebflow(asset, credentials as WebflowPublishingCredentials);
     const provenance = {
       ...asset.provenance,
       webflow: {
