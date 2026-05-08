@@ -17,6 +17,9 @@ type PageProps = {
     devSeeded?: string;
     devSeedCleared?: string;
     devSeedError?: string;
+    reviewed?: string;
+    reviewError?: string;
+    reviewedItemId?: string;
   }>;
 };
 
@@ -46,6 +49,9 @@ export default async function InboxPage({ searchParams }: PageProps) {
           devSeeded={params.devSeeded}
           devSeedCleared={params.devSeedCleared}
           devSeedError={params.devSeedError}
+          reviewed={params.reviewed}
+          reviewError={params.reviewError}
+          reviewedItemId={params.reviewedItemId}
           canUseDevSeed={isDevInboxSeedEnabled()}
         />
       )}

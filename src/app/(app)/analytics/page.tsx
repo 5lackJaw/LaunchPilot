@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { BarChart3, Link2 } from "lucide-react";
 import { AppTopbar, RangeTabs } from "@/components/layout/app-topbar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { DashboardSummary, KeywordMovement } from "@/server/schemas/analytics";
 import type { Product } from "@/server/schemas/product";
@@ -34,6 +36,57 @@ export default async function AnalyticsPage() {
   }
 
   const summary = data.summary;
+  const hasAnalyticsData =
+    summary.visitors > 0 ||
+    summary.sourceBreakdown.length > 0 ||
+    summary.keywordMovement.length > 0 ||
+    summary.contentPerformance.length > 0;
+
+  if (!hasAnalyticsData) {
+    return (
+      <main style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
+        <AppTopbar
+          title="Analytics"
+          eyebrow={`Traffic and performance / ${data.product.name}`}
+          actions={
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/settings/connections">
+                <Link2 />
+                Connect analytics
+              </Link>
+            </Button>
+          }
+        />
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "22px 28px 40px", display: "grid", gap: "22px" }}>
+          <div style={{ background: "var(--lp-bg3)", border: "1px solid var(--lp-border)", borderRadius: "10px", padding: "34px 24px", textAlign: "center" }}>
+            <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "var(--lp-purple-dim)", border: "1px solid rgba(124,111,247,0.2)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}>
+              <BarChart3 style={{ width: "18px", height: "18px", color: "var(--lp-purple)" }} />
+            </div>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: "20px", color: "var(--lp-text)", marginBottom: "10px" }}>
+              No analytics data yet
+            </div>
+            <div style={{ fontFamily: "var(--font-sans)", fontSize: "13px", color: "var(--lp-muted)", lineHeight: 1.7, maxWidth: "640px", margin: "0 auto 18px" }}>
+              This product has no traffic snapshots or keyword rank snapshots yet. Once Plausible and rank ingestion are connected, this page will fill with visitors, source breakdowns, keyword movement, and content performance.
+            </div>
+            <div style={{ display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap" }}>
+              <Button size="sm" asChild>
+                <Link href="/settings/connections">
+                  <Link2 />
+                  Connect data sources
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link href="/seo">
+                  Review SEO opportunities
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   // Compute derived KPIs from real data
   const positions = summary.keywordMovement.map((k) => k.currentPosition).filter((p) => p > 0);

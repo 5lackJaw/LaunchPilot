@@ -5,6 +5,7 @@ import { useState, useMemo, useTransition } from "react";
 import {
   batchApproveInboxItemsAction,
   clearDevInboxItemsAction,
+  reviewInboxItemFromQueueAction,
   seedDevInboxItemsAction,
 } from "@/app/(app)/inbox/actions";
 import type { InboxItem } from "@/server/schemas/inbox";
@@ -345,22 +346,42 @@ function DetailHeader({ item }: { item: UIItem }) {
 }
 
 function DetailActions({
-  item, onApprove, onReject,
+  item, onReject,
 }: {
-  item: UIItem; onApprove: () => void; onReject: () => void;
+  item: UIItem; onReject: () => void;
 }) {
   return (
     <div style={{
       padding: "14px 28px", borderBottom: "1px solid var(--lp-border)",
-      display: "flex", alignItems: "center", gap: 8,
+      display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
       flexShrink: 0, background: "var(--lp-bg2)",
     }}>
-      <Btn variant="success" onClick={onApprove}>{item.approveLabel}</Btn>
+      <form action={reviewInboxItemFromQueueAction} style={{ display: "inline-flex" }}>
+        <input type="hidden" name="inboxItemId" value={item.id} />
+        <input type="hidden" name="status" value="approved" />
+        <Btn variant="success" type="submit">{item.approveLabel}</Btn>
+      </form>
       <Btn variant="ghost" onClick={onReject}>✕ Reject</Btn>
-      <Btn variant="ghost">✎ Edit in-app</Btn>
-      <Btn variant="ghost">↺ Regenerate</Btn>
-      <div style={{ width: 1, height: 20, background: "var(--lp-border)", margin: "0 4px" }} />
-      <Btn variant="ghost" style={{ fontSize: 11, color: "var(--lp-muted)" }}>⟩ Skip</Btn>
+      <Link href={`/inbox/${item.id}`} style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "6px 13px",
+        borderRadius: 7,
+        fontSize: 12,
+        fontFamily: "var(--font-sans)",
+        fontWeight: 500,
+        textDecoration: "none",
+        color: "var(--lp-muted)",
+        border: "1px solid var(--lp-border)",
+      }}>
+        Open full review
+      </Link>
+      <form action={reviewInboxItemFromQueueAction} style={{ display: "inline-flex" }}>
+        <input type="hidden" name="inboxItemId" value={item.id} />
+        <input type="hidden" name="status" value="skipped" />
+        <Btn variant="ghost" type="submit" style={{ fontSize: 11, color: "var(--lp-muted)" }}>⟩ Skip</Btn>
+      </form>
     </div>
   );
 }
@@ -436,7 +457,51 @@ function ScoreRow({ item }: { item: UIItem }) {
   );
 }
 
-function ContentPreview({ item }: { item: UIItem }) {
+const fieldLabelStyle: React.CSSProperties = {
+  fontSize: 10,
+  fontFamily: "var(--font-mono)",
+  color: "var(--lp-muted)",
+  textTransform: "uppercase",
+  letterSpacing: "0.07em",
+};
+
+const fieldValueStyle: React.CSSProperties = {
+  marginTop: 4,
+  fontSize: 12,
+  color: "var(--lp-text)",
+  lineHeight: 1.7,
+  whiteSpace: "pre-wrap",
+};
+
+function MarkdownBlock({ value }: { value: string }) {
+  return (
+    <div style={{
+      border: "1px solid var(--lp-border)",
+      borderRadius: 8,
+      background: "var(--lp-bg3)",
+      padding: "14px 16px",
+    }}>
+      <pre style={{
+        margin: 0,
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
+        fontSize: 12,
+        lineHeight: 1.75,
+        color: "var(--lp-text)",
+        fontFamily: "var(--font-sans)",
+      }}>
+        {value}
+      </pre>
+    </div>
+  );
+}
+
+function DetailBody({ item }: { item: InboxItem }) {
+  const metadataEntries = Object.entries(item.payload.metadata ?? {}).filter(([, value]) => {
+    return value !== undefined && value !== null && value !== "";
+  });
+  const hasBody = typeof item.payload.body === "string" && item.payload.body.trim().length > 0;
+
   return (
     <div className="lb-slide-in" style={{ marginBottom: 20 }}>
       <div style={{
@@ -444,51 +509,108 @@ function ContentPreview({ item }: { item: UIItem }) {
         textTransform: "uppercase", letterSpacing: "0.07em",
         marginBottom: 10, paddingBottom: 6, borderBottom: "1px solid var(--lp-border)",
       }}>
-        Content preview
+        Content
       </div>
       <div style={{ background: "var(--lp-bg2)", border: "1px solid var(--lp-border)", borderRadius: 8, overflow: "hidden" }}>
         <div style={{ background: "var(--lp-bg3)", padding: "16px 20px", borderBottom: "1px solid var(--lp-border)" }}>
           <div style={{ fontFamily: "var(--font-serif)", fontSize: 17, color: "var(--lp-text)", lineHeight: 1.4, marginBottom: 6 }}>
-            {item.title}
+            {item.payload.title ?? humanizeItemType(item.itemType)}
           </div>
-          <div style={{ display: "flex", gap: 10, fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--lp-muted)" }}>
-            <span>{item.dest}</span>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--lp-muted)" }}>
+            <span>{humanizeItemType(item.itemType)}</span>
+            <span>•</span>
+            <span>{item.status}</span>
           </div>
         </div>
-        <div style={{ padding: "16px 20px" }}>
-          {item.previewText ? (
-            <p style={{ fontSize: 12, color: "var(--lp-muted)", lineHeight: 1.7 }}>
-              {item.previewText}
-            </p>
-          ) : (
+        <div style={{ padding: "16px 20px", display: "grid", gap: 16 }}>
+          {item.payload.preview ? (
+            <div>
+              <div style={fieldLabelStyle}>Preview</div>
+              <p style={fieldValueStyle}>{item.payload.preview}</p>
+            </div>
+          ) : null}
+          {item.payload.suggestedAction ? (
+            <div>
+              <div style={fieldLabelStyle}>Suggested action</div>
+              <p style={fieldValueStyle}>{item.payload.suggestedAction}</p>
+            </div>
+          ) : null}
+          {hasBody ? (
+            <div>
+              <div style={fieldLabelStyle}>Body</div>
+              <MarkdownBlock value={item.payload.body ?? ""} />
+            </div>
+          ) : null}
+          {!hasBody && !item.payload.preview && !item.payload.suggestedAction ? (
             <p style={{ fontSize: 12, color: "var(--lp-muted)", lineHeight: 1.7, fontStyle: "italic" }}>
-              No preview available. Open the full item to review the content.
+              No content payload was provided for this item.
             </p>
-          )}
+          ) : null}
+          {metadataEntries.length ? (
+            <div>
+              <div style={fieldLabelStyle}>Metadata</div>
+              <div style={{ display: "grid", gap: 8 }}>
+                {metadataEntries.map(([key, value]) => (
+                  <div key={key} style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: 12 }}>
+                    <div style={fieldLabelStyle}>{key}</div>
+                    <div style={fieldValueStyle}>{formatMetadataValue(value)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
         <div style={{
-          textAlign: "center", padding: 10, fontSize: 11,
-          fontFamily: "var(--font-mono)", color: "var(--lp-purple-l)",
-          cursor: "pointer", borderTop: "1px solid var(--lp-border)",
+          display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+          padding: "10px 20px", borderTop: "1px solid var(--lp-border)",
+          fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--lp-muted)",
         }}>
-          View full content ↓
+          <span>Open the full item for event history and review actions.</span>
+          <Link href={`/inbox/${item.id}`} style={{ color: "var(--lp-purple-l)", textDecoration: "none" }}>
+            View full review →
+          </Link>
         </div>
       </div>
     </div>
   );
 }
 
+function formatMetadataValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => formatMetadataValue(entry)).join(", ");
+  }
+
+  if (value && typeof value === "object") {
+    return JSON.stringify(value);
+  }
+
+  return "Not provided";
+}
+
+function humanizeItemType(itemType: InboxItem["itemType"]): string {
+  return itemType.replaceAll("_", " ");
+}
+
 const REJECT_REASONS = ["Wrong tone", "Off-brand", "Wrong keyword focus", "Too promotional", "Poor quality", "Other"];
 
 function RejectDrawer({
-  reason, note, onSelectReason, onNoteChange, onConfirm, onCancel,
+  itemId, reason, note, onSelectReason, onNoteChange, onCancel,
 }: {
-  reason: string | null; note: string;
+  itemId: string; reason: string | null; note: string;
   onSelectReason: (r: string) => void;
   onNoteChange: (n: string) => void;
-  onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const rejectionNote = [reason, note.trim()].filter(Boolean).join(" — ");
+
   return (
     <div style={{ background: "var(--lp-bg3)", borderTop: "1px solid var(--lp-border)", padding: "14px 28px", flexShrink: 0 }}>
       <div style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "#F06060", marginBottom: 6 }}>
@@ -513,7 +635,10 @@ function RejectDrawer({
           </button>
         ))}
       </div>
-      <div style={{ display: "flex", gap: 8 }}>
+      <form action={reviewInboxItemFromQueueAction} style={{ display: "flex", gap: 8 }}>
+        <input type="hidden" name="inboxItemId" value={itemId} />
+        <input type="hidden" name="status" value="rejected" />
+        <input type="hidden" name="reason" value={rejectionNote} />
         <input
           type="text"
           value={note}
@@ -525,9 +650,9 @@ function RejectDrawer({
             fontFamily: "var(--font-sans)", outline: "none",
           }}
         />
-        <Btn variant="danger" onClick={onConfirm}>Reject &amp; regenerate</Btn>
+        <Btn variant="danger" type="submit">Reject &amp; regenerate</Btn>
         <Btn variant="ghost" onClick={onCancel}>Cancel</Btn>
-      </div>
+      </form>
     </div>
   );
 }
@@ -537,6 +662,14 @@ function RejectDrawer({
 export function InboxClient({
   items: persistedItems,
   product,
+  batchApproved,
+  batchError,
+  devSeeded,
+  devSeedCleared,
+  devSeedError,
+  reviewed,
+  reviewError,
+  reviewedItemId,
   canUseDevSeed,
 }: {
   items: InboxItem[];
@@ -546,6 +679,9 @@ export function InboxClient({
   devSeeded?: string;
   devSeedCleared?: string;
   devSeedError?: string;
+  reviewed?: string;
+  reviewError?: string;
+  reviewedItemId?: string;
   canUseDevSeed: boolean;
 }) {
   const [filter, setFilter]         = useState<Filter>("all");
@@ -570,6 +706,26 @@ export function InboxClient({
     ? selectedId
     : (visibleItems[0]?.id ?? null);
   const detailItem = detailId ? (activeItems.find((i) => i.id === detailId) ?? null) : null;
+  const detailSourceItem = detailId ? (persistedItems.find((i) => i.id === detailId) ?? null) : null;
+  const statusNotice = reviewError
+    ? { tone: "danger" as const, title: "Review action failed", message: reviewError }
+    : reviewed
+      ? {
+        tone: "success" as const,
+        title: reviewed === "approved" ? "Item approved" : reviewed === "rejected" ? "Item rejected" : "Item skipped",
+        message: reviewedItemId ? `Inbox item ${reviewedItemId.slice(0, 8)} updated.` : "Inbox item updated.",
+      }
+      : batchError
+        ? { tone: "danger" as const, title: "Batch approval failed", message: batchError }
+        : batchApproved
+          ? { tone: "success" as const, title: "Batch approval complete", message: `${batchApproved} item(s) approved.` }
+          : devSeedError
+            ? { tone: "danger" as const, title: "Dev seed action failed", message: devSeedError }
+            : devSeeded
+              ? { tone: "success" as const, title: "Test inbox seeded", message: "Development seed items were added." }
+              : devSeedCleared
+                ? { tone: "success" as const, title: "Test inbox cleared", message: `${devSeedCleared} seeded item(s) removed.` }
+                : null;
 
   function dismiss(id: string) {
     setAnimOut((s) => new Set(Array.from(s).concat(id)));
@@ -580,18 +736,6 @@ export function InboxClient({
       const next = visibleItems[idx + 1] ?? visibleItems[idx - 1];
       setSelectedId(next?.id ?? null);
     }, 300);
-  }
-
-  function handleApprove() {
-    if (!detailId) return;
-    const id = detailId;
-    dismiss(id);
-    setRejectOpen(false);
-    startTransition(async () => {
-      const fd = new FormData();
-      fd.append("inboxItemIds", id);
-      await batchApproveInboxItemsAction(fd);
-    });
   }
 
   function handleApproveAll() {
@@ -606,12 +750,17 @@ export function InboxClient({
     });
   }
 
-  function handleReject() {
-    if (!detailId) return;
-    dismiss(detailId);
-    setRejectOpen(false);
-    setRejectReason(null);
-    setRejectNote("");
+  function handleSkipAll() {
+    visibleItems.forEach((item) => {
+      const id = item.id;
+      dismiss(id);
+      startTransition(async () => {
+        const fd = new FormData();
+        fd.append("inboxItemId", id);
+        fd.append("status", "skipped");
+        await reviewInboxItemFromQueueAction(fd);
+      });
+    });
   }
 
   return (
@@ -664,11 +813,25 @@ export function InboxClient({
           <Btn variant="ghost" onClick={handleApproveAll} disabled={!highConfItems.length}>
             ✓ Approve all high-confidence ({highConfItems.length})
           </Btn>
-          <Btn variant="ghost">↓ Skip all</Btn>
+          <Btn variant="ghost" onClick={handleSkipAll} disabled={!visibleItems.length}>↓ Skip all</Btn>
         </div>
       </div>
 
       {/* ── Filter bar ─────────────────────────────────────────────────── */}
+      {statusNotice ? (
+        <div style={{
+          margin: "12px 24px 0",
+          borderRadius: 8,
+          border: `1px solid ${statusNotice.tone === "danger" ? "rgba(240,96,96,0.25)" : "rgba(45,212,160,0.22)"}`,
+          background: statusNotice.tone === "danger" ? "rgba(240,96,96,0.10)" : "rgba(45,212,160,0.08)",
+          padding: "12px 16px",
+          color: "var(--lp-text)",
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{statusNotice.title}</div>
+          <div style={{ fontSize: 11, color: "var(--lp-muted)" }}>{statusNotice.message}</div>
+        </div>
+      ) : null}
+
       <div style={{
         display: "flex", alignItems: "center", gap: 6,
         padding: "10px 24px", borderBottom: "1px solid var(--lp-border)",
@@ -716,20 +879,19 @@ export function InboxClient({
               <DetailHeader item={detailItem} />
               <DetailActions
                 item={detailItem}
-                onApprove={handleApprove}
                 onReject={() => setRejectOpen(true)}
               />
               <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
                 <ScoreRow item={detailItem} />
-                <ContentPreview item={detailItem} />
+                {detailSourceItem ? <DetailBody item={detailSourceItem} /> : null}
               </div>
               {rejectOpen && (
                 <RejectDrawer
+                  itemId={detailItem.id}
                   reason={rejectReason}
                   note={rejectNote}
                   onSelectReason={setRejectReason}
                   onNoteChange={setRejectNote}
-                  onConfirm={handleReject}
                   onCancel={() => { setRejectOpen(false); setRejectReason(null); setRejectNote(""); }}
                 />
               )}
