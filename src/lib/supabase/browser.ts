@@ -1,10 +1,13 @@
 import { createBrowserClient } from "@supabase/ssr";
-import { env, supabasePublicKey } from "@/config/env";
 
 export function createSupabaseBrowserClient() {
-  if (!env.NEXT_PUBLIC_SUPABASE_URL || !supabasePublicKey) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabasePublicKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabasePublicKey) {
     throw new Error("Supabase URL and publishable key are not configured.");
   }
 
-  return createBrowserClient(env.NEXT_PUBLIC_SUPABASE_URL, supabasePublicKey);
+  return createBrowserClient(supabaseUrl, supabasePublicKey);
 }

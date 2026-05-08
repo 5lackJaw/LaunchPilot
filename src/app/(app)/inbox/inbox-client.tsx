@@ -99,6 +99,19 @@ function reviewTime(seconds: number | null): string {
   return `~${Math.max(1, Math.round(seconds / 60))} min`;
 }
 
+function textValue(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return null;
+}
+
 function mapToUI(item: InboxItem): UIItem {
   const type = mapItemType(item.itemType);
   const conf = item.aiConfidence === null ? 70 : Math.round(item.aiConfidence * 100);
@@ -106,7 +119,8 @@ function mapToUI(item: InboxItem): UIItem {
   const p    = item.payload as Record<string, unknown>;
   const kw   = typeof p.targetKeyword === "string" ? p.targetKeyword : null;
   const wc   = typeof p.wordCount === "number" ? p.wordCount : null;
-  const prev = (item.payload.preview ?? item.payload.suggestedAction ?? "");
+  const title = textValue(item.payload.title) ?? humanizeItemType(item.itemType);
+  const prev = textValue(item.payload.preview) ?? textValue(item.payload.suggestedAction) ?? "";
 
   const sub = (() => {
     if (type === "article") {
@@ -145,7 +159,7 @@ function mapToUI(item: InboxItem): UIItem {
   return {
     id: item.id,
     type,
-    title: item.payload.title ?? item.itemType.replaceAll("_", " "),
+    title,
     sub,
     confidence: conf,
     confColor:  confColor(conf),
@@ -502,7 +516,11 @@ function DetailBody({ item }: { item: InboxItem }) {
   const metadataEntries = Object.entries(item.payload.metadata ?? {}).filter(([, value]) => {
     return value !== undefined && value !== null && value !== "";
   });
-  const hasBody = typeof item.payload.body === "string" && item.payload.body.trim().length > 0;
+  const title = textValue(item.payload.title) ?? humanizeItemType(item.itemType);
+  const preview = textValue(item.payload.preview);
+  const suggestedAction = textValue(item.payload.suggestedAction);
+  const body = textValue(item.payload.body);
+  const hasBody = Boolean(body);
 
   return (
     <div className="lb-slide-in" style={{ marginBottom: 20 }}>
@@ -516,7 +534,7 @@ function DetailBody({ item }: { item: InboxItem }) {
       <div style={{ background: "var(--lp-bg2)", border: "1px solid var(--lp-border)", borderRadius: 8, overflow: "hidden" }}>
         <div style={{ background: "var(--lp-bg3)", padding: "16px 20px", borderBottom: "1px solid var(--lp-border)" }}>
           <div style={{ fontFamily: "var(--font-serif)", fontSize: 17, color: "var(--lp-text)", lineHeight: 1.4, marginBottom: 6 }}>
-            {item.payload.title ?? humanizeItemType(item.itemType)}
+            {title}
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--lp-muted)" }}>
             <span>{humanizeItemType(item.itemType)}</span>
@@ -525,25 +543,25 @@ function DetailBody({ item }: { item: InboxItem }) {
           </div>
         </div>
         <div style={{ padding: "16px 20px", display: "grid", gap: 16 }}>
-          {item.payload.preview ? (
+          {preview ? (
             <div>
               <div style={fieldLabelStyle}>Preview</div>
-              <p style={fieldValueStyle}>{item.payload.preview}</p>
+              <p style={fieldValueStyle}>{preview}</p>
             </div>
           ) : null}
-          {item.payload.suggestedAction ? (
+          {suggestedAction ? (
             <div>
               <div style={fieldLabelStyle}>Suggested action</div>
-              <p style={fieldValueStyle}>{item.payload.suggestedAction}</p>
+              <p style={fieldValueStyle}>{suggestedAction}</p>
             </div>
           ) : null}
           {hasBody ? (
             <div>
               <div style={fieldLabelStyle}>Body</div>
-              <MarkdownBlock value={item.payload.body ?? ""} />
+              <MarkdownBlock value={body ?? ""} />
             </div>
           ) : null}
-          {!hasBody && !item.payload.preview && !item.payload.suggestedAction ? (
+          {!hasBody && !preview && !suggestedAction ? (
             <p style={{ fontSize: 12, color: "var(--lp-muted)", lineHeight: 1.7, fontStyle: "italic" }}>
               No content payload was provided for this item.
             </p>
@@ -707,29 +725,40 @@ export function InboxClient({
     [activeItems, filter],
   );
   const highConfItems = useMemo(() => activeItems.filter((i) => i.bulkSafe), [activeItems]);
-  const showFirstRunWorking = firstRun === "1" && activeItems.length === 0 && !firstRunError;
+  const productId = product?.id ?? null;
+  const showFirstRunWorking = firstRun === "1" && persistedItems.length === 0 && !firstRunError;
 
   useEffect(() => {
-    if (!product) {
+    if (!productId) {
       return;
     }
 
-    const supabase = createSupabaseBrowserClient();
-    const channel = supabase
-      .channel(`inbox-items:${product.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "inbox_items",
-          filter: `product_id=eq.${product.id}`,
-        },
-        () => {
-          router.refresh();
-        },
-      )
-      .subscribe();
+    let removeRealtime: (() => void) | null = null;
+
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const channel = supabase
+        .channel(`inbox-items:${productId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "inbox_items",
+            filter: `product_id=eq.${productId}`,
+          },
+          () => {
+            router.refresh();
+          },
+        )
+        .subscribe();
+
+      removeRealtime = () => {
+        void supabase.removeChannel(channel);
+      };
+    } catch (error) {
+      console.warn("Inbox realtime unavailable; using fallback refresh only.", error);
+    }
 
     const fallback = window.setInterval(() => {
       if (showFirstRunWorking) {
@@ -739,9 +768,9 @@ export function InboxClient({
 
     return () => {
       window.clearInterval(fallback);
-      void supabase.removeChannel(channel);
+      removeRealtime?.();
     };
-  }, [product, router, showFirstRunWorking]);
+  }, [productId, router, showFirstRunWorking]);
 
   // Prefer explicit selection; fall back to first visible item
   const detailId = (selectedId && activeItems.find((i) => i.id === selectedId))
