@@ -68,12 +68,7 @@ export class ContentService {
     const { asset, created } = await this.getOrCreateContentAssetForKeywordOpportunity(parsed);
     const generation = getContentGenerationState(asset.provenance);
 
-    if (
-      asset.bodyMd.trim() ||
-      generation?.status === "queued" ||
-      generation?.status === "running" ||
-      generation?.status === "completed"
-    ) {
+    if (asset.bodyMd.trim() || generation?.status === "queued" || generation?.status === "running") {
       return asset;
     }
 

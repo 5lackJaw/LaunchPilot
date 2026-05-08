@@ -13,14 +13,14 @@ export type ArticleDraftPipelineInput = {
 };
 
 const searchIntentSchema = z.object({
-  primaryIntent: z.string().min(8),
+  primaryIntent: z.string().min(8).max(220),
   searchStage: z.enum([
     "awareness",
     "consideration",
     "decision",
     "navigational",
   ]),
-  jobToBeDone: z.string().min(20),
+  jobToBeDone: z.string().min(20).max(260),
   serpArchetype: z.enum([
     "definition_explainer",
     "how_to_tutorial",
@@ -30,12 +30,12 @@ const searchIntentSchema = z.object({
     "reference_doc",
     "troubleshooting",
   ]),
-  readerProblems: z.array(z.string().min(6)).min(3).max(6),
-  questionsToAnswer: z.array(z.string().min(6)).min(4).max(10),
-  mustCover: z.array(z.string().min(6)).min(4).max(10),
-  mustAvoid: z.array(z.string().min(6)).min(2).max(6),
-  contentAngle: z.string().min(12),
-  differentiationHook: z.string().min(20),
+  readerProblems: z.array(z.string().min(6).max(180)).min(3).max(6),
+  questionsToAnswer: z.array(z.string().min(6).max(180)).min(4).max(10),
+  mustCover: z.array(z.string().min(6).max(180)).min(4).max(10),
+  mustAvoid: z.array(z.string().min(6).max(180)).min(2).max(6),
+  contentAngle: z.string().min(12).max(260),
+  differentiationHook: z.string().min(20).max(260),
 });
 
 const outlineSchema = z.object({
@@ -78,12 +78,12 @@ const searchIntentJsonSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    primaryIntent: { type: "string" },
+    primaryIntent: { type: "string", maxLength: 220 },
     searchStage: {
       type: "string",
       enum: ["awareness", "consideration", "decision", "navigational"],
     },
-    jobToBeDone: { type: "string" },
+    jobToBeDone: { type: "string", maxLength: 260 },
     serpArchetype: {
       type: "string",
       enum: [
@@ -100,28 +100,28 @@ const searchIntentJsonSchema = {
       type: "array",
       minItems: 3,
       maxItems: 6,
-      items: { type: "string" },
+      items: { type: "string", maxLength: 180 },
     },
     questionsToAnswer: {
       type: "array",
       minItems: 4,
       maxItems: 10,
-      items: { type: "string" },
+      items: { type: "string", maxLength: 180 },
     },
     mustCover: {
       type: "array",
       minItems: 4,
       maxItems: 10,
-      items: { type: "string" },
+      items: { type: "string", maxLength: 180 },
     },
     mustAvoid: {
       type: "array",
       minItems: 2,
       maxItems: 6,
-      items: { type: "string" },
+      items: { type: "string", maxLength: 180 },
     },
-    contentAngle: { type: "string" },
-    differentiationHook: { type: "string" },
+    contentAngle: { type: "string", maxLength: 260 },
+    differentiationHook: { type: "string", maxLength: 260 },
   },
   required: [
     "primaryIntent",
@@ -257,6 +257,7 @@ export async function researchSearcherIntent(input: ArticleDraftPipelineInput) {
     "The differentiationHook must propose a specific angle a competitor article would not take, grounded in the product's actual position from the brief.",
     "The mustAvoid list should name generic tropes or sections that competing articles commonly include but that add little value.",
     "Do not invent search volume or cite sources you cannot access.",
+    "Keep all strings concise: no field over 260 characters, no array item over 180 characters.",
     "Return JSON only.",
     buildArticleInputBlock(input),
   ].join("\n\n");
@@ -268,11 +269,13 @@ export async function researchSearcherIntent(input: ArticleDraftPipelineInput) {
     taskClass: "seo_search_intent",
     system: buildArticleSystemPrompt(),
     prompt,
-    maxOutputTokens: 1200,
+    maxOutputTokens: 2400,
     temperature: 0.2,
     responseJsonSchema: searchIntentJsonSchema,
     schema: searchIntentSchema,
     label: "search intent",
+    maxJsonRetries: 2,
+    retryMaxOutputTokens: 3600,
     metadata: {
       stage: "search_intent",
       contentAssetId: input.asset.id,
@@ -664,59 +667,64 @@ async function generateParsedJson<T>(input: {
   responseJsonSchema: unknown;
   normalize?: (value: unknown) => unknown;
   label: string;
+  maxJsonRetries?: number;
+  retryMaxOutputTokens?: number;
   metadata: Record<string, unknown>;
 }) {
-  const result = await aiRouter.generateText({
-    supabase: input.supabase,
-    productId: input.productId,
-    userId: input.userId,
-    taskClass: input.taskClass,
-    system: input.system,
-    prompt: input.prompt,
-    maxOutputTokens: input.maxOutputTokens,
-    temperature: input.temperature,
-    responseMimeType: "application/json",
-    responseJsonSchema: input.responseJsonSchema,
-    metadata: input.metadata,
-  });
+  const maxAttempts = 1 + (input.maxJsonRetries ?? 1);
+  let previousParseError: ArticleAiParseError | null = null;
 
-  try {
-    return {
-      data: parseJsonResult(result.text, input.schema, input.label, input.normalize),
-      result,
-    };
-  } catch (error) {
-    if (!(error instanceof ArticleAiParseError) || error.kind !== "json") {
-      throw error;
-    }
-
-    const retry = await aiRouter.generateText({
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const isRetry = attempt > 0;
+    const result = await aiRouter.generateText({
       supabase: input.supabase,
       productId: input.productId,
       userId: input.userId,
       taskClass: input.taskClass,
       system: input.system,
-      prompt: [
-        input.prompt,
-        "The previous response was invalid JSON and could not be parsed.",
-        "Return one complete JSON object only. Do not truncate strings. Do not include markdown.",
-      ].join("\n\n"),
-      maxOutputTokens: Math.ceil(input.maxOutputTokens * 1.5),
-      temperature: 0.1,
+      prompt: isRetry
+        ? [
+            input.prompt,
+            "The previous response was invalid or truncated JSON and could not be parsed.",
+            "Return one complete JSON object only. Close every string and array. Do not include markdown.",
+            previousParseError ? `Parser error: ${previousParseError.message}` : "",
+          ].filter(Boolean).join("\n\n")
+        : input.prompt,
+      maxOutputTokens: isRetry
+        ? (input.retryMaxOutputTokens ?? Math.ceil(input.maxOutputTokens * 1.75))
+        : input.maxOutputTokens,
+      temperature: isRetry ? 0.1 : input.temperature,
       responseMimeType: "application/json",
       responseJsonSchema: input.responseJsonSchema,
-      metadata: {
-        ...input.metadata,
-        retryReason: "invalid_json",
-        previousParseError: error.message,
-      },
+      metadata: isRetry
+        ? {
+            ...input.metadata,
+            retryReason: "invalid_or_truncated_json",
+            retryAttempt: attempt,
+            previousParseError: previousParseError?.message,
+          }
+        : input.metadata,
     });
 
-    return {
-      data: parseJsonResult(retry.text, input.schema, input.label, input.normalize),
-      result: retry,
-    };
+    try {
+      return {
+        data: parseJsonResult(result.text, input.schema, input.label, input.normalize),
+        result,
+      };
+    } catch (error) {
+      if (!(error instanceof ArticleAiParseError) || error.kind !== "json") {
+        throw error;
+      }
+
+      previousParseError = error;
+
+      if (attempt === maxAttempts - 1) {
+        throw error;
+      }
+    }
   }
+
+  throw previousParseError ?? new ArticleAiParseError(`${input.label} response was not valid JSON.`, "json");
 }
 
 function parseJsonResult<T>(

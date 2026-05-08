@@ -687,7 +687,31 @@ export const contentGenerationWorkflow = inngest.createFunction(
       }
 
       if (existing.data) {
-        return existing.data;
+        const { data, error } = await supabase
+          .from("inbox_items")
+          .update({
+            payload: {
+              title: updated.title,
+              preview: `${inputs.asset.type} draft for ${updated.target_keyword ?? "selected keyword"}.`,
+              body: draft.bodyMd,
+              targetKeyword: updated.target_keyword,
+              metaTitle: draft.metaTitle,
+              metaDescription: draft.metaDescription,
+              suggestedAction: "Review the generated content draft before publishing or exporting.",
+            },
+            ai_confidence: draft.aiConfidence,
+            impact_estimate: "high",
+            review_time_estimate_seconds: 600,
+          })
+          .eq("id", existing.data.id)
+          .select("id,product_id")
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        return data;
       }
 
       const { data, error } = await supabase
