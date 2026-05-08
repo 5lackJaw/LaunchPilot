@@ -63,12 +63,6 @@ export class ContentService {
     return deriveKeywordOpportunities(brief);
   }
 
-  async selectKeywordOpportunity(input: unknown): Promise<ContentAsset> {
-    const parsed = selectKeywordOpportunitySchema.parse(input);
-    const { asset } = await this.getOrCreateContentAssetForKeywordOpportunity(parsed);
-    return asset;
-  }
-
   async selectKeywordOpportunityAndRequestGeneration(input: unknown): Promise<ContentAsset> {
     const parsed = selectKeywordOpportunitySchema.parse(input);
     const { asset, created } = await this.getOrCreateContentAssetForKeywordOpportunity(parsed);

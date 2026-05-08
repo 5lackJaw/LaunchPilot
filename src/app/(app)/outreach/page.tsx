@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AgentStatusHeader, type AgentStatusHeaderState } from "@/components/agent-status-header";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -19,6 +20,7 @@ import {
   ProductReadError,
   ProductService,
 } from "@/server/services/product-service";
+import { AgentStatusReadError, AgentStatusService } from "@/server/services/agent-status-service";
 
 type PageProps = {
   searchParams: Promise<{
@@ -155,6 +157,14 @@ export default async function OutreachPage({ searchParams }: PageProps) {
           gap: "22px",
         }}
       >
+        <AgentStatusHeader
+          label="Outreach agent"
+          state={data.agentStatus.state}
+          lastRun={data.agentStatus.lastRun}
+          nextRun={data.agentStatus.nextRun}
+          inboxCount={data.agentStatus.inboxCount}
+        />
+
         {/* Alert feedback */}
         {params.prospectRequested ? (
           <Alert>
@@ -1298,6 +1308,12 @@ function ContactRow({ contact }: { contact: OutreachContact }) {
 async function loadOutreachData(): Promise<{
   product: Product | null;
   contacts: OutreachContact[];
+  agentStatus: {
+    state: AgentStatusHeaderState;
+    lastRun: string;
+    nextRun: string;
+    inboxCount: number;
+  };
   error: string | null;
 }> {
   try {
@@ -1305,23 +1321,29 @@ async function loadOutreachData(): Promise<{
     const product = await new ProductService(supabase).getLatestProduct();
 
     if (!product) {
-      return { product: null, contacts: [], error: null };
+      return { product: null, contacts: [], agentStatus: emptyAgentStatus("not_configured"), error: null };
     }
 
     const contacts = await new OutreachService(supabase).listContacts({
       productId: product.id,
     });
-    return { product, contacts, error: null };
+    const agentStatus = await new AgentStatusService(supabase).getHeader({
+      productId: product.id,
+      channel: "outreach",
+      itemUpdatedAts: contacts.map((contact) => contact.updatedAt),
+    });
+    return { product, contacts, agentStatus, error: null };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { product: null, contacts: [], error: error.message };
+      return { product: null, contacts: [], agentStatus: emptyAgentStatus("not_configured"), error: error.message };
     }
 
     if (
       error instanceof ProductReadError ||
-      error instanceof OutreachContactReadError
+      error instanceof OutreachContactReadError ||
+      error instanceof AgentStatusReadError
     ) {
-      return { product: null, contacts: [], error: error.message };
+      return { product: null, contacts: [], agentStatus: emptyAgentStatus("not_configured"), error: error.message };
     }
 
     if (
@@ -1331,6 +1353,7 @@ async function loadOutreachData(): Promise<{
       return {
         product: null,
         contacts: [],
+        agentStatus: emptyAgentStatus("not_configured"),
         error:
           "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
       };
@@ -1338,6 +1361,15 @@ async function loadOutreachData(): Promise<{
 
     throw error;
   }
+}
+
+function emptyAgentStatus(state: AgentStatusHeaderState) {
+  return {
+    state,
+    lastRun: "No runs yet",
+    nextRun: "Not scheduled",
+    inboxCount: 0,
+  };
 }
 
 function countContacts(contacts: OutreachContact[]) {

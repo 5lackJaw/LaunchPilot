@@ -15,7 +15,7 @@ import {
 export async function selectKeywordOpportunityAction(formData: FormData) {
   const productId = String(formData.get("productId") ?? "");
   const opportunityId = String(formData.get("opportunityId") ?? "");
-  let redirectTo = "/seo";
+  let redirectTo = "/content";
 
   try {
     const supabase = await createSupabaseServerClient();
@@ -26,10 +26,11 @@ export async function selectKeywordOpportunityAction(formData: FormData) {
 
     revalidatePath("/seo");
     revalidatePath("/content");
-    redirectTo = `/content/${asset.id}?generationRequested=1`;
+    revalidatePath(`/content/${asset.id}`);
+    redirectTo = "/content?generationRequested=1";
   } catch (error) {
     const message = toSelectionErrorMessage(error);
-    redirectTo = `/seo?selectionError=${encodeURIComponent(message)}`;
+    redirectTo = `/content?selectionError=${encodeURIComponent(message)}`;
   }
 
   redirect(redirectTo);

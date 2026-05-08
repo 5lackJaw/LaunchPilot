@@ -1,7 +1,7 @@
 import { inngest } from "@/inngest/client";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { buildDirectoryListingPackage } from "@/server/directory/build-listing-package";
-import { directorySchema } from "@/server/schemas/directory";
+import { directorySchema, type Directory } from "@/server/schemas/directory";
 import { marketingBriefSchema } from "@/server/schemas/brief";
 import { captureWorkflowException, logWorkflowEvent } from "@/server/observability/workflow-logger";
 
@@ -10,6 +10,8 @@ export const directoryPackageGenerationWorkflow = inngest.createFunction(
   async ({ event, step }) => {
     const workflow = "directory_package_generation";
     const productId = event.data.productId as string;
+    const limit = typeof event.data.limit === "number" ? event.data.limit : null;
+    const reason = typeof event.data.reason === "string" ? event.data.reason : null;
     const supabase = createSupabaseAdminClient();
     logWorkflowEvent({ workflow, status: "started", eventName: event.name, productId });
 
@@ -47,21 +49,23 @@ export const directoryPackageGenerationWorkflow = inngest.createFunction(
 
       return {
         product: productResult.data,
-        directories: directoriesResult.data.map((directory) =>
-          directorySchema.parse({
-            id: directory.id,
-            name: directory.name,
-            url: directory.url,
-            categories: directory.categories,
-            submissionMethod: directory.submission_method,
-            avgDa: directory.avg_da,
-            avgTrafficTier: directory.avg_traffic_tier,
-            reviewTimeDays: directory.review_time_days,
-            freeTierAvailable: directory.free_tier_available,
-            paidTierPrice: directory.paid_tier_price,
-            active: directory.active,
-          }),
-        ),
+        directories: rankDirectories(
+          directoriesResult.data.map((directory) =>
+            directorySchema.parse({
+              id: directory.id,
+              name: directory.name,
+              url: directory.url,
+              categories: directory.categories,
+              submissionMethod: directory.submission_method,
+              avgDa: directory.avg_da,
+              avgTrafficTier: directory.avg_traffic_tier,
+              reviewTimeDays: directory.review_time_days,
+              freeTierAvailable: directory.free_tier_available,
+              paidTierPrice: directory.paid_tier_price,
+              active: directory.active,
+            }),
+          ),
+        ).slice(0, limit ?? undefined),
         brief: briefResult.data
           ? marketingBriefSchema.parse({
               id: briefResult.data.id,
@@ -99,6 +103,7 @@ export const directoryPackageGenerationWorkflow = inngest.createFunction(
           generator: "deterministic-directory-package-v0",
           generatedAt: new Date().toISOString(),
           briefVersion: inputs.brief?.version ?? null,
+          reason,
         },
       }));
 
@@ -187,3 +192,35 @@ export const directoryPackageGenerationWorkflow = inngest.createFunction(
     }
   },
 );
+
+function rankDirectories(directories: Directory[]) {
+  const trafficRank: Record<Directory["avgTrafficTier"], number> = {
+    high: 3,
+    medium: 2,
+    low: 1,
+    unknown: 0,
+  };
+
+  return [...directories].sort((a, b) => {
+    const daDelta = (b.avgDa ?? -1) - (a.avgDa ?? -1);
+    if (daDelta !== 0) {
+      return daDelta;
+    }
+
+    const trafficDelta = trafficRank[b.avgTrafficTier] - trafficRank[a.avgTrafficTier];
+    if (trafficDelta !== 0) {
+      return trafficDelta;
+    }
+
+    if (a.freeTierAvailable !== b.freeTierAvailable) {
+      return a.freeTierAvailable ? -1 : 1;
+    }
+
+    const reviewDelta = (a.reviewTimeDays ?? Number.MAX_SAFE_INTEGER) - (b.reviewTimeDays ?? Number.MAX_SAFE_INTEGER);
+    if (reviewDelta !== 0) {
+      return reviewDelta;
+    }
+
+    return a.name.localeCompare(b.name);
+  });
+}

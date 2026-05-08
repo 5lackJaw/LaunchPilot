@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AgentStatusHeader, type AgentStatusHeaderState } from "@/components/agent-status-header";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -17,6 +18,7 @@ import {
   ProductReadError,
   ProductService,
 } from "@/server/services/product-service";
+import { AgentStatusReadError, AgentStatusService } from "@/server/services/agent-status-service";
 
 type PageProps = {
   searchParams: Promise<{
@@ -143,6 +145,14 @@ export default async function CommunityPage({ searchParams }: PageProps) {
           gap: "22px",
         }}
       >
+        <AgentStatusHeader
+          label="Community agent"
+          state={data.agentStatus.state}
+          lastRun={data.agentStatus.lastRun}
+          nextRun={data.agentStatus.nextRun}
+          inboxCount={data.agentStatus.inboxCount}
+        />
+
         {/* Alert feedback */}
         {params.ingestionRequested ? (
           <Alert>
@@ -1132,6 +1142,12 @@ function ThreadRow({ thread }: { thread: CommunityThread }) {
 async function loadCommunityData(): Promise<{
   product: Product | null;
   threads: CommunityThread[];
+  agentStatus: {
+    state: AgentStatusHeaderState;
+    lastRun: string;
+    nextRun: string;
+    inboxCount: number;
+  };
   error: string | null;
 }> {
   try {
@@ -1139,23 +1155,29 @@ async function loadCommunityData(): Promise<{
     const product = await new ProductService(supabase).getLatestProduct();
 
     if (!product) {
-      return { product: null, threads: [], error: null };
+      return { product: null, threads: [], agentStatus: emptyAgentStatus("not_configured"), error: null };
     }
 
     const threads = await new CommunityService(supabase).listThreads({
       productId: product.id,
     });
-    return { product, threads, error: null };
+    const agentStatus = await new AgentStatusService(supabase).getHeader({
+      productId: product.id,
+      channel: "community",
+      itemUpdatedAts: threads.map((thread) => thread.updatedAt),
+    });
+    return { product, threads, agentStatus, error: null };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { product: null, threads: [], error: error.message };
+      return { product: null, threads: [], agentStatus: emptyAgentStatus("not_configured"), error: error.message };
     }
 
     if (
       error instanceof ProductReadError ||
-      error instanceof CommunityThreadReadError
+      error instanceof CommunityThreadReadError ||
+      error instanceof AgentStatusReadError
     ) {
-      return { product: null, threads: [], error: error.message };
+      return { product: null, threads: [], agentStatus: emptyAgentStatus("not_configured"), error: error.message };
     }
 
     if (
@@ -1165,6 +1187,7 @@ async function loadCommunityData(): Promise<{
       return {
         product: null,
         threads: [],
+        agentStatus: emptyAgentStatus("not_configured"),
         error:
           "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
       };
@@ -1172,6 +1195,15 @@ async function loadCommunityData(): Promise<{
 
     throw error;
   }
+}
+
+function emptyAgentStatus(state: AgentStatusHeaderState) {
+  return {
+    state,
+    lastRun: "No runs yet",
+    nextRun: "Not scheduled",
+    inboxCount: 0,
+  };
 }
 
 function countThreads(threads: CommunityThread[]) {

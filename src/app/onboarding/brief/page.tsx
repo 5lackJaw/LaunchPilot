@@ -14,7 +14,7 @@ import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError, AuthService } from "@/server/services/auth-service";
 import { BriefReadError, BriefService } from "@/server/services/brief-service";
 import { ProductReadError, ProductService } from "@/server/services/product-service";
-import { requestBriefGenerationAction, saveBriefEditAction } from "@/app/onboarding/brief/actions";
+import { requestBriefGenerationAction, saveBriefEditAction, startUsingLaunchBeaconAction } from "@/app/onboarding/brief/actions";
 
 export const metadata: Metadata = {
   title: "Marketing Brief",
@@ -27,6 +27,7 @@ type PageProps = {
     requestError?: string;
     edited?: string;
     editError?: string;
+    startError?: string;
   }>;
 };
 
@@ -54,9 +55,10 @@ export default async function OnboardingBriefPage({ searchParams }: PageProps) {
           <div className="flex items-center gap-2">
             {data.brief ? <Badge variant="secondary">Version {data.brief.version}</Badge> : <Badge variant="warning">Generating</Badge>}
             {data.brief ? (
-              <Button asChild size="sm">
-                <Link href="/dashboard">Open dashboard</Link>
-              </Button>
+              <form action={startUsingLaunchBeaconAction}>
+                <input type="hidden" name="productId" value={data.brief.productId} />
+                <Button size="sm" type="submit">Start using LaunchBeacon</Button>
+              </form>
             ) : null}
           </div>
         </header>
@@ -91,6 +93,12 @@ export default async function OnboardingBriefPage({ searchParams }: PageProps) {
             <Alert variant="destructive">
               <AlertTitle>Brief edit was not saved</AlertTitle>
               <AlertDescription>{params.editError}</AlertDescription>
+            </Alert>
+          ) : null}
+          {params.startError ? (
+            <Alert variant="destructive">
+              <AlertTitle>LaunchBeacon could not start</AlertTitle>
+              <AlertDescription>{params.startError}</AlertDescription>
             </Alert>
           ) : null}
 
@@ -133,7 +141,7 @@ export default async function OnboardingBriefPage({ searchParams }: PageProps) {
             <Alert>
               <AlertTitle>Product setup is ready</AlertTitle>
               <AlertDescription>
-                Review or edit this brief here, then continue to the dashboard to run the rest of the product workflow.
+                Review or edit this brief here, then start using LaunchBeacon. The first article drafts and directory listing packages will be queued automatically.
               </AlertDescription>
             </Alert>
           ) : null}

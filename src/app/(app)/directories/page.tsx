@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FolderKanban } from "lucide-react";
+import { AgentStatusHeader, type AgentStatusHeaderState } from "@/components/agent-status-header";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -14,6 +15,7 @@ import type { Product } from "@/server/schemas/product";
 import { AuthRequiredError } from "@/server/services/auth-service";
 import { DirectoryReadError, DirectoryService } from "@/server/services/directory-service";
 import { ProductReadError, ProductService } from "@/server/services/product-service";
+import { AgentStatusReadError, AgentStatusService } from "@/server/services/agent-status-service";
 
 type PageProps = {
   searchParams: Promise<{
@@ -96,6 +98,13 @@ export default async function DirectoriesPage({ searchParams }: PageProps) {
       />
 
       <div style={{ flex: 1, overflowY: "auto", padding: "22px 28px 40px", display: "flex", flexDirection: "column", gap: "22px" }}>
+        <AgentStatusHeader
+          label="Directory agent"
+          state={data.agentStatus.state}
+          lastRun={data.agentStatus.lastRun}
+          nextRun={data.agentStatus.nextRun}
+          inboxCount={data.agentStatus.inboxCount}
+        />
 
         {/* Alerts */}
         {params.packageRequested && (
@@ -500,6 +509,12 @@ function TabBtn({ children, active }: { children: React.ReactNode; active?: bool
 async function loadDirectoryData(): Promise<{
   product: Product | null;
   items: DirectoryTrackerItem[];
+  agentStatus: {
+    state: AgentStatusHeaderState;
+    lastRun: string;
+    nextRun: string;
+    inboxCount: number;
+  };
   error: string | null;
 }> {
   try {
@@ -507,28 +522,42 @@ async function loadDirectoryData(): Promise<{
     const product = await new ProductService(supabase).getLatestProduct();
 
     if (!product) {
-      return { product: null, items: [], error: null };
+      return { product: null, items: [], agentStatus: emptyAgentStatus("not_configured"), error: null };
     }
 
     const items = await new DirectoryService(supabase).listTracker({ productId: product.id });
-    return { product, items, error: null };
+    const agentStatus = await new AgentStatusService(supabase).getHeader({
+      productId: product.id,
+      channel: "directories",
+      itemUpdatedAts: items.flatMap((item) => item.submission?.updatedAt ? [item.submission.updatedAt] : []),
+    });
+    return { product, items, agentStatus, error: null };
   } catch (error) {
     if (error instanceof AuthRequiredError) {
-      return { product: null, items: [], error: (error as Error).message };
+      return { product: null, items: [], agentStatus: emptyAgentStatus("not_configured"), error: (error as Error).message };
     }
 
-    if (error instanceof ProductReadError || error instanceof DirectoryReadError) {
-      return { product: null, items: [], error: (error as Error).message };
+    if (error instanceof ProductReadError || error instanceof DirectoryReadError || error instanceof AgentStatusReadError) {
+      return { product: null, items: [], agentStatus: emptyAgentStatus("not_configured"), error: (error as Error).message };
     }
 
     if (error instanceof Error && error.message.includes("Supabase URL and publishable key")) {
       return {
-        product: null, items: [],
+        product: null, items: [], agentStatus: emptyAgentStatus("not_configured"),
         error: "Supabase is not configured yet. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local.",
       };
     }
 
     throw error;
   }
+}
+
+function emptyAgentStatus(state: AgentStatusHeaderState) {
+  return {
+    state,
+    lastRun: "No runs yet",
+    nextRun: "Not scheduled",
+    inboxCount: 0,
+  };
 }
 

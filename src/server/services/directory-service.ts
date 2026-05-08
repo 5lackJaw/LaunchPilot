@@ -77,6 +77,8 @@ export class DirectoryService {
       name: "directory_package/generation.requested",
       data: {
         productId: parsed.productId,
+        limit: parsed.limit,
+        reason: parsed.reason,
       },
     });
   }

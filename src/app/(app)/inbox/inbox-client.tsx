@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   batchApproveInboxItemsAction,
   clearDevInboxItemsAction,
   reviewInboxItemFromQueueAction,
   seedDevInboxItemsAction,
 } from "@/app/(app)/inbox/actions";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type { InboxItem } from "@/server/schemas/inbox";
 import type { Product } from "@/server/schemas/product";
 
@@ -667,6 +669,8 @@ export function InboxClient({
   devSeeded,
   devSeedCleared,
   devSeedError,
+  firstRun,
+  firstRunError,
   reviewed,
   reviewError,
   reviewedItemId,
@@ -679,11 +683,14 @@ export function InboxClient({
   devSeeded?: string;
   devSeedCleared?: string;
   devSeedError?: string;
+  firstRun?: string;
+  firstRunError?: string;
   reviewed?: string;
   reviewError?: string;
   reviewedItemId?: string;
   canUseDevSeed: boolean;
 }) {
+  const router = useRouter();
   const [filter, setFilter]         = useState<Filter>("all");
   const [dismissed, setDismissed]   = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -700,6 +707,41 @@ export function InboxClient({
     [activeItems, filter],
   );
   const highConfItems = useMemo(() => activeItems.filter((i) => i.bulkSafe), [activeItems]);
+  const showFirstRunWorking = firstRun === "1" && activeItems.length === 0 && !firstRunError;
+
+  useEffect(() => {
+    if (!product) {
+      return;
+    }
+
+    const supabase = createSupabaseBrowserClient();
+    const channel = supabase
+      .channel(`inbox-items:${product.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "inbox_items",
+          filter: `product_id=eq.${product.id}`,
+        },
+        () => {
+          router.refresh();
+        },
+      )
+      .subscribe();
+
+    const fallback = window.setInterval(() => {
+      if (showFirstRunWorking) {
+        router.refresh();
+      }
+    }, 8000);
+
+    return () => {
+      window.clearInterval(fallback);
+      void supabase.removeChannel(channel);
+    };
+  }, [product, router, showFirstRunWorking]);
 
   // Prefer explicit selection; fall back to first visible item
   const detailId = (selectedId && activeItems.find((i) => i.id === selectedId))
@@ -709,6 +751,8 @@ export function InboxClient({
   const detailSourceItem = detailId ? (persistedItems.find((i) => i.id === detailId) ?? null) : null;
   const statusNotice = reviewError
     ? { tone: "danger" as const, title: "Review action failed", message: reviewError }
+    : firstRunError
+      ? { tone: "danger" as const, title: "Some first-run jobs could not start", message: firstRunError }
     : reviewed
       ? {
         tone: "success" as const,
@@ -830,6 +874,30 @@ export function InboxClient({
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{statusNotice.title}</div>
           <div style={{ fontSize: 11, color: "var(--lp-muted)" }}>{statusNotice.message}</div>
         </div>
+      ) : showFirstRunWorking ? (
+        <div style={{
+          margin: "12px 24px 0",
+          borderRadius: 8,
+          border: "1px solid rgba(124,111,247,0.22)",
+          background: "rgba(124,111,247,0.08)",
+          padding: "12px 16px",
+          color: "var(--lp-text)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+            <span className="animate-spin" style={{
+              width: 12,
+              height: 12,
+              borderRadius: "50%",
+              border: "2px solid rgba(124,111,247,0.25)",
+              borderTopColor: "var(--lp-purple)",
+              display: "inline-block",
+            }} />
+            LaunchBeacon is working
+          </div>
+          <div style={{ fontSize: 11, color: "var(--lp-muted)" }}>
+            Your first content drafts and directory listing packages will appear here shortly.
+          </div>
+        </div>
       ) : null}
 
       <div style={{
@@ -859,7 +927,11 @@ export function InboxClient({
         <div style={{ borderRight: "1px solid var(--lp-border)", overflowY: "auto", background: "var(--lp-bg2)" }}>
           {visibleItems.length === 0 ? (
             <div style={{ padding: "48px 24px", textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--lp-muted)", lineHeight: 1.7 }}>
-              {activeItems.length ? "No items match this filter" : "No pending items"}
+              {activeItems.length
+                ? "No items match this filter"
+                : showFirstRunWorking
+                  ? "LaunchBeacon is working. New cards appear here as drafts finish."
+                  : "No pending items"}
             </div>
           ) : visibleItems.map((item) => (
             <InboxCard
@@ -898,7 +970,11 @@ export function InboxClient({
             </>
           ) : (
             <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--lp-muted)", fontFamily: "var(--font-mono)", fontSize: 12 }}>
-              {activeItems.length ? "Select an item to review" : "✓ All items reviewed"}
+              {activeItems.length
+                ? "Select an item to review"
+                : showFirstRunWorking
+                  ? "LaunchBeacon is working. Your first drafts will appear here shortly."
+                  : "✓ All items reviewed"}
             </div>
           )}
         </div>

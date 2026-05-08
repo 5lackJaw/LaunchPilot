@@ -11,9 +11,9 @@ import {
   Hash,
   Inbox,
   LayoutDashboard,
+  LogOut,
   Plug,
   Boxes,
-  Search,
   Send,
   Settings,
   Share2,
@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WorkflowNotifications } from "@/components/layout/workflow-notifications";
+import { signOutAction } from "@/app/(app)/logout/actions";
 
 const navGroups = [
   {
@@ -31,10 +32,9 @@ const navGroups = [
     ],
   },
   {
-    label: "Channels",
+    label: "Autopilots",
     items: [
       { href: "/content",     label: "Content",         icon: FileText },
-      { href: "/seo",         label: "SEO Content",     icon: Search },
       { href: "/community",   label: "Community",       icon: Share2 },
       { href: "/outreach",    label: "Outreach",        icon: Send },
       { href: "/directories", label: "Directories",     icon: Workflow },
@@ -168,7 +168,7 @@ export function AppShell({
           >
             {initials}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate" style={{ fontSize: "12.5px", fontWeight: 500, color: "var(--lp-text)" }}>
               {email}
             </p>
@@ -176,6 +176,21 @@ export function AppShell({
               {planLabel}
             </p>
           </div>
+          <form action={signOutAction}>
+            <button
+              type="submit"
+              aria-label="Log out"
+              title="Log out"
+              className="inline-flex size-7 items-center justify-center rounded-md transition-colors"
+              style={{
+                border: "1px solid var(--lp-border)",
+                background: "transparent",
+                color: "var(--lp-muted)",
+              }}
+            >
+              <LogOut className="size-[14px]" aria-hidden="true" />
+            </button>
+          </form>
         </div>
       </aside>
 

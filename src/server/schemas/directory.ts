@@ -42,6 +42,8 @@ export const listDirectoryTrackerSchema = z.object({
 
 export const requestDirectoryPackageGenerationSchema = z.object({
   productId: z.string().uuid(),
+  limit: z.number().int().min(1).max(50).optional(),
+  reason: z.string().trim().min(1).max(80).optional(),
 });
 
 export const updateDirectorySubmissionStatusSchema = z.object({
